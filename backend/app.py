@@ -55,6 +55,9 @@ def cleaning_page():
 def data_quality_report(df):
     report = {}
 
+    # Add this line to include the first 5 rows as a preview
+    report['preview'] = df.head().to_dict(orient="records")
+
     # nulls
     nulls = df.isnull().sum()
     report['nulls'] = nulls[nulls > 0].to_dict()
@@ -62,6 +65,7 @@ def data_quality_report(df):
     # duplicates
     report['duplicates'] = int(df.duplicated().sum())
 
+    # data type mismatches
     suggested_dtypes = {}
     for col in df.columns:
         try:
