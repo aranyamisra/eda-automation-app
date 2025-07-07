@@ -7,6 +7,7 @@ import App from './App.jsx';
 import LandingPage from './LandingPage';
 import UploadPage from './UploadPage';
 import ReportPage from './ReportPage';
+import CleaningPage from './CleaningPage';
 // ...other imports
 
 const darkTheme = createTheme({
@@ -30,6 +31,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route index element={<LandingPage />} />
           <Route path="upload" element={<UploadPage />} />
           <Route path="report" element={<ReportPage />} />
+          <Route path="cleaning" element={<CleaningPage />} />
           {/* Add more routes as needed */}
         </Route>
       </Routes>
