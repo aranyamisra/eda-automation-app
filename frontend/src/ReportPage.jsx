@@ -15,7 +15,10 @@ import {
   Divider,
   Alert,
   CircularProgress,
-  Button
+  Button,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails
 } from '@mui/material';
 import { 
   ExpandMore,
@@ -27,7 +30,8 @@ import {
   TrendingUp,
   Storage,
   Assessment,
-  CleaningServices
+  CleaningServices,
+  Analytics
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -42,10 +46,15 @@ function ReportPage() {
     fetch('http://localhost:5001/cleaning', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
+        console.log('Received report data:', data);
+        console.log('Statistical summary:', data.statistical_summary);
+        console.log('Quality metrics:', data.quality_metrics);
+        console.log('Data quality score:', data.data_quality_score);
         setReport(data);
         setLoading(false);
       })
       .catch(err => {
+        console.error('Error fetching report:', err);
         setReport({ error: 'Failed to fetch report' });
         setLoading(false);
       });
@@ -213,6 +222,75 @@ function ReportPage() {
           </Box>
         </Paper>
       </Box>
+
+      {/* Statistical Summaries Section */}
+      {report.statistical_summary && Object.keys(report.statistical_summary).length > 0 && (
+        <Paper sx={{ mt: 4 }}>
+          <Box p={3}>
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Analytics />
+              Statistical Summaries (Numeric Columns)
+            </Typography>
+            
+            {Object.keys(report.statistical_summary).map((metric) => (
+              <Accordion key={metric} sx={{ mb: 2 }}>
+                <AccordionSummary expandIcon={<ExpandMore />}>
+                  <Typography variant="subtitle1" sx={{ textTransform: 'capitalize', fontWeight: 'bold' }}>
+                    {metric} Values
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 'bold' }}>Column</TableCell>
+                          <TableCell sx={{ fontWeight: 'bold' }} align="right">Value</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {Object.entries(report.statistical_summary[metric]).map(([column, value]) => (
+                          <TableRow key={column}>
+                            <TableCell>{column}</TableCell>
+                            <TableCell align="right">
+                              {typeof value === 'number' ? value.toFixed(2) : String(value)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </AccordionDetails>
+              </Accordion>
+            ))}
+          </Box>
+        </Paper>
+      )}
+
+      {/* Quality Metrics */}
+      {report.quality_metrics && Object.keys(report.quality_metrics).length > 0 && (
+        <Paper sx={{ mt: 4 }}>
+          <Box p={3}>
+            <Typography variant="h6" gutterBottom>
+              Quality Metrics
+            </Typography>
+            <Box display="flex" gap={3} flexWrap="wrap">
+              {Object.entries(report.quality_metrics)
+                .filter(([metric]) => metric !== 'data_types_optimized')
+                .map(([metric, value]) => (
+                  <Box key={metric} sx={{ minWidth: 150 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+                      {metric.replace(/_/g, ' ')}
+                    </Typography>
+                    <Typography variant="h6" color="primary">
+                      {typeof value === 'number' ? `${value}%` : value}
+                    </Typography>
+                  </Box>
+                ))}
+            </Box>
+          </Box>
+        </Paper>
+      )}
     </Box>
   );
 }
