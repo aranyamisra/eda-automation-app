@@ -5,6 +5,7 @@ import json
 from datetime import timedelta
 from flask_cors import CORS
 import traceback
+import numpy as np
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key'
@@ -165,16 +166,16 @@ def apply_cleaning_operations(df, config):
     
     # Handle null values
     nulls_config = config.get('nulls', {})
-    for column, action in nulls_config.items():
+    for column, null_action in nulls_config.items():
         if column in df.columns:
+            action = null_action.get('action')
             if action == 'delete_row':
                 df = df.dropna(subset=[column])
             elif action == 'delete_column':
                 df = df.drop(columns=[column])
             elif action == 'fill':
-                fill_method = config.get('fillMethod', 'specific')
-                fill_value = config.get('fillValue', '')
-                
+                fill_method = null_action.get('fillMethod', 'specific')
+                fill_value = null_action.get('fillValue', '')
                 if fill_method == 'specific':
                     df[column] = df[column].fillna(fill_value)
                 elif fill_method == 'mean':
@@ -182,7 +183,8 @@ def apply_cleaning_operations(df, config):
                 elif fill_method == 'median':
                     df[column] = df[column].fillna(df[column].median())
                 elif fill_method == 'mode':
-                    df[column] = df[column].fillna(df[column].mode().iloc[0] if not df[column].mode().empty else 'Unknown')
+                    mode_val = df[column].mode()
+                    df[column] = df[column].fillna(mode_val.iloc[0] if not mode_val.empty else fill_value)
                 elif fill_method == 'forward':
                     df[column] = df[column].fillna(method='ffill')
                 elif fill_method == 'backward':
@@ -241,8 +243,9 @@ def data_quality_report(df, filename):
             'memory_usage': f"{df.memory_usage(deep=True).sum() / 1024 / 1024:.2f} MB"
         }
 
-        # Preview data (first 5 rows)
-        report['preview'] = df.head().to_dict(orient="records")
+        # Preview data (first 5 rows) with NaN replaced by None
+        preview_df = df.head().replace({np.nan: None})
+        report['preview'] = preview_df.to_dict(orient="records")
 
         # Null values analysis
         nulls = df.isnull().sum()

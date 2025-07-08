@@ -168,6 +168,22 @@ function CleaningPage() {
     }
   };
 
+  const handleNullAction = (col, action) => {
+    if (action === 'fill') {
+      handleCleaningAction('nulls', col, { action: 'fill', fillMethod: cleaningActions.nulls?.[col]?.fillMethod || 'specific' });
+    } else {
+      handleCleaningAction('nulls', col, { action });
+    }
+  };
+
+  const handleFillMethodChange = (col, method) => {
+    handleCleaningAction('nulls', col, { action: 'fill', fillMethod: method });
+  };
+
+  const handleFillValueChange = (col, value) => {
+    handleCleaningAction('nulls', col, { action: 'fill', fillMethod: 'specific', fillValue: value });
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
@@ -267,16 +283,22 @@ function CleaningPage() {
               <Typography variant="h6" gutterBottom>
                 Duplicate Values ({report.duplicates || 0} found)
               </Typography>
-              <FormControl component="fieldset">
-                <FormLabel component="legend">Action:</FormLabel>
-                <RadioGroup
-                  value={cleaningActions.duplicates || 'remain'}
-                  onChange={(e) => handleCleaningAction('duplicates', null, e.target.value)}
-                >
-                  <FormControlLabel value="delete" control={<Radio />} label="Delete duplicates" />
-                  <FormControlLabel value="remain" control={<Radio />} label="Keep duplicates" />
-                </RadioGroup>
-              </FormControl>
+              {report.duplicates > 0 ? (
+                <div>
+                  <FormControl component="fieldset">
+                    <FormLabel component="legend">Action:</FormLabel>
+                    <RadioGroup
+                      value={cleaningActions.duplicates || 'remain'}
+                      onChange={(e) => handleCleaningAction('duplicates', null, e.target.value)}
+                    >
+                      <FormControlLabel value="delete" control={<Radio />} label="Delete duplicates" />
+                      <FormControlLabel value="remain" control={<Radio />} label="Keep duplicates" />
+                    </RadioGroup>
+                  </FormControl>
+                </div>
+              ) : (
+                <Typography color="success.main">✓ No duplicate values found</Typography>
+              )}
             </Box>
           </Paper>
         </Grid>
@@ -286,53 +308,70 @@ function CleaningPage() {
           <Paper>
             <Box p={3}>
               <Typography variant="h6" gutterBottom>
-                Null Values
+                Handle Missing Values
               </Typography>
-              {report.nulls && Object.keys(report.nulls).length > 0 ? (
-                <Box>
-                  {Object.entries(report.nulls).map(([col, count]) => (
-                    <Accordion key={col} sx={{ mb: 1 }}>
-                      <AccordionSummary expandIcon={<ExpandMore />}>
-                        <Typography variant="subtitle1">
-                          {col} ({count} missing)
-                        </Typography>
-                      </AccordionSummary>
-                      <AccordionDetails>
-                        <FormControl component="fieldset" fullWidth>
-                          <FormLabel component="legend">Action:</FormLabel>
-                          <RadioGroup
-                            value={cleaningActions.nulls[col] || 'remain'}
-                            onChange={(e) => handleCleaningAction('nulls', col, e.target.value)}
+              <Divider sx={{ mb: 2 }} />
+              {Object.entries(report.nulls).map(([col, count]) => (
+                <Paper key={col} elevation={2} sx={{ mb: 3, p: 2, minHeight: 170, position: 'relative', overflow: 'visible' }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    {col} <span style={{ color: '#888' }}>({count} nulls)</span>
+                  </Typography>
+                  <FormControl component="fieldset" sx={{ mt: 1 }}>
+                    <FormLabel component="legend" sx={{ fontSize: 14 }}>Action</FormLabel>
+                    <RadioGroup
+                      row
+                      value={cleaningActions.nulls?.[col]?.action || ''}
+                      onChange={e => handleNullAction(col, e.target.value)}
+                    >
+                      <FormControlLabel value="delete_row" control={<Radio />} label="Delete rows" />
+                      <FormControlLabel value="delete_column" control={<Radio />} label="Delete column" />
+                      <FormControlLabel value="fill" control={<Radio />} label="Fill with value" />
+                    </RadioGroup>
+                  </FormControl>
+                  <Box
+                    sx={{
+                      ml: 3,
+                      mt: 1,
+                      minHeight: 60, // Reserve space for fill options/input
+                      transition: 'min-height 0.3s',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                  >
+                    {cleaningActions.nulls?.[col]?.action === 'fill' && (
+                      <Box sx={{ ml: 3, mt: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <FormControl size="small" sx={{ minWidth: 180 }}>
+                          <InputLabel id={`fill-method-label-${col}`}>Fill method</InputLabel>
+                          <Select
+                            labelId={`fill-method-label-${col}`}
+                            id={`fill-method-select-${col}`}
+                            value={cleaningActions.nulls?.[col]?.fillMethod || 'specific'}
+                            label="Fill method"
+                            onChange={e => handleFillMethodChange(col, e.target.value)}
                           >
-                            <FormControlLabel 
-                              value="delete_row" 
-                              control={<Radio />} 
-                              label="Delete rows with nulls" 
-                            />
-                            <FormControlLabel 
-                              value="delete_column" 
-                              control={<Radio />} 
-                              label="Delete entire column" 
-                            />
-                            <FormControlLabel 
-                              value="fill" 
-                              control={<Radio />} 
-                              label="Fill with value" 
-                            />
-                            <FormControlLabel 
-                              value="remain" 
-                              control={<Radio />} 
-                              label="Keep as is" 
-                            />
-                          </RadioGroup>
+                            <MenuItem value="specific">Specific value</MenuItem>
+                            <MenuItem value="mean">Mean</MenuItem>
+                            <MenuItem value="median">Median</MenuItem>
+                            <MenuItem value="mode">Mode</MenuItem>
+                            <MenuItem value="forward">Forward fill</MenuItem>
+                            <MenuItem value="backward">Backward fill</MenuItem>
+                          </Select>
                         </FormControl>
-                      </AccordionDetails>
-                    </Accordion>
-                  ))}
-                </Box>
-              ) : (
-                <Typography color="success.main">✓ No null values found</Typography>
-              )}
+                        {cleaningActions.nulls?.[col]?.fillMethod === 'specific' && (
+                          <TextField
+                            label={`Fill value for "${col}"`}
+                            value={cleaningActions.nulls?.[col]?.fillValue || ''}
+                            onChange={e => handleFillValueChange(col, e.target.value)}
+                            size="small"
+                            sx={{ width: 180 }}
+                            variant="outlined"
+                          />
+                        )}
+                      </Box>
+                    )}
+                  </Box>
+                </Paper>
+              ))}
             </Box>
           </Paper>
         </Grid>
