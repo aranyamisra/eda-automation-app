@@ -5,6 +5,7 @@ import json
 from datetime import timedelta
 from flask_cors import CORS
 import traceback
+import numpy as np
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key'
@@ -126,32 +127,78 @@ def clean_data():
         # Get cleaning configuration
         config = request.json
         original_shape = df.shape
-        
+
+        # --- BEFORE REPORT ---
+        before_report = data_quality_report(df, filename)
+        before_dtypes = df.dtypes.apply(lambda x: x.name).to_dict()
+
         # Apply cleaning operations
-        df = apply_cleaning_operations(df, config)
-        
+        df_cleaned = apply_cleaning_operations(df.copy(), config)
+
         # Save cleaned dataset
         cleaned_filename = f"cleaned_{filename}"
         cleaned_filepath = os.path.join(upload_folder, cleaned_filename)
         
         if ext == 'csv':
-            df.to_csv(cleaned_filepath, index=False)
+            df_cleaned.to_csv(cleaned_filepath, index=False)
         elif ext in ['xls', 'xlsx']:
-            df.to_excel(cleaned_filepath, index=False)
+            df_cleaned.to_excel(cleaned_filepath, index=False)
         elif ext == 'json':
-            df.to_json(cleaned_filepath, orient='records')
-        
-        # Generate new report
-        new_report = data_quality_report(df, cleaned_filename)
-        
+            df_cleaned.to_json(cleaned_filepath, orient='records')
+
+        # --- AFTER REPORT ---
+        after_report = data_quality_report(df_cleaned, cleaned_filename)
+        after_dtypes = df_cleaned.dtypes.apply(lambda x: x.name).to_dict()
+
+        # --- DATA TYPE CHANGES ---
+        dtype_changes = {}
+        for col in before_dtypes:
+            if col in after_dtypes and before_dtypes[col] != after_dtypes[col]:
+                dtype_changes[col] = {'before': before_dtypes[col], 'after': after_dtypes[col]}
+
+        # --- WARNINGS/SUGGESTIONS ---
+        warnings = []
+        # Remaining nulls
+        if after_report['nulls']:
+            for col, count in after_report['nulls'].items():
+                warnings.append(f"Column '{col}' still has {count} nulls after cleaning.")
+        # Remaining type suggestions
+        if after_report['suggested_dtypes']:
+            for col, dtype in after_report['suggested_dtypes'].items():
+                warnings.append(f"Column '{col}' could be converted to {dtype}.")
+        # High null percentage
+        if after_report['quality_metrics'].get('null_percentage', 0) > 5:
+            warnings.append("Some columns still have more than 5% null values.")
+        # High duplicate percentage
+        if after_report['quality_metrics'].get('duplicate_percentage', 0) > 0:
+            warnings.append("There are still duplicate rows present.")
+
         return jsonify({
             'message': 'Data cleaning applied successfully',
-            'original_shape': original_shape,
-            'new_shape': df.shape,
-            'cleaned_filename': cleaned_filename,
-            'new_report': new_report
+            'before': {
+                'shape': before_report['dataset_info'],
+                'nulls': before_report['nulls'],
+                'duplicates': before_report['duplicates'],
+                'dtypes': before_dtypes,
+                'quality_metrics': before_report['quality_metrics'],
+                'statistical_summary': before_report['statistical_summary'],
+                'data_quality_score': before_report['data_quality_score']
+            },
+            'after': {
+                'shape': after_report['dataset_info'],
+                'nulls': after_report['nulls'],
+                'duplicates': after_report['duplicates'],
+                'dtypes': after_dtypes,
+                'quality_metrics': after_report['quality_metrics'],
+                'statistical_summary': after_report['statistical_summary'],
+                'data_quality_score': after_report['data_quality_score'],
+                'preview': after_report['preview']
+            },
+            'dtype_changes': dtype_changes,
+            'warnings': warnings,
+            'cleaned_filename': cleaned_filename
         }), 200
-        
+    
     except Exception as e:
         app.logger.error(traceback.format_exc())
         return jsonify({'error': f'Failed to apply data cleaning: {str(e)}'}), 500
@@ -242,7 +289,8 @@ def data_quality_report(df, filename):
         }
 
         # Preview data (first 5 rows)
-        report['preview'] = df.head().to_dict(orient="records")
+        preview_df = df.head().replace({np.nan: None})
+        report['preview'] = preview_df.to_dict(orient="records")
 
         # Null values analysis
         nulls = df.isnull().sum()

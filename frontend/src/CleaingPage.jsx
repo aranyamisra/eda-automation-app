@@ -33,7 +33,10 @@ import {
   Radio,
   RadioGroup,
   FormControlLabel,
-  FormLabel
+  FormLabel,
+  List,
+  ListItem,
+  ListItemText
 } from '@mui/material';
 import { 
   ExpandMore,
@@ -441,9 +444,175 @@ function CleaningPage() {
 
       {/* Success Message */}
       {cleanedData && (
-        <Alert severity="success" sx={{ mt: 3 }}>
-          Data cleaning applied successfully! The dataset has been updated.
-        </Alert>
+        <>
+          <Alert severity="success" sx={{ mt: 3 }}>
+            Data cleaning applied successfully! The dataset has been updated.
+          </Alert>
+
+          {/* Cleaned Data Report Section */}
+          <Paper sx={{ mt: 4, p: 3 }}>
+            <Typography variant="h5" gutterBottom>Cleaned Data Report</Typography>
+
+            {/* 1. Before vs. After Comparison */}
+            <Typography variant="h6" sx={{ mt: 2 }}>Before vs. After Comparison</Typography>
+            <TableContainer sx={{ mb: 3 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell></TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Before</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>After</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  <TableRow>
+                    <TableCell>Rows</TableCell>
+                    <TableCell>{cleanedData.before.shape.rows}</TableCell>
+                    <TableCell>{cleanedData.after.shape.rows}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Columns</TableCell>
+                    <TableCell>{cleanedData.before.shape.columns}</TableCell>
+                    <TableCell>{cleanedData.after.shape.columns}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Duplicates</TableCell>
+                    <TableCell>{cleanedData.before.duplicates}</TableCell>
+                    <TableCell>{cleanedData.after.duplicates}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Nulls (total)</TableCell>
+                    <TableCell>{Object.values(cleanedData.before.nulls || {}).reduce((a, b) => a + b, 0)}</TableCell>
+                    <TableCell>{Object.values(cleanedData.after.nulls || {}).reduce((a, b) => a + b, 0)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            {/* Data Type Changes */}
+            {cleanedData.dtype_changes && Object.keys(cleanedData.dtype_changes).length > 0 && (
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Data Type Changes</Typography>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Column</TableCell>
+                        <TableCell>Before</TableCell>
+                        <TableCell>After</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {Object.entries(cleanedData.dtype_changes).map(([col, change]) => (
+                        <TableRow key={col}>
+                          <TableCell>{col}</TableCell>
+                          <TableCell>{change.before}</TableCell>
+                          <TableCell>{change.after}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            )}
+
+            {/* 3. Updated Data Quality Metrics */}
+            <Typography variant="h6" sx={{ mt: 2 }}>Updated Data Quality Metrics</Typography>
+            <Box display="flex" gap={3} flexWrap="wrap" sx={{ mb: 3 }}>
+              {Object.entries(cleanedData.after.quality_metrics || {})
+                .filter(([metric]) => metric !== 'data_types_optimized')
+                .map(([metric, value]) => (
+                  <Box key={metric} sx={{ minWidth: 150 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+                      {metric.replace(/_/g, ' ')}
+                    </Typography>
+                    <Typography variant="h6" color="primary">
+                      {typeof value === 'number' ? `${value}%` : value}
+                    </Typography>
+                  </Box>
+                ))}
+            </Box>
+
+            {/* 4. Statistical Summaries (After Cleaning) */}
+            {cleanedData.after.statistical_summary && Object.keys(cleanedData.after.statistical_summary).length > 0 && (
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6">Statistical Summaries (After Cleaning)</Typography>
+                {Object.keys(cleanedData.after.statistical_summary).map((metric) => (
+                  <Accordion key={metric} sx={{ mb: 2 }}>
+                    <AccordionSummary expandIcon={<ExpandMore />}>
+                      <Typography variant="subtitle1" sx={{ textTransform: 'capitalize', fontWeight: 'bold' }}>
+                        {metric} Values
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <TableContainer>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell sx={{ fontWeight: 'bold' }}>Column</TableCell>
+                              <TableCell sx={{ fontWeight: 'bold' }} align="right">Value</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {Object.entries(cleanedData.after.statistical_summary[metric]).map(([column, value]) => (
+                              <TableRow key={column}>
+                                <TableCell>{column}</TableCell>
+                                <TableCell align="right">
+                                  {typeof value === 'number' ? value.toFixed(2) : String(value)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </AccordionDetails>
+                  </Accordion>
+                ))}
+              </Box>
+            )}
+
+            {/* 6. Warnings or Recommendations */}
+            {cleanedData.warnings && cleanedData.warnings.length > 0 && (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="h6" color="warning.main">Warnings / Recommendations</Typography>
+                <List>
+                  {cleanedData.warnings.map((w, i) => (
+                    <ListItem key={i}>
+                      <ListItemText primary={w} />
+                    </ListItem>
+                  ))}
+                </List>
+              </Box>
+            )}
+
+            {/* Preview of Cleaned Data */}
+            {cleanedData.after.preview && cleanedData.after.preview.length > 0 && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="h6">Preview of Cleaned Data</Typography>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        {Object.keys(cleanedData.after.preview[0]).map(col => (
+                          <TableCell key={col} sx={{ fontWeight: 'bold' }}>{col}</TableCell>
+                        ))}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {cleanedData.after.preview.map((row, i) => (
+                        <TableRow key={i}>
+                          {Object.values(row).map((val, j) => (
+                            <TableCell key={j}>{val !== null && val !== undefined ? String(val) : 'null'}</TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            )}
+          </Paper>
+        </>
       )}
 
       {/* Confirmation Dialog */}
