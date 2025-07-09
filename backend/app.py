@@ -6,6 +6,7 @@ from datetime import timedelta
 from flask_cors import CORS
 import traceback
 import numpy as np
+import warnings
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key'
@@ -159,19 +160,23 @@ def clean_data():
         # --- WARNINGS/SUGGESTIONS ---
         warnings = []
         # Remaining nulls
-        if after_report['nulls']:
+        if after_report and after_report.get('nulls'):
             for col, count in after_report['nulls'].items():
                 warnings.append(f"Column '{col}' still has {count} nulls after cleaning.")
         # Remaining type suggestions
-        if after_report['suggested_dtypes']:
+        if after_report and after_report.get('suggested_dtypes'):
             for col, dtype in after_report['suggested_dtypes'].items():
                 warnings.append(f"Column '{col}' could be converted to {dtype}.")
         # High null percentage
-        if after_report['quality_metrics'].get('null_percentage', 0) > 5:
+        if after_report and after_report.get('quality_metrics', {}).get('null_percentage', 0) > 5:
             warnings.append("Some columns still have more than 5% null values.")
         # High duplicate percentage
-        if after_report['quality_metrics'].get('duplicate_percentage', 0) > 0:
+        if after_report and after_report.get('quality_metrics', {}).get('duplicate_percentage', 0) > 0:
             warnings.append("There are still duplicate rows present.")
+        
+        # Add success message if no warnings
+        if not warnings:
+            warnings.append("✓ No issues detected after cleaning.")
 
         return jsonify({
             'message': 'Data cleaning applied successfully',
@@ -249,6 +254,7 @@ def apply_cleaning_operations(df, config):
                         df[column] = pd.to_datetime(df[column], errors='coerce')
                 except:
                     pass  # Keep original type if conversion fails
+                print(df.dtypes)
     
     return df
 
@@ -290,9 +296,6 @@ def data_quality_report(df, filename):
         }
 
         # Preview data (first 5 rows) with NaN replaced by None
-        preview_df = df.head().replace({np.nan: None})
-        report['preview'] = preview_df.to_dict(orient="records")
-        # Preview data (first 5 rows)
         preview_df = df.head().replace({np.nan: None})
         report['preview'] = preview_df.to_dict(orient="records")
 
@@ -374,6 +377,51 @@ def too_large(e):
 @app.errorhandler(500)
 def internal_error(e):
     return jsonify({'error': 'Internal server error. Please try again.'}), 500
+
+@app.route('/analysis', methods=['GET'])
+def analysis_metadata():
+    """Return column names, dtypes, grouped types, and preview from the latest cleaned dataset."""
+    try:
+        upload_folder = app.config['UPLOAD_FOLDER']
+        # Find latest cleaned file (filename starts with 'cleaned_')
+        files = [os.path.join(upload_folder, f) for f in os.listdir(upload_folder)
+                 if os.path.isfile(os.path.join(upload_folder, f)) and f.startswith('cleaned_')]
+        if not files:
+            return jsonify({'error': 'No cleaned files found. Please clean a dataset first.'}), 400
+        filepath = max(files, key=os.path.getctime)
+        filename = os.path.basename(filepath)
+        ext = filepath.split('.')[-1].lower()
+        # Load dataset
+        if ext == 'csv':
+            df = pd.read_csv(filepath)
+        elif ext in ['xls', 'xlsx']:
+            df = pd.read_excel(filepath)
+        elif ext == 'json':
+            df = pd.read_json(filepath, orient='records')
+        else:
+            return jsonify({'error': 'Unsupported file format'}), 400
+        # Group columns by type
+        columns = []
+        for col in df.columns:
+            dtype = df[col].dtype.name
+            # Grouping logic
+            if pd.api.types.is_numeric_dtype(df[col]):
+                group = 'Numerical'
+            elif pd.api.types.is_datetime64_any_dtype(df[col]):
+                group = 'Date/Time'
+            else:
+                group = 'Categorical'
+            columns.append({'name': col, 'dtype': dtype, 'group': group})
+        # Preview (first 5 rows)
+        preview = df.head().replace({np.nan: None}).to_dict(orient='records')
+        return jsonify({
+            'filename': filename,
+            'columns': columns,
+            'preview': preview
+        }), 200
+    except Exception as e:
+        app.logger.error(traceback.format_exc())
+        return jsonify({'error': f'Failed to load analysis metadata: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)

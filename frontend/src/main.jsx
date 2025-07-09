@@ -8,6 +8,7 @@ import LandingPage from './LandingPage';
 import UploadPage from './UploadPage';
 import ReportPage from './ReportPage';
 import CleaningPage from './CleaningPage';
+import AnalysisPage from './AnalysisPage';
 // import AnalysisPage from './AnalysisPage'; // Removed
 // ...other imports
 
@@ -33,6 +34,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="upload" element={<UploadPage />} />
           <Route path="report" element={<ReportPage />} />
           <Route path="cleaning" element={<CleaningPage />} />
+          <Route path="/analysis" element={<AnalysisPage />} />
           {/* <Route path="analysis" element={<AnalysisPage />} /> */} {/* Removed */}
           {/* Add more routes as needed */}
         </Route>
