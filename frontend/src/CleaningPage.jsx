@@ -285,16 +285,16 @@ function CleaningPage() {
               </Typography>
               {report.duplicates > 0 ? (
                 <div>
-                  <FormControl component="fieldset">
-                    <FormLabel component="legend">Action:</FormLabel>
-                    <RadioGroup
-                      value={cleaningActions.duplicates || 'remain'}
-                      onChange={(e) => handleCleaningAction('duplicates', null, e.target.value)}
-                    >
-                      <FormControlLabel value="delete" control={<Radio />} label="Delete duplicates" />
-                      <FormControlLabel value="remain" control={<Radio />} label="Keep duplicates" />
-                    </RadioGroup>
-                  </FormControl>
+              <FormControl component="fieldset">
+                <FormLabel component="legend">Action:</FormLabel>
+                <RadioGroup
+                  value={cleaningActions.duplicates || 'remain'}
+                  onChange={(e) => handleCleaningAction('duplicates', null, e.target.value)}
+                >
+                  <FormControlLabel value="delete" control={<Radio />} label="Delete duplicates" />
+                  <FormControlLabel value="remain" control={<Radio />} label="Keep duplicates" />
+                </RadioGroup>
+              </FormControl>
                 </div>
               ) : (
                 <Typography color="success.main">✓ No duplicate values found</Typography>
@@ -310,19 +310,19 @@ function CleaningPage() {
               <Typography variant="h6" gutterBottom>
                 Handle Missing Values
               </Typography>
-              <Divider sx={{ mb: 2 }} />
-              {Object.entries(report.nulls).map(([col, count]) => (
+              {Object.keys(report.nulls || {}).length > 0 ? (
+                Object.entries(report.nulls).map(([col, count]) => (
                 <Paper key={col} elevation={2} sx={{ mb: 3, p: 2, minHeight: 170, position: 'relative', overflow: 'visible' }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                     {col} <span style={{ color: '#888' }}>({count} nulls)</span>
-                  </Typography>
+                        </Typography>
                   <FormControl component="fieldset" sx={{ mt: 1 }}>
                     <FormLabel component="legend" sx={{ fontSize: 14 }}>Action</FormLabel>
-                    <RadioGroup
+                          <RadioGroup
                       row
                       value={cleaningActions.nulls?.[col]?.action || ''}
                       onChange={e => handleNullAction(col, e.target.value)}
-                    >
+                          >
                       <FormControlLabel value="delete_row" control={<Radio />} label="Delete rows" />
                       <FormControlLabel value="delete_column" control={<Radio />} label="Delete column" />
                       <FormControlLabel value="fill" control={<Radio />} label="Fill with value" />
@@ -367,11 +367,14 @@ function CleaningPage() {
                             variant="outlined"
                           />
                         )}
-                      </Box>
-                    )}
+                </Box>
+              )}
                   </Box>
                 </Paper>
-              ))}
+              ))
+              ) : (
+                <Typography color="success.main">✓ No missing values to handle</Typography>
+              )}
             </Box>
           </Paper>
         </Grid>
@@ -480,9 +483,57 @@ function CleaningPage() {
 
       {/* Success Message */}
       {cleanedData && (
-        <Alert severity="success" sx={{ mt: 3 }}>
-          Data cleaning applied successfully! The dataset has been updated.
-        </Alert>
+        <Box sx={{ mt: 3 }}>
+          <Alert severity="success" sx={{ mb: 3 }}>
+            Data cleaning applied successfully! The dataset has been updated.
+          </Alert>
+          
+          {/* Statistical Summary After Cleaning */}
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Statistical Summary After Cleaning
+            </Typography>
+            {cleanedData.after?.statistical_summary ? (
+              <Grid container spacing={2}>
+                {Object.entries(cleanedData.after.statistical_summary).map(([stat, values]) => (
+                  <Grid item xs={12} md={6} key={stat}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="subtitle1" gutterBottom sx={{ textTransform: 'capitalize' }}>
+                          {stat}
+                        </Typography>
+                        <TableContainer>
+                          <Table size="small">
+                            <TableHead>
+                              <TableRow>
+                                <TableCell>Column</TableCell>
+                                <TableCell align="right">Value</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {Object.entries(values).map(([col, val]) => (
+                                <TableRow key={col}>
+                                  <TableCell>{col}</TableCell>
+                                  <TableCell align="right">
+                                    {typeof val === 'number' ? val.toFixed(2) : val}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            ) : (
+              <Typography color="text.secondary">
+                No statistical summary available for the cleaned data.
+              </Typography>
+            )}
+          </Paper>
+        </Box>
       )}
 
       {/* Confirmation Dialog */}
