@@ -414,10 +414,13 @@ def analysis_metadata():
             columns.append({'name': col, 'dtype': dtype, 'group': group})
         # Preview (first 5 rows)
         preview = df.head().replace({np.nan: None}).to_dict(orient='records')
+        # Full data (all rows, NaN to None)
+        data = df.replace({np.nan: None}).to_dict(orient='records')
         return jsonify({
             'filename': filename,
             'columns': columns,
-            'preview': preview
+            'preview': preview,
+            'data': data
         }), 200
     except Exception as e:
         app.logger.error(traceback.format_exc())
