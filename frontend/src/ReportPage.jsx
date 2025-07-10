@@ -22,14 +22,6 @@ import {
 } from '@mui/material';
 import { 
   ExpandMore,
-  Delete,
-  ContentCopy,
-  Warning,
-  CheckCircle,
-  Error,
-  TrendingUp,
-  Storage,
-  Assessment,
   CleaningServices,
   Analytics
 } from '@mui/icons-material';
@@ -90,6 +82,11 @@ function ReportPage() {
     <Box p={3}>
       <Typography variant="h4" gutterBottom>
         Data Quality Report
+      </Typography>
+
+      {/* Short Summary */}
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+        Gain insights into the quality of your dataset by identifying issues such as null values, duplicates, and data type inconsistencies. Use this information to prepare your data for effective analysis.
       </Typography>
 
       {/* Proceed to Cleaning Button */}
