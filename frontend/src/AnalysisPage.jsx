@@ -1,8 +1,31 @@
 import React, { useEffect, useState, useMemo } from 'react';
-// ...existing code...
 import ColumnDropdowns from './ColumnDropdowns';
 import { Bar, Pie, Doughnut, Line, Scatter, Chart as ChartJS2 } from 'react-chartjs-2';
 import { Chart, CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Tooltip, Legend } from 'chart.js';
+import { MatrixController, MatrixElement } from 'chartjs-chart-matrix';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+
+
+// Color interpolation functions for diverging heatmap
+function interpolateColor(color1, color2, t) {
+  // color1 and color2 are [r,g,b]
+  return `rgb(${Math.round(color1[0] + (color2[0] - color1[0]) * t)},${Math.round(color1[1] + (color2[1] - color1[1]) * t)},${Math.round(color1[2] + (color2[2] - color1[2]) * t)})`;
+}
+function getCorrelationColor(v) {
+  // v in [-1, 1]
+  const red = [255, 99, 132];
+  const yellow = [255, 206, 86];
+  const blue = [54, 162, 235];
+  if (v < 0) {
+    // -1 to 0: red to yellow
+    return interpolateColor(red, yellow, v + 1);
+  } else {
+    // 0 to 1: yellow to blue
+    return interpolateColor(yellow, blue, v);
+  }
+}
+
+Chart.register(MatrixController, MatrixElement);
 
 Chart.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Tooltip, Legend);
 import {
@@ -66,7 +89,7 @@ function getCompatibleCharts(selectedColumns, columns) {
   // Line Chart
   if ((dt === 1 && num === 1) || (num === 1 && cat === 0 && dt === 0) || (num === 2 && cat === 0 && dt === 0)) charts.push('line');
   // Correlation heatmap
-  if ((cat >= 2 && num === 1) || (num >= 2)) charts.push('correlation');
+  if (num === selectedColumns.length && num >= 2) charts.push('correlation');
   return [...new Set(charts)];
 }
 
@@ -390,10 +413,10 @@ const AnalysisPage = () => {
       };
     }
     if (type === "line") {
-      // Line: date/time + numerical
       const xCol = selectedCols[0];
       const yCol = selectedCols[1];
-      const arr = (data.length > 0 ? data : preview);
+      let arr = (data.length > 0 ? data : preview)
+        .filter(row => row[xCol] != null && row[yCol] != null && !isNaN(row[yCol]));
       const labels = arr.map(row => row[xCol]);
       const dataArr = arr.map(row => row[yCol]);
       return {
@@ -407,16 +430,83 @@ const AnalysisPage = () => {
       };
     }
     if (type === "correlation") {
-      // Correlation: multiple numerical columns
-      // For demo, just show a scatter of first two
-      const xCol = selectedCols[0];
-      const yCol = selectedCols[1] || selectedCols[0];
-      const arr = (data.length > 0 ? data : preview).map(row => ({ x: row[xCol], y: row[yCol] }));
+      // Correlation heatmap for selected numerical columns only
+      const numCols = selectedCols.filter(col => {
+        const colObj = columns.find(c => c.name === col);
+        return colObj && colObj.group === 'Numerical';
+      });
+      if (numCols.length < 2) return null;
+      // Helper: Pearson correlation using only valid pairs
+      function pearsonPairs(xArr, yArr) {
+        const pairs = xArr.map((x, idx) => [x, yArr[idx]])
+          .filter(([x, y]) => x != null && y != null && !isNaN(x) && !isNaN(y));
+        if (pairs.length === 0) return 0;
+        const xs = pairs.map(([x]) => x);
+        const ys = pairs.map(([, y]) => y);
+        const n = pairs.length;
+        const meanX = xs.reduce((a, b) => a + b, 0) / n;
+        const meanY = ys.reduce((a, b) => a + b, 0) / n;
+        let num = 0, denomX = 0, denomY = 0;
+        for (let i = 0; i < n; i++) {
+          const dx = xs[i] - meanX;
+          const dy = ys[i] - meanY;
+          num += dx * dy;
+          denomX += dx * dx;
+          denomY += dy * dy;
+        }
+        if (denomX === 0 || denomY === 0) return 0;
+        return num / Math.sqrt(denomX * denomY);
+      }
+      const arr = (data.length > 0 ? data : preview);
+      const matrixData = [];
+      for (let i = 0; i < numCols.length; i++) {
+        for (let j = 0; j < numCols.length; j++) {
+          const colX = numCols[i];
+          const colY = numCols[j];
+          const xVals = arr.map(row => row[colX]);
+          const yVals = arr.map(row => row[colY]);
+          const corr = pearsonPairs(xVals, yVals);
+          matrixData.push({ x: colX, y: colY, v: corr });
+        }
+      }
+      // Use the same palette as other charts
+      const palette = [
+        'rgba(255, 99, 132, OPACITY)',   // red
+        'rgba(54, 162, 235, OPACITY)',  // blue
+        'rgba(255, 206, 86, OPACITY)',  // yellow
+        'rgba(75, 192, 192, OPACITY)',  // teal
+        'rgba(153, 102, 255, OPACITY)', // purple
+        'rgba(255, 159, 64, OPACITY)'   // orange
+      ];
       return {
+        labels: numCols,
         datasets: [{
-          label: `${xCol} vs ${yCol}`,
-          data: arr,
-          backgroundColor: 'rgba(153, 102, 255, 0.5)'
+          label: 'Correlation',
+          data: matrixData,
+          backgroundColor: ctx => {
+            const v = ctx.raw.v;
+            return getCorrelationColor(v);
+          },
+          borderColor: 'white',
+          borderWidth: 2,
+          width: ({chart}) => {
+            const cols = numCols.length;
+            const rows = numCols.length;
+            const chartWidth = (chart.chartArea || {}).width || 200;
+            const chartHeight = (chart.chartArea || {}).height || 200;
+            const cellWidth = chartWidth / cols - 2;
+            const cellHeight = chartHeight / rows - 2;
+            return Math.max(20, Math.min(cellWidth, cellHeight));
+          },
+          height: ({chart}) => {
+            const cols = numCols.length;
+            const rows = numCols.length;
+            const chartWidth = (chart.chartArea || {}).width || 200;
+            const chartHeight = (chart.chartArea || {}).height || 200;
+            const cellWidth = chartWidth / cols - 2;
+            const cellHeight = chartHeight / rows - 2;
+            return Math.max(20, Math.min(cellWidth, cellHeight));
+          },
         }]
       };
     }
@@ -427,30 +517,113 @@ const AnalysisPage = () => {
     const data = getChartData(type, selectedCols);
     if (!data) return null;
     // Default options
-    const options = { responsive: true, plugins: { legend: { display: true } } };
+    const options = {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: '#fff' } },
+        title: { color: '#fff' }
+      },
+      scales: {
+        x: {
+          grid: { color: '#fff' },
+          ticks: { color: '#fff' },
+          title: { color: '#fff' }
+        },
+        y: {
+          grid: { color: '#fff' },
+          ticks: { color: '#fff' },
+          title: { color: '#fff' }
+        }
+      }
+    };
     if (type === 'stackedBar') {
-      // Enable stacking
       return (
         <Bar
           data={data}
           options={{
             ...options,
-            scales: { x: { stacked: true }, y: { stacked: true } }
+            plugins: {
+              ...options.plugins,
+              title: { ...options.plugins.title, display: true, text: data.datasets[0]?.label || '' }
+            },
+            scales: {
+              ...options.scales,
+              x: { ...options.scales.x, stacked: true },
+              y: { ...options.scales.y, stacked: true }
+            }
           }}
         />
       );
     }
     if (type === 'groupedBar') {
-      // Grouped bar (default)
       return <Bar data={data} options={options} />;
     }
     if (type === 'correlation') {
-      // Try to render a heatmap if possible, else fallback to scatter
-      // Chart.js does not natively support heatmap, so show a placeholder
+      if (!data || !data.datasets || !data.datasets[0].data.length) return null;
+      const matrixOptions = {
+        responsive: true,
+        layout: {
+          padding: {
+            top: 40,    
+            bottom: 5  
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          title: {
+            display: true,
+            text: 'Correlation Heatmap',
+            font: { size: 22 },
+            padding: { top: 20, bottom: 20 }
+          },
+          tooltip: { enabled: false },
+          datalabels: {
+            display: true,
+            color: 'white',
+            font: { weight: 'bold', size: 16 },
+            formatter: (value, ctx) => (ctx.raw && typeof ctx.raw.v === 'number' ? ctx.raw.v.toFixed(2) : ''),
+          },
+        },
+        scales: {
+          x: {
+            type: 'category',
+            labels: data.labels,
+            position: 'bottom', // ensures labels are below the chart
+            offset: true,      // adds spacing if needed
+            title: { display: true, text: 'Features', font: { size: 16 }, color: '#fff' },
+            grid: { display: false },
+            ticks: { font: { size: 14 }, color: '#fff', autoSkip: false, maxRotation: 45, minRotation: 45, padding: 20 }
+          },
+          y: {
+            type: 'category',
+            labels: data.labels,
+            title: { display: true, text: 'Features', font: { size: 16 }, color: '#fff' },
+            grid: { display: false },
+            ticks: { font: { size: 14 }, color: '#fff', autoSkip: false }
+          }
+        }
+      };
       return (
         <Box>
-          <Typography variant="subtitle2" color="warning.main">Correlation heatmap is not yet implemented. Showing scatter plot of first two columns.</Typography>
-          <Scatter data={data} options={options} />
+          <ChartJS2 type="matrix" data={data} options={matrixOptions} plugins={[ChartDataLabels]} />
+          {/* Color legend for correlation heatmap */}
+          <Box mt={2} display="flex" flexDirection="column" alignItems="center" justifyContent="center">
+            <Box
+              sx={{
+                width: 300,
+                height: 16,
+                background: 'linear-gradient(to right, rgb(255,99,132) 0%, rgb(255,206,86) 50%, rgb(54,162,235) 100%)',
+                borderRadius: 2,
+                border: '1px solid #ccc',
+                mx: 2
+              }}
+            />
+            <Box mt={0.5} width={300} display="flex" flexDirection="row" justifyContent="space-between">
+              <span style={{ color: '#fff', fontWeight: 'bold' }}>-1</span>
+              <span style={{ color: '#fff', fontWeight: 'bold' }}>0</span>
+              <span style={{ color: '#fff', fontWeight: 'bold' }}>+1</span>
+            </Box>
+          </Box>
         </Box>
       );
     }
@@ -460,14 +633,26 @@ const AnalysisPage = () => {
       case 'horizontalBar':
         return <Bar data={data} options={{ ...options, indexAxis: 'y' }} />;
       case 'pie':
-        return <Pie data={data} options={options} />;
+        return <Pie data={data} options={{
+          ...options,
+          plugins: {
+            ...options.plugins,
+            datalabels: { color: '#fff', font: { weight: 'bold', size: 16 } }
+          }
+        }} plugins={[ChartDataLabels]} />;
       case 'donut':
-        return <Doughnut data={data} options={options} />;
+        return <Doughnut data={data} options={{
+          ...options,
+          plugins: {
+            ...options.plugins,
+            datalabels: { color: '#fff', font: { weight: 'bold', size: 16 } }
+          }
+        }} plugins={[ChartDataLabels]} />;
       case 'histogram':
         return <Bar data={data} options={options} />;
       case 'box':
-        // Box plot support removed
-        return null;
+      // Box plot support removed
+      return null;
       case 'scatter':
         return <Scatter data={data} options={options} />;
       case 'line':
@@ -482,10 +667,57 @@ const AnalysisPage = () => {
   if (error) return <Box mt={4}><Alert severity="error">{error}</Alert></Box>;
 
   // Group columns for display
+  // Only allow numerical columns to be selected for correlation heatmap
+  const filteredColumns = selectedChart === 'correlation'
+    ? columns.filter(c => c.group === 'Numerical')
+    : columns;
   const groupedColumns = groupOrder.map(group => ({
     group,
-    cols: columns.filter(c => c.group === group)
+    cols: filteredColumns.filter(c => c.group === group)
   })).filter(g => g.cols.length > 0);
+
+  // Compute isValidSelection for non-correlation chart types in byChart mode
+  let isValidSelection = false;
+  if (chartType && chartType !== 'correlation') {
+    const combos = getCompatibleColumnsForChart(chartType, columns);
+    isValidSelection = combos.some(combo => {
+      if (combo.length !== chartColumns.length) return false;
+      return combo.every((slot, idx) => slot.includes(chartColumns[idx]));
+    });
+    // Special logic for bar, pie, donut, etc. (if needed)
+    let slotOptions = combos.reduce((a, b) => (a.length > b.length ? a : b), []);
+    if (["bar", "horizontalBar", "pie", "donut"].includes(chartType)) {
+      if (slotOptions.length === 1) {
+        const catSlot = slotOptions[0];
+        const numSlot = columns.filter(c => c.group === 'Numerical').map(c => c.name);
+        slotOptions = [catSlot, numSlot];
+      }
+    }
+    if (["bar", "horizontalBar"].includes(chartType)) {
+      if (
+        chartColumns.length === 2 &&
+        chartColumns[0] &&
+        (!chartColumns[1] || chartColumns[1] === '') &&
+        slotOptions[0].includes(chartColumns[0])
+      ) {
+        isValidSelection = true;
+      }
+    }
+    if (["pie", "donut"].includes(chartType)) {
+      if (chartColumns.length === 2) {
+        const validSingleCols = new Set([
+          ...combos.flatMap(combo => combo.length === 1 ? combo[0] : []),
+          ...combos.flatMap(combo => combo.length === 2 ? [combo[0], combo[1]] : []).flat()
+        ]);
+        if (
+          (chartColumns[0] && (!chartColumns[1] || chartColumns[1] === '') && validSingleCols.has(chartColumns[0])) ||
+          (chartColumns[1] && (!chartColumns[0] || chartColumns[0] === '') && validSingleCols.has(chartColumns[1]))
+        ) {
+          isValidSelection = true;
+        }
+      }
+    }
+  }
 
   return (
     <Box maxWidth={900} mx="auto" mt={4}>
@@ -577,74 +809,49 @@ const AnalysisPage = () => {
       {chartType && (
         <>
           <Typography variant="subtitle1">Select Compatible Columns</Typography>
-          {/* Compute combos and isValidSelection at the top level, pass to ColumnDropdowns */}
-          {(() => {
-            const combos = getCompatibleColumnsForChart(chartType, columns);
-            // --- Custom validation for pie/donut: allow single numeric or single categorical ---
-            let isValidSelection = combos.some(combo => {
-              if (combo.length !== chartColumns.length) return false;
-              return combo.every((slot, idx) => slot.includes(chartColumns[idx]));
-            });
-            let slotOptions = combos.reduce((a, b) => (a.length > b.length ? a : b), []);
-            if (["bar", "horizontalBar", "pie", "donut"].includes(chartType)) {
-              if (slotOptions.length === 1) {
-                const catSlot = slotOptions[0];
-                const numSlot = columns.filter(c => c.group === 'Numerical').map(c => c.name);
-                slotOptions = [catSlot, numSlot];
-              }
-            }
-            if (["bar", "horizontalBar"].includes(chartType)) {
-              if (
-                chartColumns.length === 2 &&
-                chartColumns[0] &&
-                (!chartColumns[1] || chartColumns[1] === '') &&
-                slotOptions[0].includes(chartColumns[0])
-              ) {
-                isValidSelection = true;
-              }
-            }
-            if (["pie", "donut"].includes(chartType)) {
-              // Allow if only first or only second dropdown is filled (and the other is blank), and the filled one is a valid single column (cat or num)
-              if (chartColumns.length === 2) {
-                // Flatten all valid single-column options for pie/donut
-                const validSingleCols = new Set([
-                  ...combos.flatMap(combo => combo.length === 1 ? combo[0] : []),
-                  ...combos.flatMap(combo => combo.length === 2 ? [combo[0], combo[1]] : []).flat()
-                ]);
-                if (
-                  (chartColumns[0] && (!chartColumns[1] || chartColumns[1] === '') && validSingleCols.has(chartColumns[0])) ||
-                  (chartColumns[1] && (!chartColumns[0] || chartColumns[0] === '') && validSingleCols.has(chartColumns[1]))
-                ) {
-                  isValidSelection = true;
-                }
-              }
-            }
-            return (
-              <>
-                <ColumnDropdowns
-                  chartType={chartType}
-                  columns={columns}
-                  combos={combos}
-                  chartColumns={chartColumns}
-                  setChartColumns={setChartColumns}
-                />
-                <Button
-                  variant="contained"
-                  sx={{ mt: 2 }}
-                  disabled={!isValidSelection}
-                  onClick={() => setShowChart(true)}
-                >
-                  Generate Chart
-                </Button>
-                {showChart && chartType && isValidSelection && (
-                  <Box mt={4}>
-                    {/* Pass only non-empty columns to renderChart so single-column logic works */}
-                    {renderChart(chartType, chartColumns.filter(Boolean))}
-                  </Box>
-                )}
-              </>
-            );
-          })()}
+          {/* Correlation Heatmap: Multi-select for numerical columns only */}
+          {chartType === 'correlation' ? (
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel id="correlation-columns-label">Numerical Columns</InputLabel>
+              <Select
+                labelId="correlation-columns-label"
+                id="correlation-columns"
+                label="Numerical Columns"
+                multiple
+                value={chartColumns}
+                onChange={e => setChartColumns(e.target.value)}
+                renderValue={selected => selected.join(', ')}
+              >
+                {columns.filter(c => c.group === 'Numerical').map(col => (
+                  <MenuItem key={col.name} value={col.name}>
+                    {col.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          ) : (
+            // ...existing ColumnDropdowns logic for other chart types...
+            <ColumnDropdowns
+              chartType={chartType}
+              columns={columns}
+              combos={getCompatibleColumnsForChart(chartType, columns)}
+              chartColumns={chartColumns}
+              setChartColumns={setChartColumns}
+            />
+          )}
+          <Button
+            variant="contained"
+            sx={{ mt: 2 }}
+            disabled={chartType === 'correlation' ? chartColumns.length < 2 : !isValidSelection}
+            onClick={() => setShowChart(true)}
+          >
+            Generate Chart
+          </Button>
+          {showChart && chartType && ((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
+            <Box mt={4}>
+              {renderChart(chartType, chartColumns.filter(Boolean))}
+            </Box>
+          )}
         </>
       )}
         </Paper>
@@ -676,7 +883,7 @@ const AnalysisPage = () => {
         </Box>
       </Paper>
     </Box>
-  );
-};
+  )
+}
 
 export default AnalysisPage;

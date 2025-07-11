@@ -45,6 +45,7 @@ import {
   Storage,
   Assessment
 } from '@mui/icons-material';
+import { Link } from 'react-router-dom';
 
 function CleaningPage() {
   const [report, setReport] = useState(null);
@@ -55,6 +56,21 @@ function CleaningPage() {
   const [fillValue, setFillValue] = useState('');
   const [fillMethod, setFillMethod] = useState('specific');
   const [cleanedData, setCleanedData] = useState(null);
+
+  // Restore cleanedData from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('cleanedData');
+    if (stored) {
+      setCleanedData(JSON.parse(stored));
+    }
+  }, []);
+
+  // Save cleanedData to localStorage whenever it changes
+  useEffect(() => {
+    if (cleanedData) {
+      localStorage.setItem('cleanedData', JSON.stringify(cleanedData));
+    }
+  }, [cleanedData]);
 
   useEffect(() => {
     fetchReport();
@@ -204,13 +220,6 @@ function CleaningPage() {
 
   return (
     <Box p={3}>
-      <Typography variant="h4" gutterBottom>
-        Data Cleaning
-      </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Review and apply data cleaning operations to improve your dataset quality
-      </Typography>
-
       {/* Data Summary */}
       <Paper sx={{ mb: 4 }}>
         <Box p={3}>
@@ -552,6 +561,19 @@ function CleaningPage() {
           </Button>
         </DialogActions>
       </Dialog>
+      
+      <Box sx={{ mt: 4, textAlign: 'center' }}>
+        <Button
+          component={Link}
+          to="/analysis"
+          variant="contained"
+          color="secondary"
+          size="large"
+          sx={{ px: 4, py: 1.5 }}
+        >
+          Go to Analysis
+        </Button>
+      </Box>
     </Box>
   );
 }
