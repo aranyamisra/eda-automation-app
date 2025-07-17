@@ -47,7 +47,6 @@ import {
   Divider,
   CircularProgress,
   Alert,
-  Checkbox
 } from '@mui/material';
 import axios from 'axios';
 
@@ -177,6 +176,10 @@ const AnalysisPage = () => {
   const [chartColumns, setChartColumns] = useState([]);
   const [showChart, setShowChart] = useState(false);
   const [chartsToReport, setChartsToReport] = useState({});
+  
+  // New state variables for filtering and sorting
+  const [filterTop, setFilterTop] = useState('');
+  const [sortOrder, setSortOrder] = useState('desc');
 
   useEffect(() => {
     setLoading(true);
@@ -206,6 +209,7 @@ const AnalysisPage = () => {
     if (!type || !selectedCols.length) return null;
     // Find column objects
     const colObjs = selectedCols.map(col => columns.find(c => c.name === col));
+    
     // Helper: aggregate numerical by category
     function aggregateByCategory(catCol, numCol) {
       const agg = {};
@@ -219,6 +223,37 @@ const AnalysisPage = () => {
       const dataArr = labels.map(l => agg[l]);
       return { labels, data: dataArr };
     }
+
+    // Helper: apply filtering and sorting to chart data
+    function applyFilterAndSort(labels, dataArr, sortBy = 'value') {
+      // Create array of objects for sorting
+      const combined = labels.map((label, index) => ({
+        label,
+        value: dataArr[index]
+      }));
+
+      // Sort
+      if (sortBy === 'value') {
+        combined.sort((a, b) => sortOrder === 'desc' ? b.value - a.value : a.value - b.value);
+      } else if (sortBy === 'label') {
+        combined.sort((a, b) => {
+          const comparison = a.label.localeCompare(b.label);
+          return sortOrder === 'desc' ? -comparison : comparison;
+        });
+      }
+
+      // Apply top filter
+      if (filterTop && filterTop !== '') {
+        const topCount = parseInt(filterTop);
+        combined.splice(topCount);
+      }
+
+      return {
+        labels: combined.map(item => item.label),
+        data: combined.map(item => item.value)
+      };
+    }
+
     // Bar, Pie, Donut: aggregate (single cat + num) or just category counts if only one column
     if (["bar", "horizontalBar"].includes(type)) {
       if (selectedCols.length === 1) {
@@ -232,11 +267,14 @@ const AnalysisPage = () => {
         });
         const labels = Object.keys(agg);
         const counts = labels.map(l => agg[l]);
+        
+        const { labels: filteredLabels, data: filteredData } = applyFilterAndSort(labels, counts);
+        
         return {
-          labels,
+          labels: filteredLabels,
           datasets: [{
             label: catCol + ' count',
-            data: counts,
+            data: filteredData,
             backgroundColor: 'rgba(54, 162, 235, 0.5)'
           }]
         };
@@ -253,11 +291,13 @@ const AnalysisPage = () => {
           numCol = selectedCols[1];
         }
         const { labels, data } = aggregateByCategory(catCol, numCol);
+        const { labels: filteredLabels, data: filteredData } = applyFilterAndSort(labels, data);
+        
         return {
-          labels,
+          labels: filteredLabels,
           datasets: [{
             label: numCol,
-            data,
+            data: filteredData,
             backgroundColor: 'rgba(54, 162, 235, 0.5)'
           }]
         };
@@ -282,6 +322,20 @@ const AnalysisPage = () => {
       const group2Set = new Set();
       group1Labels.forEach(g1 => Object.keys(agg[g1]).forEach(g2 => group2Set.add(g2)));
       const group2Labels = Array.from(group2Set);
+      
+      // Apply filtering to group1Labels
+      let filteredGroup1Labels = group1Labels;
+      if (filterTop && filterTop !== '') {
+        const topCount = parseInt(filterTop);
+        // Calculate total sum for each group1 to determine top
+        const group1Totals = group1Labels.map(g1 => ({
+          label: g1,
+          total: group2Labels.reduce((sum, g2) => sum + (agg[g1][g2] || 0), 0)
+        }));
+        group1Totals.sort((a, b) => sortOrder === 'desc' ? b.total - a.total : a.total - b.total);
+        filteredGroup1Labels = group1Totals.slice(0, topCount).map(item => item.label);
+      }
+      
       // Color palette for datasets
       const palette = [
         '#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc949',
@@ -292,11 +346,11 @@ const AnalysisPage = () => {
       // For each group2, build a dataset (one bar per group2 value)
       const datasets = group2Labels.map((g2, i) => ({
         label: g2,
-        data: group1Labels.map(g1 => agg[g1][g2] || 0),
+        data: filteredGroup1Labels.map(g1 => agg[g1][g2] || 0),
         backgroundColor: palette[i % palette.length],
       }));
       return {
-        labels: group1Labels,
+        labels: filteredGroup1Labels,
         datasets
       };
     }
@@ -319,11 +373,14 @@ const AnalysisPage = () => {
         });
         const labels = Object.keys(agg);
         const counts = labels.map(l => agg[l]);
+        
+        const { labels: filteredLabels, data: filteredData } = applyFilterAndSort(labels, counts);
+        
         return {
-          labels,
+          labels: filteredLabels,
           datasets: [{
             label: colName + ' count',
-            data: counts,
+            data: filteredData,
             backgroundColor: [
               'rgba(255, 99, 132, 0.5)',
               'rgba(54, 162, 235, 0.5)',
@@ -347,11 +404,13 @@ const AnalysisPage = () => {
           numCol = selectedCols[1];
         }
         const { labels, data } = aggregateByCategory(catCol, numCol);
+        const { labels: filteredLabels, data: filteredData } = applyFilterAndSort(labels, data);
+        
         return {
-          labels,
+          labels: filteredLabels,
           datasets: [{
             label: numCol,
-            data,
+            data: filteredData,
             backgroundColor: [
               'rgba(255, 99, 132, 0.5)',
               'rgba(54, 162, 235, 0.5)',
@@ -388,11 +447,15 @@ const AnalysisPage = () => {
         // Show as [from, to)
         return `${from.toFixed(1)} - ${to.toFixed(1)}`;
       });
+      
+      // For histogram, we can sort by bin values
+      const { labels: filteredLabels, data: filteredData } = applyFilterAndSort(labels, bins);
+      
       return {
-        labels,
+        labels: filteredLabels,
         datasets: [{
           label: numCol,
-          data: bins,
+          data: filteredData,
           backgroundColor: 'rgba(255, 206, 86, 0.5)'
         }]
       };
@@ -405,7 +468,27 @@ const AnalysisPage = () => {
       // Scatter: two numerical columns
       const xCol = selectedCols[0];
       const yCol = selectedCols[1];
-      const arr = (data.length > 0 ? data : preview).map(row => ({ x: row[xCol], y: row[yCol] }));
+      let arr = (data.length > 0 ? data : preview).map(row => ({ x: row[xCol], y: row[yCol] }));
+      
+      // For scatter plots, we can sort by x or y values
+      if (sortOrder !== 'none') {
+        const sortBy = sortOrder === 'desc' ? -1 : 1;
+        arr.sort((a, b) => {
+          if (sortOrder.includes('x')) {
+            return (a.x - b.x) * sortBy;
+          } else if (sortOrder.includes('y')) {
+            return (a.y - b.y) * sortBy;
+          }
+          return 0;
+        });
+      }
+      
+      // Apply top filter for scatter plots
+      if (filterTop && filterTop !== '') {
+        const topCount = parseInt(filterTop);
+        arr = arr.slice(0, topCount);
+      }
+      
       return {
         datasets: [{
           label: `${xCol} vs ${yCol}`,
@@ -419,6 +502,19 @@ const AnalysisPage = () => {
       const yCol = selectedCols[1];
       let arr = (data.length > 0 ? data : preview)
         .filter(row => row[xCol] != null && row[yCol] != null && !isNaN(row[yCol]));
+      
+      // Sort line chart data
+      if (sortOrder !== 'none') {
+        const sortBy = sortOrder === 'desc' ? -1 : 1;
+        arr.sort((a, b) => (a[xCol] - b[xCol]) * sortBy);
+      }
+      
+      // Apply top filter for line charts
+      if (filterTop && filterTop !== '') {
+        const topCount = parseInt(filterTop);
+        arr = arr.slice(0, topCount);
+      }
+      
       const labels = arr.map(row => row[xCol]);
       const dataArr = arr.map(row => row[yCol]);
       return {
@@ -729,6 +825,11 @@ const AnalysisPage = () => {
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
         Explore, visualize, and analyze your cleaned dataset using interactive charts and statistical tools. Uncover patterns, relationships, and trends to gain deeper insights from your data.
       </Typography>
+    <Box maxWidth={900} mx="auto" mt={4}>
+      <Typography variant="h4" gutterBottom>Data Analysis</Typography>
+      
+      {/* Remove always-visible filter/sort controls here */}
+
       <Paper sx={{ p: 2, mb: 3 }}>
         <RadioGroup
           row
@@ -783,6 +884,45 @@ const AnalysisPage = () => {
               />
             ))}
           </Box>
+          {/* Show filter/sort controls only if a chart is selected and columns are selected */}
+          {selectedChart && selectedColumns.length > 0 && (
+            <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth sx={{ minWidth: '200px' }}>
+                    <InputLabel>Filter by Top N Items</InputLabel>
+                    <Select
+                      value={filterTop}
+                      label="Filter by Top N Items"
+                      onChange={(e) => setFilterTop(e.target.value)}
+                    >
+                      <MenuItem value="">No Filter</MenuItem>
+                      <MenuItem value="5">Top 5</MenuItem>
+                      <MenuItem value="10">Top 10</MenuItem>
+                      <MenuItem value="15">Top 15</MenuItem>
+                      <MenuItem value="20">Top 20</MenuItem>
+                      <MenuItem value="25">Top 25</MenuItem>
+                      <MenuItem value="50">Top 50</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>Sort Order</InputLabel>
+                    <Select
+                      value={sortOrder}
+                      label="Sort Order"
+                      onChange={(e) => setSortOrder(e.target.value)}
+                    >
+                      <MenuItem value="desc">Descending (High to Low)</MenuItem>
+                      <MenuItem value="asc">Ascending (Low to High)</MenuItem>
+                      <MenuItem value="none">No Sort</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+            </Paper>
+          )}
           {selectedChart && (
             <Button variant="contained" sx={{ mt: 2 }} onClick={() => setShowChart(true)}>Generate Chart</Button>
           )}
@@ -858,6 +998,45 @@ const AnalysisPage = () => {
               chartColumns={chartColumns}
               setChartColumns={setChartColumns}
             />
+          )}
+          {/* Show filter/sort controls only if chartType and columns are selected and valid */}
+          {((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
+            <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth sx={{ minWidth: '200px' }}>
+                    <InputLabel>Filter by Top N Items</InputLabel>
+                    <Select
+                      value={filterTop}
+                      label="Filter by Top N Items"
+                      onChange={(e) => setFilterTop(e.target.value)}
+                    >
+                      <MenuItem value="">No Filter</MenuItem>
+                      <MenuItem value="5">Top 5</MenuItem>
+                      <MenuItem value="10">Top 10</MenuItem>
+                      <MenuItem value="15">Top 15</MenuItem>
+                      <MenuItem value="20">Top 20</MenuItem>
+                      <MenuItem value="25">Top 25</MenuItem>
+                      <MenuItem value="50">Top 50</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>Sort Order</InputLabel>
+                    <Select
+                      value={sortOrder}
+                      label="Sort Order"
+                      onChange={(e) => setSortOrder(e.target.value)}
+                    >
+                      <MenuItem value="desc">Descending (High to Low)</MenuItem>
+                      <MenuItem value="asc">Ascending (Low to High)</MenuItem>
+                      <MenuItem value="none">No Sort</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+            </Paper>
           )}
           <Button
             variant="contained"
