@@ -4,6 +4,7 @@ import { Bar, Pie, Doughnut, Line, Scatter, Chart as ChartJS2 } from 'react-char
 import { Chart, CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Tooltip, Legend } from 'chart.js';
 import { MatrixController, MatrixElement } from 'chartjs-chart-matrix';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
+import { Checkbox } from '@mui/material';
 
 
 // Color interpolation functions for diverging heatmap
@@ -825,8 +826,6 @@ const AnalysisPage = () => {
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
         Explore, visualize, and analyze your cleaned dataset using interactive charts and statistical tools. Uncover patterns, relationships, and trends to gain deeper insights from your data.
       </Typography>
-    <Box maxWidth={900} mx="auto" mt={4}>
-      <Typography variant="h4" gutterBottom>Data Analysis</Typography>
       
       {/* Remove always-visible filter/sort controls here */}
 

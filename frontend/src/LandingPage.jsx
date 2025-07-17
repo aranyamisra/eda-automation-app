@@ -62,13 +62,6 @@ function LandingPage() {
           </Grid>
         </Grid>
       </Box>
-
-      {/* Footer */}
-      <Box sx={{ mt: 8, textAlign: 'center', color: 'text.secondary' }}>
-        <Typography variant="body2">
-          © 2025 EDA Automation App. All rights reserved.
-        </Typography>
-      </Box>
     </Container>
   );
 }
