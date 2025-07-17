@@ -79,7 +79,7 @@ function ReportPage() {
   );
 
   return (
-    <Box p={3}>
+    <Box p={5}>
       <Typography variant="h4" gutterBottom>
         Data Quality Report
       </Typography>
@@ -260,6 +260,44 @@ function ReportPage() {
                 </AccordionDetails>
               </Accordion>
             ))}
+          </Box>
+        </Paper>
+      )}
+
+      {/* Outliers Detected Section */}
+      {report.outliers && Object.keys(report.outliers).length > 0 && (
+        <Paper sx={{ mt: 4 }}>
+          <Box p={3}>
+            <Typography variant="h6" gutterBottom>
+              Outliers Detected
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              <b>Winsorizing:</b> Limits extreme values by capping them at the 5th and 95th percentiles.<br/>
+              <b>IQR (Interquartile Range) Method:</b> Detects outliers as values outside 1.5×IQR below Q1 or above Q3.<br/>
+              <b>Z-Score Method:</b> Identifies outliers as values with a Z-score above 3 or below -3.
+            </Typography>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Column</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Winsorizing</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>IQR</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Z-Score</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {Object.entries(report.outliers).map(([col, out]) => (
+                    <TableRow key={col}>
+                      <TableCell>{col}</TableCell>
+                      <TableCell align="right">{out.winsorizing?.count || 0}</TableCell>
+                      <TableCell align="right">{out.iqr?.count || 0}</TableCell>
+                      <TableCell align="right">{out.zscore?.count || 0}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Box>
         </Paper>
       )}

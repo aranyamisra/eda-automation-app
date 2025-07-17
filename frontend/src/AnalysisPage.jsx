@@ -47,7 +47,6 @@ import {
   Divider,
   CircularProgress,
   Alert,
-  TextField
 } from '@mui/material';
 import axios from 'axios';
 
@@ -176,6 +175,7 @@ const AnalysisPage = () => {
   const [chartType, setChartType] = useState('');
   const [chartColumns, setChartColumns] = useState([]);
   const [showChart, setShowChart] = useState(false);
+  const [chartsToReport, setChartsToReport] = useState({});
   
   // New state variables for filtering and sorting
   const [filterTop, setFilterTop] = useState('');
@@ -818,6 +818,13 @@ const AnalysisPage = () => {
   }
 
   return (
+    <Box p={5}>
+      <Typography variant="h4" gutterBottom>
+        Data Analysis
+        </Typography>
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+        Explore, visualize, and analyze your cleaned dataset using interactive charts and statistical tools. Uncover patterns, relationships, and trends to gain deeper insights from your data.
+      </Typography>
     <Box maxWidth={900} mx="auto" mt={4}>
       <Typography variant="h4" gutterBottom>Data Analysis</Typography>
       
@@ -922,6 +929,19 @@ const AnalysisPage = () => {
           {showChart && selectedChart && selectedColumns.length > 0 && (
             <Box mt={4}>
               {renderChart(selectedChart, selectedColumns)}
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={!!chartsToReport[`${selectedChart}:${selectedColumns.join(',')}`]}
+                    onChange={e => setChartsToReport({
+                      ...chartsToReport,
+                      [`${selectedChart}:${selectedColumns.join(',')}`]: e.target.checked
+                    })}
+                  />
+                }
+                label="Add to Report"
+                sx={{ mt: 2 }}
+              />
             </Box>
           )}
         </Paper>
@@ -1029,6 +1049,19 @@ const AnalysisPage = () => {
           {showChart && chartType && ((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
             <Box mt={4}>
               {renderChart(chartType, chartColumns.filter(Boolean))}
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={!!chartsToReport[`${chartType}:${chartColumns.filter(Boolean).join(',')}`]}
+                    onChange={e => setChartsToReport({
+                      ...chartsToReport,
+                      [`${chartType}:${chartColumns.filter(Boolean).join(',')}`]: e.target.checked
+                    })}
+                  />
+                }
+                label="Add to Report"
+                sx={{ mt: 2 }}
+              />
             </Box>
           )}
         </>
@@ -1061,8 +1094,21 @@ const AnalysisPage = () => {
           </table>
         </Box>
       </Paper>
+      <Box mt={4}>
+        <Typography variant="h6">Charts Added to Report</Typography>
+        {Object.keys(chartsToReport).filter(key => chartsToReport[key]).length === 0 ? (
+          <Typography color="text.secondary">No charts added yet.</Typography>
+        ) : (
+          <ul>
+            {Object.keys(chartsToReport).filter(key => chartsToReport[key]).map(key => (
+              <li key={key}>{key}</li>
+            ))}
+          </ul>
+        )}
+      </Box>
     </Box>
   )
 }
 
 export default AnalysisPage;
+

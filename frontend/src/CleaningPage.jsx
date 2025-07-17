@@ -56,12 +56,55 @@ function CleaningPage() {
   const [fillValue, setFillValue] = useState('');
   const [fillMethod, setFillMethod] = useState('specific');
   const [cleanedData, setCleanedData] = useState(null);
+  const [hasCleaned, setHasCleaned] = useState(false);
+
+  // Outlier method/action descriptions
+  const OUTLIER_METHODS = [
+    {
+      value: 'winsorizing',
+      label: 'Winsorizing',
+      desc: 'Limits extreme values by capping them at the 5th and 95th percentiles.'
+    },
+    {
+      value: 'iqr',
+      label: 'Interquartile Range',
+      desc: 'Detects outliers as values outside 1.5×IQR below Q1 or above Q3.'
+    },
+    {
+      value: 'zscore',
+      label: 'Z-Score',
+      desc: 'Identifies outliers as values with a Z-score above 3 or below -3.'
+    }
+  ];
+  const OUTLIER_ACTIONS = [
+    { value: 'none', label: 'None' },
+    { value: 'remove', label: 'Remove Outliers' },
+    { value: 'cap', label: 'Cap Outliers' }
+  ];
+
+  // Handle outlier cleaning action
+  const handleOutlierAction = (col, field, value) => {
+    setCleaningActions(prev => ({
+      ...prev,
+      outliers: {
+        ...(prev.outliers || {}),
+        [col]: {
+          ...(prev.outliers?.[col] || {}),
+          [field]: value
+        }
+      }
+    }));
+  };
 
   // Restore cleanedData from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem('cleanedData');
     if (stored) {
       setCleanedData(JSON.parse(stored));
+    }
+    const cleanedFlag = localStorage.getItem('hasCleaned');
+    if (cleanedFlag === 'true') {
+      setHasCleaned(true);
     }
   }, []);
 
@@ -94,7 +137,8 @@ function CleaningPage() {
       const initialActions = {
         duplicates: 'remain',
         nulls: {},
-        dataTypes: {}
+        dataTypes: {},
+        outliers: {} // Initialize outliers
       };
       
       // Initialize null value actions for each column
@@ -108,6 +152,16 @@ function CleaningPage() {
       if (data.suggested_dtypes) {
         Object.keys(data.suggested_dtypes).forEach(col => {
           initialActions.dataTypes[col] = 'convert';
+        });
+      }
+
+      // Initialize outlier actions for each column
+      if (data.outliers) {
+        Object.keys(data.outliers).forEach(col => {
+          initialActions.outliers[col] = {
+            method: 'iqr', // Default to iqr
+            action: 'none' // Default to none
+          };
         });
       }
       
@@ -130,12 +184,27 @@ function CleaningPage() {
     try {
       setLoading(true);
       
+      // Compose outlier config for backend
+      let outlierConfig = {};
+      if (report?.outliers) {
+        Object.keys(report.outliers).forEach(col => {
+          const userChoice = cleaningActions.outliers?.[col] || {};
+          if (userChoice.method && userChoice.action && userChoice.action !== 'none') {
+            outlierConfig[col] = {
+              method: userChoice.method,
+              action: userChoice.action
+            };
+          }
+        });
+      }
+
       const cleaningConfig = {
         duplicates: cleaningActions.duplicates,
         nulls: cleaningActions.nulls,
         dataTypes: cleaningActions.dataTypes,
         fillValue,
-        fillMethod
+        fillMethod,
+        outliers: outlierConfig
       };
 
       const response = await fetch('http://localhost:5001/clean-data', {
@@ -150,6 +219,8 @@ function CleaningPage() {
       if (response.ok) {
         const result = await response.json();
         setCleanedData(result);
+        setHasCleaned(true);
+        localStorage.setItem('hasCleaned', 'true');
         // Refresh the report
         fetchReport();
       } else {
@@ -219,7 +290,15 @@ function CleaningPage() {
   }
 
   return (
-    <Box p={3}>
+    <Box p={5}>
+      <Typography variant="h4" gutterBottom>
+        Data Cleaning
+      </Typography>
+
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+        Clean and prepare your dataset for analysis by addressing missing values, duplicates, data type inconsistencies, and outliers. Use the interactive tools below to apply data cleaning actions and improve the quality of your data.
+      </Typography>
+
       {/* Data Summary */}
       <Paper sx={{ mb: 4 }}>
         <Box p={3}>
@@ -433,6 +512,83 @@ function CleaningPage() {
           </Paper>
         </Grid>
 
+        {/* Outlier Cleaning Options */}
+        {report.outliers && Object.keys(report.outliers).length > 0 && (
+          <>
+            <Grid item xs={12}>
+              <Paper>
+                <Box p={3}>
+                  <Typography variant="h6" gutterBottom>
+                    Outlier Cleaning
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 2 }}>
+                    Choose a method and action for each numeric column with detected outliers.<br/>
+                    <b>Winsorizing:</b> Limits extreme values by capping them at the 5th and 95th percentiles.<br/>
+                    <b>IQR (Interquartile Range):</b> Detects outliers as values outside 1.5×IQR below Q1 or above Q3.<br/>
+                    <b>Z-Score:</b> Identifies outliers as values with a Z-score above 3 or below -3.
+                  </Typography>
+                  <Grid container spacing={2} alignItems="stretch">
+                    {Object.entries(report.outliers).map(([col, out]) => {
+                      const win = out.winsorizing?.count || 0;
+                      const iqr = out.iqr?.count || 0;
+                      const z = out.zscore?.count || 0;
+                      if (win === 0 && iqr === 0 && z === 0) return null;
+                      return (
+                        <Grid item xs={12} md={4} key={col} style={{ display: 'flex' }}>
+                          <Paper elevation={2} sx={{ p: 2, height: '100%', width: '100%' }}>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{col}</Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
+                              <FormControl size="small" sx={{ minWidth: 160 }}>
+                                <InputLabel>Method</InputLabel>
+                                <Select
+                                  value={cleaningActions.outliers?.[col]?.method || 'iqr'}
+                                  label="Method"
+                                  onChange={e => handleOutlierAction(col, 'method', e.target.value)}
+                                >
+                                  {OUTLIER_METHODS.map(m => (
+                                    <MenuItem key={m.value} value={m.value}>{m.label}</MenuItem>
+                                  ))}
+                                </Select>
+                              </FormControl>
+                              <FormControl size="small" sx={{ minWidth: 160 }}>
+                                <InputLabel>Action</InputLabel>
+                                <Select
+                                  value={cleaningActions.outliers?.[col]?.action || 'none'}
+                                  label="Action"
+                                  onChange={e => handleOutlierAction(col, 'action', e.target.value)}
+                                >
+                                  {OUTLIER_ACTIONS.map(a => (
+                                    <MenuItem key={a.value} value={a.value}>{a.label}</MenuItem>
+                                  ))}
+                                </Select>
+                              </FormControl>
+                            </Box>
+                            <Box sx={{ mt: 1, fontSize: 13 }}>
+                              <b>Detected:</b> Winsorizing: {win}, IQR: {iqr}, Z-Score: {z}
+                            </Box>
+                          </Paper>
+                        </Grid>
+                      );
+                    })}
+                  </Grid>
+                </Box>
+              </Paper>
+            </Grid>
+            <Grid item xs={12}>
+              <Alert severity="info" sx={{ mt: 2 }}>
+                <b>Note:</b> Removing outliers may not reduce the outlier count to zero, because outlier thresholds are recalculated on the cleaned data. You can repeat the process if you want to further reduce outliers.
+              </Alert>
+            </Grid>
+            <Grid item xs={12}>
+              <Alert severity="info" sx={{ mt: 2 }}>
+                <b>What do the actions mean?</b><br/>
+                <b>Remove</b>: Deletes rows where the value is an outlier.<br/>
+                <b>Cap</b>: Replaces outlier values with the nearest threshold (e.g., 5th/95th percentile for Winsorizing).
+              </Alert>
+            </Grid>
+          </>
+        )}
+
         {/* Fill Value Configuration */}
         {Object.values(cleaningActions.nulls || {}).some(action => action === 'fill') && (
           <Grid item xs={12}>
@@ -490,13 +646,12 @@ function CleaningPage() {
         </Button>
       </Box>
 
-      {/* Success Message */}
-      {cleanedData && (
+      {/* Success Message and Summary only after cleaning */}
+      {hasCleaned && cleanedData && (
         <Box sx={{ mt: 3 }}>
           <Alert severity="success" sx={{ mb: 3 }}>
             Data cleaning applied successfully! The dataset has been updated.
           </Alert>
-          
           {/* Statistical Summary After Cleaning */}
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>

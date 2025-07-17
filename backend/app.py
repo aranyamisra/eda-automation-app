@@ -255,11 +255,69 @@ def apply_cleaning_operations(df, config):
                 except:
                     pass  # Keep original type if conversion fails
                 print(df.dtypes)
+
+    # Handle outlier cleaning
+    outlier_config = config.get('outliers', {})
+    # --- Refactored: Build masks for all columns, apply once at end ---
+    masks = []
+    for column, outlier_action in outlier_config.items():
+        if column in df.columns and pd.api.types.is_numeric_dtype(df[column]):
+            method = outlier_action.get('method', 'none')
+            action = outlier_action.get('action', 'none')
+            col_data = df[column]
+            if method == 'none' or action == 'none':
+                continue
+            if action == 'remove':
+                if method == 'winsorizing':
+                    q05 = col_data.quantile(0.05)
+                    q95 = col_data.quantile(0.95)
+                    mask = (col_data >= q05) & (col_data <= q95)
+                elif method == 'iqr':
+                    q1 = col_data.quantile(0.25)
+                    q3 = col_data.quantile(0.75)
+                    iqr = q3 - q1
+                    iqr_low = q1 - 1.5 * iqr
+                    iqr_high = q3 + 1.5 * iqr
+                    mask = (col_data >= iqr_low) & (col_data <= iqr_high)
+                elif method == 'zscore':
+                    mean = col_data.mean()
+                    std = col_data.std()
+                    if std > 0:
+                        z_scores = (col_data - mean) / std
+                        mask = z_scores.abs() <= 3
+                    else:
+                        mask = pd.Series([True]*len(col_data), index=col_data.index)
+                else:
+                    mask = pd.Series([True]*len(col_data), index=col_data.index)
+                masks.append(mask)
+            elif action == 'cap':
+                if method == 'winsorizing':
+                    q05 = col_data.quantile(0.05)
+                    q95 = col_data.quantile(0.95)
+                    df[column] = col_data.clip(lower=q05, upper=q95)
+                elif method == 'iqr':
+                    q1 = col_data.quantile(0.25)
+                    q3 = col_data.quantile(0.75)
+                    iqr = q3 - q1
+                    iqr_low = q1 - 1.5 * iqr
+                    iqr_high = q3 + 1.5 * iqr
+                    df[column] = col_data.clip(lower=iqr_low, upper=iqr_high)
+                elif method == 'zscore':
+                    mean = col_data.mean()
+                    std = col_data.std()
+                    if std > 0:
+                        df[column] = col_data.clip(lower=mean - 3*std, upper=mean + 3*std)
+    # Apply combined mask if any
+    if masks:
+        combined_mask = masks[0]
+        for m in masks[1:]:
+            combined_mask = combined_mask & m
+        df = df[combined_mask]
     
     return df
 
 def get_suggested_dtype(series):
-    """Get suggested data type for a column"""
+    # Get suggested data type for a column
     try:
         pd.to_numeric(series)
         if series.dtype not in ['float64', 'int64']:
@@ -284,7 +342,8 @@ def data_quality_report(df, filename):
         'duplicates': 0,
         'suggested_dtypes': {},
         'statistical_summary': {},
-        'data_quality_score': 0
+        'data_quality_score': 0,
+        'outliers': {}  # <-- Add outliers key
     }
 
     try:
@@ -331,6 +390,43 @@ def data_quality_report(df, filename):
                 'max': numeric_df.max().to_dict(),
                 'median': numeric_df.median().to_dict()
             }
+
+            # Outlier detection for each numeric column
+            for col in numeric_cols:
+                col_data = df[col].dropna()
+                outlier_info = {}
+                # Winsorizing (outside 5th/95th percentiles)
+                q05 = col_data.quantile(0.05)
+                q95 = col_data.quantile(0.95)
+                winsor_idx = col_data[(col_data < q05) | (col_data > q95)].index.tolist()
+                outlier_info['winsorizing'] = {
+                    'count': len(winsor_idx),
+                    'indices': winsor_idx
+                }
+                # IQR method
+                q1 = col_data.quantile(0.25)
+                q3 = col_data.quantile(0.75)
+                iqr = q3 - q1
+                iqr_low = q1 - 1.5 * iqr
+                iqr_high = q3 + 1.5 * iqr
+                iqr_idx = col_data[(col_data < iqr_low) | (col_data > iqr_high)].index.tolist()
+                outlier_info['iqr'] = {
+                    'count': len(iqr_idx),
+                    'indices': iqr_idx
+                }
+                # Z-score method (|z| > 3)
+                mean = col_data.mean()
+                std = col_data.std()
+                if std > 0:
+                    z_scores = (col_data - mean) / std
+                    z_idx = z_scores[abs(z_scores) > 3].index.tolist()
+                else:
+                    z_idx = []
+                outlier_info['zscore'] = {
+                    'count': len(z_idx),
+                    'indices': z_idx
+                }
+                report['outliers'][col] = outlier_info
 
         # Quality metrics
         report['quality_metrics'] = {
