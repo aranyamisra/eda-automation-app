@@ -83,8 +83,8 @@ function getCompatibleCharts(selectedColumns, columns) {
   if (num === 1 && cat === 0 && dt === 0) charts.push('histogram');
   // Box plot
   if (num === 1 && cat === 0 && dt === 0) charts.push('box');
-  // Grouped/Stacked Bar
-  if (cat >= 2 && num === 1) charts.push('groupedBar', 'stackedBar');
+  // Grouped/Stacked Bar (loosened: cat >= 2 && num >= 1)
+  if (cat >= 2 && num >= 1) charts.push('groupedBar', 'stackedBar');
   // Scatter plot
   if (num === 2 && cat === 0 && dt === 0) charts.push('scatter');
   // Line Chart
@@ -163,7 +163,7 @@ function getCompatibleColumnsForChart(chartType, columns) {
 
 const groupOrder = ['Numerical', 'Categorical', 'Date/Time'];
 
-const AnalysisPage = ({ chartsToReport, setChartsToReport }) => {
+const AnalysisPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [columns, setColumns] = useState([]);
@@ -176,8 +176,9 @@ const AnalysisPage = ({ chartsToReport, setChartsToReport }) => {
   const [chartType, setChartType] = useState('');
   const [chartColumns, setChartColumns] = useState([]);
   const [showChart, setShowChart] = useState(false);
-  // Remove local chartsToReport state
-  // const [chartsToReport, setChartsToReport] = useState({});
+  const [chartsToReport, setChartsToReport] = useState({});
+  const [exportingChartId, setExportingChartId] = useState(null);
+
   
   // New state variables for filtering and sorting
   const [filterTop, setFilterTop] = useState('');
@@ -185,6 +186,7 @@ const AnalysisPage = ({ chartsToReport, setChartsToReport }) => {
 
   // Chart refs for all chart types
   const chartRefs = useRef({});
+  const [aggregationType, setAggregationType] = useState('sum'); // 'sum' or 'average'
 
   useEffect(() => {
     setLoading(true);
@@ -218,14 +220,21 @@ const AnalysisPage = ({ chartsToReport, setChartsToReport }) => {
     // Helper: aggregate numerical by category
     function aggregateByCategory(catCol, numCol) {
       const agg = {};
+      const count = {};
       (data.length > 0 ? data : preview).forEach(row => {
         const cat = row[catCol];
         const num = row[numCol];
         if (cat == null || num == null || isNaN(num)) return;
         agg[cat] = (agg[cat] || 0) + Number(num);
+        count[cat] = (count[cat] || 0) + 1;
       });
       const labels = Object.keys(agg);
-      const dataArr = labels.map(l => agg[l]);
+      let dataArr;
+      if (aggregationType === 'average') {
+        dataArr = labels.map(l => count[l] ? agg[l] / count[l] : 0);
+      } else {
+        dataArr = labels.map(l => agg[l]);
+      }
       return { labels, data: dataArr };
     }
 
@@ -301,7 +310,7 @@ const AnalysisPage = ({ chartsToReport, setChartsToReport }) => {
         return {
           labels: filteredLabels,
           datasets: [{
-            label: numCol,
+            abel: numCol + (aggregationType === 'average' ? ' (Average)' : ' (Sum)'),abel: numCol + (aggregationType === 'average' ? ' (Average)' : ' (Sum)'),
             data: filteredData,
             backgroundColor: 'rgba(54, 162, 235, 0.5)'
           }]
@@ -314,13 +323,16 @@ const AnalysisPage = ({ chartsToReport, setChartsToReport }) => {
       const [catCol1, catCol2, numCol] = selectedCols;
       // Build: {cat1: {cat2: sum}}
       const agg = {};
+      const count = {};
       (data.length > 0 ? data : preview).forEach(row => {
         const g1 = row[catCol1];
         const g2 = row[catCol2];
         const num = row[numCol];
         if (g1 == null || g2 == null || num == null || isNaN(num)) return;
         if (!agg[g1]) agg[g1] = {};
+        if (!count[g1]) count[g1] = {};
         agg[g1][g2] = (agg[g1][g2] || 0) + Number(num);
+        count[g1][g2] = (count[g1][g2] || 0) + 1;
       });
       const group1Labels = Object.keys(agg); // e.g., teams
       // Get all possible group2 values (e.g., all players)
@@ -351,7 +363,13 @@ const AnalysisPage = ({ chartsToReport, setChartsToReport }) => {
       // For each group2, build a dataset (one bar per group2 value)
       const datasets = group2Labels.map((g2, i) => ({
         label: g2,
-        data: filteredGroup1Labels.map(g1 => agg[g1][g2] || 0),
+        data: filteredGroup1Labels.map(g1 => {
+          if (aggregationType === 'average') {
+            return count[g1][g2] ? agg[g1][g2] / count[g1][g2] : 0;
+          } else {
+            return agg[g1][g2] || 0;
+          }
+        }),
         backgroundColor: palette[i % palette.length],
       }));
       return {
@@ -365,21 +383,26 @@ const AnalysisPage = ({ chartsToReport, setChartsToReport }) => {
         const colName = selectedCols[0];
         const isNumeric = col?.group === 'Numerical';
         const agg = {};
+        const count = {};
         (data.length > 0 ? data : preview).forEach(row => {
           const val = row[colName];
           if (val == null) return;
           if (isNumeric) {
-            // For numeric: count occurrences of each unique value (like histogram bins)
             agg[val] = (agg[val] || 0) + 1;
+            count[val] = (count[val] || 0) + 1;
           } else {
-            // For categorical: count occurrences
             agg[val] = (agg[val] || 0) + 1;
+            count[val] = (count[val] || 0) + 1;
           }
         });
         const labels = Object.keys(agg);
-        const counts = labels.map(l => agg[l]);
-        
-        const { labels: filteredLabels, data: filteredData } = applyFilterAndSort(labels, counts);
+        let dataArr;
+        if (aggregationType === 'average') {
+          dataArr = labels.map(l => count[l] ? agg[l] / count[l] : 0);
+        } else {
+          dataArr = labels.map(l => agg[l]);
+        }
+        const { labels: filteredLabels, data: filteredData } = applyFilterAndSort(labels, dataArr);
         
         return {
           labels: filteredLabels,
@@ -800,7 +823,6 @@ const AnalysisPage = ({ chartsToReport, setChartsToReport }) => {
   }
 
   // Add to Report handler for all chart types
-  const [exportingChartId, setExportingChartId] = useState(null);
   function handleAddToReport(type, selectedCols, checked) {
     const chartId = getChartId(type, selectedCols, filterTop, sortOrder);
     if (checked) {
@@ -815,7 +837,6 @@ const AnalysisPage = ({ chartsToReport, setChartsToReport }) => {
         } else if (chartInstance && chartInstance.chartInstance && typeof chartInstance.chartInstance.toBase64Image === 'function') {
           image_base64 = chartInstance.chartInstance.toBase64Image();
         }
-        console.log('Captured base64 for', chartId, image_base64);
         if (!image_base64 || image_base64 === 'data:image/png;base64,' || image_base64.length < 100) {
           alert('Failed to capture chart image. Please make sure the chart is visible before adding to report.');
           setChartsToReport({
@@ -977,7 +998,23 @@ const AnalysisPage = ({ chartsToReport, setChartsToReport }) => {
           {/* Show filter/sort controls only if a chart is selected and columns are selected */}
           {selectedChart && selectedColumns.length > 0 && (
             <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
-              <Grid container spacing={3}>
+              <Grid container spacing={3} alignItems="center">
+                {/* Aggregation toggle for relevant chart types */}
+              {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(selectedChart) && selectedColumns.length >= 2 && (
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth>
+                      <InputLabel>Aggregation</InputLabel>
+                      <Select
+                        value={aggregationType}
+                        label="Aggregation"
+                        onChange={e => setAggregationType(e.target.value)}
+                      >
+                        <MenuItem value="sum">Sum</MenuItem>
+                        <MenuItem value="average">Average</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
                 <Grid item xs={12} sm={6}>
                   <FormControl fullWidth sx={{ minWidth: '200px' }}>
                     <InputLabel>Filter by Top N Items</InputLabel>
@@ -1010,6 +1047,34 @@ const AnalysisPage = ({ chartsToReport, setChartsToReport }) => {
                     </Select>
                   </FormControl>
                 </Grid>
+                {/* Sum, Average, and Count display for any single-column chart */}
+                {selectedColumns.length === 1 && (() => {
+                  const chartData = getChartData(selectedChart, selectedColumns);
+                  const dataArr = chartData && chartData.datasets && chartData.datasets[0] ? chartData.datasets[0].data : [];
+                  if (!dataArr.length) return null;
+                  const isNumeric = dataArr.every(v => typeof v === 'number' && !isNaN(v));
+                  if (isNumeric) {
+                    const sum = dataArr.reduce((a, b) => a + b, 0);
+                    const avg = sum / dataArr.length;
+                    return (
+                      <Grid item xs={12} sm={12} md={12} lg={12} sx={{ mt: 2 }}>
+                        <Box display="flex" gap={4} alignItems="center">
+                          <Typography variant="subtitle2">Sum: <b>{sum.toLocaleString(undefined, { maximumFractionDigits: 2 })}</b></Typography>
+                          <Typography variant="subtitle2">Average: <b>{avg.toLocaleString(undefined, { maximumFractionDigits: 2 })}</b></Typography>
+                          <Typography variant="subtitle2">Count: <b>{dataArr.length.toLocaleString()}</b></Typography>
+                        </Box>
+                      </Grid>
+                    );
+                  } else {
+                    return (
+                      <Grid item xs={12} sm={12} md={12} lg={12} sx={{ mt: 2 }}>
+                        <Box display="flex" gap={4} alignItems="center">
+                          <Typography variant="subtitle2">Count: <b>{dataArr.length.toLocaleString()}</b></Typography>
+                        </Box>
+                      </Grid>
+                    );
+                  }
+                })()}
               </Grid>
             </Paper>
           )}
@@ -1089,8 +1154,24 @@ const AnalysisPage = ({ chartsToReport, setChartsToReport }) => {
           {/* Show filter/sort controls only if chartType and columns are selected and valid */}
           {((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
             <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
-              <Grid container spacing={3}>
-                <Grid item xs={12} sm={6}>
+              <Grid container spacing={3} alignItems="center">
+                {/* Aggregation toggle for relevant chart types */}
+                {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(chartType) && chartColumns.length >= 2 && (
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth>
+                      <InputLabel>Aggregation</InputLabel>
+                      <Select
+                        value={aggregationType}
+                        label="Aggregation"
+                        onChange={e => setAggregationType(e.target.value)}
+                      >
+                        <MenuItem value="sum">Sum</MenuItem>
+                        <MenuItem value="average">Average</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
+                              <Grid item xs={12} sm={6}>
                   <FormControl fullWidth sx={{ minWidth: '200px' }}>
                     <InputLabel>Filter by Top N Items</InputLabel>
                     <Select
@@ -1122,6 +1203,34 @@ const AnalysisPage = ({ chartsToReport, setChartsToReport }) => {
                     </Select>
                   </FormControl>
                 </Grid>
+                {/* Sum, Average, and Count display for any single-column chart in byChart mode */}
+                {chartColumns.length === 1 && (() => {
+                  const chartData = getChartData(chartType, chartColumns);
+                  const dataArr = chartData && chartData.datasets && chartData.datasets[0] ? chartData.datasets[0].data : [];
+                  if (!dataArr.length) return null;
+                  const isNumeric = dataArr.every(v => typeof v === 'number' && !isNaN(v));
+                  if (isNumeric) {
+                    const sum = dataArr.reduce((a, b) => a + b, 0);
+                    const avg = sum / dataArr.length;
+                    return (
+                      <Grid item xs={12} sm={12} md={12} lg={12} sx={{ mt: 2 }}>
+                        <Box display="flex" gap={4} alignItems="center">
+                          <Typography variant="subtitle2">Sum: <b>{sum.toLocaleString(undefined, { maximumFractionDigits: 2 })}</b></Typography>
+                          <Typography variant="subtitle2">Average: <b>{avg.toLocaleString(undefined, { maximumFractionDigits: 2 })}</b></Typography>
+                          <Typography variant="subtitle2">Count: <b>{dataArr.length.toLocaleString()}</b></Typography>
+                        </Box>
+                      </Grid>
+                    );
+                  } else {
+                    return (
+                      <Grid item xs={12} sm={12} md={12} lg={12} sx={{ mt: 2 }}>
+                        <Box display="flex" gap={4} alignItems="center">
+                          <Typography variant="subtitle2">Count: <b>{dataArr.length.toLocaleString()}</b></Typography>
+                        </Box>
+                      </Grid>
+                    );
+                  }
+                })()}
               </Grid>
             </Paper>
           )}
@@ -1195,4 +1304,3 @@ const AnalysisPage = ({ chartsToReport, setChartsToReport }) => {
 }
 
 export default AnalysisPage;
-
