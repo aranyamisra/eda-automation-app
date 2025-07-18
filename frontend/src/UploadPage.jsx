@@ -18,6 +18,10 @@ function UploadPage() {
     if (!file) return;
     setUploading(true);
 
+    // Clear cleaning state when a new file is uploaded
+    localStorage.removeItem('hasCleaned');
+    localStorage.removeItem('cleanedData');
+
     const formData = new FormData();
     formData.append('dataset', file);
 

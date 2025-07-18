@@ -83,8 +83,8 @@ function getCompatibleCharts(selectedColumns, columns) {
   if (num === 1 && cat === 0 && dt === 0) charts.push('histogram');
   // Box plot
   if (num === 1 && cat === 0 && dt === 0) charts.push('box');
-  // Grouped/Stacked Bar
-  if (cat >= 2 && num === 1) charts.push('groupedBar', 'stackedBar');
+  // Grouped/Stacked Bar (loosened: cat >= 2 && num >= 1)
+  if (cat >= 2 && num >= 1) charts.push('groupedBar', 'stackedBar');
   // Scatter plot
   if (num === 2 && cat === 0 && dt === 0) charts.push('scatter');
   // Line Chart
@@ -613,7 +613,20 @@ const AnalysisPage = () => {
   }
 
   function renderChart(type, selectedCols) {
-    const data = getChartData(type, selectedCols);
+    let colsToUse = selectedCols;
+    if (["groupedBar", "stackedBar"].includes(type)) {
+      // Always pick first two categoricals and first numerical
+      const colObjs = selectedCols.map(col => columns.find(c => c.name === col));
+      const cats = colObjs.filter(c => c.group === 'Categorical').map(c => c.name);
+      const nums = colObjs.filter(c => c.group === 'Numerical').map(c => c.name);
+      if (cats.length >= 2 && nums.length >= 1) {
+        colsToUse = [cats[0], cats[1], nums[0]];
+      } else {
+        // Not enough columns, don't render
+        return null;
+      }
+    }
+    const data = getChartData(type, colsToUse);
     if (!data) return null;
     // Default options
     const options = {
@@ -886,7 +899,7 @@ const AnalysisPage = () => {
           {/* Show filter/sort controls only if a chart is selected and columns are selected */}
           {selectedChart && selectedColumns.length > 0 && (
             <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
-              <Grid container spacing={3}>
+              <Grid container spacing={3} alignItems="center">
                 <Grid item xs={12} sm={6}>
                   <FormControl fullWidth sx={{ minWidth: '200px' }}>
                     <InputLabel>Filter by Top N Items</InputLabel>
@@ -919,6 +932,34 @@ const AnalysisPage = () => {
                     </Select>
                   </FormControl>
                 </Grid>
+                {/* Sum, Average, and Count display for any single-column chart */}
+                {selectedColumns.length === 1 && (() => {
+                  const chartData = getChartData(selectedChart, selectedColumns);
+                  const dataArr = chartData && chartData.datasets && chartData.datasets[0] ? chartData.datasets[0].data : [];
+                  if (!dataArr.length) return null;
+                  const isNumeric = dataArr.every(v => typeof v === 'number' && !isNaN(v));
+                  if (isNumeric) {
+                    const sum = dataArr.reduce((a, b) => a + b, 0);
+                    const avg = sum / dataArr.length;
+                    return (
+                      <Grid item xs={12} sm={12} md={12} lg={12} sx={{ mt: 2 }}>
+                        <Box display="flex" gap={4} alignItems="center">
+                          <Typography variant="subtitle2">Sum: <b>{sum.toLocaleString(undefined, { maximumFractionDigits: 2 })}</b></Typography>
+                          <Typography variant="subtitle2">Average: <b>{avg.toLocaleString(undefined, { maximumFractionDigits: 2 })}</b></Typography>
+                          <Typography variant="subtitle2">Count: <b>{dataArr.length.toLocaleString()}</b></Typography>
+                        </Box>
+                      </Grid>
+                    );
+                  } else {
+                    return (
+                      <Grid item xs={12} sm={12} md={12} lg={12} sx={{ mt: 2 }}>
+                        <Box display="flex" gap={4} alignItems="center">
+                          <Typography variant="subtitle2">Count: <b>{dataArr.length.toLocaleString()}</b></Typography>
+                        </Box>
+                      </Grid>
+                    );
+                  }
+                })()}
               </Grid>
             </Paper>
           )}
@@ -1001,7 +1042,7 @@ const AnalysisPage = () => {
           {/* Show filter/sort controls only if chartType and columns are selected and valid */}
           {((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
             <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
-              <Grid container spacing={3}>
+              <Grid container spacing={3} alignItems="center">
                 <Grid item xs={12} sm={6}>
                   <FormControl fullWidth sx={{ minWidth: '200px' }}>
                     <InputLabel>Filter by Top N Items</InputLabel>
@@ -1034,6 +1075,34 @@ const AnalysisPage = () => {
                     </Select>
                   </FormControl>
                 </Grid>
+                {/* Sum, Average, and Count display for any single-column chart in byChart mode */}
+                {chartColumns.length === 1 && (() => {
+                  const chartData = getChartData(chartType, chartColumns);
+                  const dataArr = chartData && chartData.datasets && chartData.datasets[0] ? chartData.datasets[0].data : [];
+                  if (!dataArr.length) return null;
+                  const isNumeric = dataArr.every(v => typeof v === 'number' && !isNaN(v));
+                  if (isNumeric) {
+                    const sum = dataArr.reduce((a, b) => a + b, 0);
+                    const avg = sum / dataArr.length;
+                    return (
+                      <Grid item xs={12} sm={12} md={12} lg={12} sx={{ mt: 2 }}>
+                        <Box display="flex" gap={4} alignItems="center">
+                          <Typography variant="subtitle2">Sum: <b>{sum.toLocaleString(undefined, { maximumFractionDigits: 2 })}</b></Typography>
+                          <Typography variant="subtitle2">Average: <b>{avg.toLocaleString(undefined, { maximumFractionDigits: 2 })}</b></Typography>
+                          <Typography variant="subtitle2">Count: <b>{dataArr.length.toLocaleString()}</b></Typography>
+                        </Box>
+                      </Grid>
+                    );
+                  } else {
+                    return (
+                      <Grid item xs={12} sm={12} md={12} lg={12} sx={{ mt: 2 }}>
+                        <Box display="flex" gap={4} alignItems="center">
+                          <Typography variant="subtitle2">Count: <b>{dataArr.length.toLocaleString()}</b></Typography>
+                        </Box>
+                      </Grid>
+                    );
+                  }
+                })()}
               </Grid>
             </Paper>
           )}

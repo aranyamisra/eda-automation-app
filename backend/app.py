@@ -81,7 +81,10 @@ def cleaning_page():
         
         try:
             if ext == 'csv':
-                df = pd.read_csv(filepath)
+                try:
+                    df = pd.read_csv(filepath, encoding='utf-8-sig')
+                except UnicodeDecodeError:
+                    df = pd.read_csv(filepath, encoding='latin1')
             elif ext in ['xls', 'xlsx']:
                 df = pd.read_excel(filepath)
             elif ext == 'json':
@@ -117,7 +120,10 @@ def clean_data():
         # Load dataset
         ext = filepath.split('.')[-1].lower()
         if ext == 'csv':
-            df = pd.read_csv(filepath)
+            try:
+                df = pd.read_csv(filepath, encoding='utf-8-sig')
+            except UnicodeDecodeError:
+                df = pd.read_csv(filepath, encoding='latin1')
         elif ext in ['xls', 'xlsx']:
             df = pd.read_excel(filepath)
         elif ext == 'json':

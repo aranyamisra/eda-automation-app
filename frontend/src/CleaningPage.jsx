@@ -96,7 +96,14 @@ function CleaningPage() {
     }));
   };
 
-  // Restore cleanedData from localStorage on mount
+  // Save cleanedData to localStorage whenever it changes
+  useEffect(() => {
+    if (cleanedData) {
+      localStorage.setItem('cleanedData', JSON.stringify(cleanedData));
+    }
+  }, [cleanedData]);
+
+  // Restore cleanedData and hasCleaned from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem('cleanedData');
     if (stored) {
@@ -107,13 +114,6 @@ function CleaningPage() {
       setHasCleaned(true);
     }
   }, []);
-
-  // Save cleanedData to localStorage whenever it changes
-  useEffect(() => {
-    if (cleanedData) {
-      localStorage.setItem('cleanedData', JSON.stringify(cleanedData));
-    }
-  }, [cleanedData]);
 
   useEffect(() => {
     fetchReport();
