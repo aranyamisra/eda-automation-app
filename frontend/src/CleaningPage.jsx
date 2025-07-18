@@ -221,6 +221,10 @@ function CleaningPage() {
         setCleanedData(result);
         setHasCleaned(true);
         localStorage.setItem('hasCleaned', 'true');
+        // Store outlier actions for export
+        if (cleaningActions.outliers) {
+          localStorage.setItem('outlierActions', JSON.stringify(cleaningActions.outliers));
+        }
         // Refresh the report
         fetchReport();
       } else {
