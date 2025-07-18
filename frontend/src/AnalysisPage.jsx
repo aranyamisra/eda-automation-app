@@ -181,6 +181,8 @@ const AnalysisPage = () => {
   // New state variables for filtering and sorting
   const [filterTop, setFilterTop] = useState('');
   const [sortOrder, setSortOrder] = useState('desc');
+  // New state for aggregation type
+  const [aggregationType, setAggregationType] = useState('sum'); // 'sum' or 'average'
 
   useEffect(() => {
     setLoading(true);
@@ -214,14 +216,21 @@ const AnalysisPage = () => {
     // Helper: aggregate numerical by category
     function aggregateByCategory(catCol, numCol) {
       const agg = {};
+      const count = {};
       (data.length > 0 ? data : preview).forEach(row => {
         const cat = row[catCol];
         const num = row[numCol];
         if (cat == null || num == null || isNaN(num)) return;
         agg[cat] = (agg[cat] || 0) + Number(num);
+        count[cat] = (count[cat] || 0) + 1;
       });
       const labels = Object.keys(agg);
-      const dataArr = labels.map(l => agg[l]);
+      let dataArr;
+      if (aggregationType === 'average') {
+        dataArr = labels.map(l => count[l] ? agg[l] / count[l] : 0);
+      } else {
+        dataArr = labels.map(l => agg[l]);
+      }
       return { labels, data: dataArr };
     }
 
@@ -297,7 +306,7 @@ const AnalysisPage = () => {
         return {
           labels: filteredLabels,
           datasets: [{
-            label: numCol,
+            label: numCol + (aggregationType === 'average' ? ' (Average)' : ' (Sum)'),
             data: filteredData,
             backgroundColor: 'rgba(54, 162, 235, 0.5)'
           }]
@@ -310,13 +319,16 @@ const AnalysisPage = () => {
       const [catCol1, catCol2, numCol] = selectedCols;
       // Build: {cat1: {cat2: sum}}
       const agg = {};
+      const count = {};
       (data.length > 0 ? data : preview).forEach(row => {
         const g1 = row[catCol1];
         const g2 = row[catCol2];
         const num = row[numCol];
         if (g1 == null || g2 == null || num == null || isNaN(num)) return;
         if (!agg[g1]) agg[g1] = {};
+        if (!count[g1]) count[g1] = {};
         agg[g1][g2] = (agg[g1][g2] || 0) + Number(num);
+        count[g1][g2] = (count[g1][g2] || 0) + 1;
       });
       const group1Labels = Object.keys(agg); // e.g., teams
       // Get all possible group2 values (e.g., all players)
@@ -347,7 +359,13 @@ const AnalysisPage = () => {
       // For each group2, build a dataset (one bar per group2 value)
       const datasets = group2Labels.map((g2, i) => ({
         label: g2,
-        data: filteredGroup1Labels.map(g1 => agg[g1][g2] || 0),
+        data: filteredGroup1Labels.map(g1 => {
+          if (aggregationType === 'average') {
+            return count[g1][g2] ? agg[g1][g2] / count[g1][g2] : 0;
+          } else {
+            return agg[g1][g2] || 0;
+          }
+        }),
         backgroundColor: palette[i % palette.length],
       }));
       return {
@@ -361,21 +379,26 @@ const AnalysisPage = () => {
         const colName = selectedCols[0];
         const isNumeric = col?.group === 'Numerical';
         const agg = {};
+        const count = {};
         (data.length > 0 ? data : preview).forEach(row => {
           const val = row[colName];
           if (val == null) return;
           if (isNumeric) {
-            // For numeric: count occurrences of each unique value (like histogram bins)
             agg[val] = (agg[val] || 0) + 1;
+            count[val] = (count[val] || 0) + 1;
           } else {
-            // For categorical: count occurrences
             agg[val] = (agg[val] || 0) + 1;
+            count[val] = (count[val] || 0) + 1;
           }
         });
         const labels = Object.keys(agg);
-        const counts = labels.map(l => agg[l]);
-        
-        const { labels: filteredLabels, data: filteredData } = applyFilterAndSort(labels, counts);
+        let dataArr;
+        if (aggregationType === 'average') {
+          dataArr = labels.map(l => count[l] ? agg[l] / count[l] : 0);
+        } else {
+          dataArr = labels.map(l => agg[l]);
+        }
+        const { labels: filteredLabels, data: filteredData } = applyFilterAndSort(labels, dataArr);
         
         return {
           labels: filteredLabels,
@@ -410,7 +433,7 @@ const AnalysisPage = () => {
         return {
           labels: filteredLabels,
           datasets: [{
-            label: numCol,
+            label: numCol + (aggregationType === 'average' ? ' (Average)' : ' (Sum)'),
             data: filteredData,
             backgroundColor: [
               'rgba(255, 99, 132, 0.5)',
@@ -631,6 +654,7 @@ const AnalysisPage = () => {
     // Default options
     const options = {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: { labels: { color: '#fff' } },
         title: { color: '#fff' }
@@ -650,30 +674,33 @@ const AnalysisPage = () => {
     };
     if (type === 'stackedBar') {
       return (
-        <Bar
-          data={data}
-          options={{
-            ...options,
-            plugins: {
-              ...options.plugins,
-              title: { ...options.plugins.title, display: true, text: data.datasets[0]?.label || '' }
-            },
-            scales: {
-              ...options.scales,
-              x: { ...options.scales.x, stacked: true },
-              y: { ...options.scales.y, stacked: true }
-            }
-          }}
-        />
+        <Box sx={{ height: 400, width: '100%' }}>
+          <Bar
+            data={data}
+            options={{
+              ...options,
+              plugins: {
+                ...options.plugins,
+                title: { ...options.plugins.title, display: true, text: data.datasets[0]?.label || '' }
+              },
+              scales: {
+                ...options.scales,
+                x: { ...options.scales.x, stacked: true },
+                y: { ...options.scales.y, stacked: true }
+              }
+            }}
+          />
+        </Box>
       );
     }
     if (type === 'groupedBar') {
-      return <Bar data={data} options={options} />;
+      return <Box sx={{ height: 400, width: '100%' }}><Bar data={data} options={options} /></Box>;
     }
     if (type === 'correlation') {
       if (!data || !data.datasets || !data.datasets[0].data.length) return null;
       const matrixOptions = {
         responsive: true,
+        maintainAspectRatio: false,
         layout: {
           padding: {
             top: 40,    
@@ -716,7 +743,7 @@ const AnalysisPage = () => {
         }
       };
       return (
-        <Box>
+        <Box sx={{ height: 400, width: '100%' }}>
           <ChartJS2 type="matrix" data={data} options={matrixOptions} plugins={[ChartDataLabels]} />
           {/* Color legend for correlation heatmap */}
           <Box mt={2} display="flex" flexDirection="column" alignItems="center" justifyContent="center">
@@ -741,34 +768,34 @@ const AnalysisPage = () => {
     }
     switch (type) {
       case 'bar':
-        return <Bar data={data} options={options} />;
+        return <Box sx={{ height: 400, width: '100%' }}><Bar data={data} options={options} /></Box>;
       case 'horizontalBar':
-        return <Bar data={data} options={{ ...options, indexAxis: 'y' }} />;
+        return <Box sx={{ height: 400, width: '100%' }}><Bar data={data} options={{ ...options, indexAxis: 'y' }} /></Box>;
       case 'pie':
-        return <Pie data={data} options={{
+        return <Box sx={{ height: 400, width: '100%' }}><Pie data={data} options={{
           ...options,
           plugins: {
             ...options.plugins,
             datalabels: { color: '#fff', font: { weight: 'bold', size: 16 } }
           }
-        }} plugins={[ChartDataLabels]} />;
+        }} plugins={[ChartDataLabels]} /></Box>;
       case 'donut':
-        return <Doughnut data={data} options={{
+        return <Box sx={{ height: 400, width: '100%' }}><Doughnut data={data} options={{
           ...options,
           plugins: {
             ...options.plugins,
             datalabels: { color: '#fff', font: { weight: 'bold', size: 16 } }
           }
-        }} plugins={[ChartDataLabels]} />;
+        }} plugins={[ChartDataLabels]} /></Box>;
       case 'histogram':
-        return <Bar data={data} options={options} />;
+        return <Box sx={{ height: 400, width: '100%' }}><Bar data={data} options={options} /></Box>;
       case 'box':
       // Box plot support removed
       return null;
       case 'scatter':
-        return <Scatter data={data} options={options} />;
+        return <Box sx={{ height: 400, width: '100%' }}><Scatter data={data} options={options} /></Box>;
       case 'line':
-        return <Line data={data} options={options} />;
+        return <Box sx={{ height: 400, width: '100%' }}><Line data={data} options={options} /></Box>;
       default:
         return null;
     }
@@ -900,6 +927,22 @@ const AnalysisPage = () => {
           {selectedChart && selectedColumns.length > 0 && (
             <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
               <Grid container spacing={3} alignItems="center">
+                {/* Aggregation toggle for relevant chart types */}
+                {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(selectedChart) && selectedColumns.length >= 2 && (
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth>
+                      <InputLabel>Aggregation</InputLabel>
+                      <Select
+                        value={aggregationType}
+                        label="Aggregation"
+                        onChange={e => setAggregationType(e.target.value)}
+                      >
+                        <MenuItem value="sum">Sum</MenuItem>
+                        <MenuItem value="average">Average</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
                 <Grid item xs={12} sm={6}>
                   <FormControl fullWidth sx={{ minWidth: '200px' }}>
                     <InputLabel>Filter by Top N Items</InputLabel>
@@ -1043,6 +1086,22 @@ const AnalysisPage = () => {
           {((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
             <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
               <Grid container spacing={3} alignItems="center">
+                {/* Aggregation toggle for relevant chart types */}
+                {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(chartType) && chartColumns.length >= 2 && (
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth>
+                      <InputLabel>Aggregation</InputLabel>
+                      <Select
+                        value={aggregationType}
+                        label="Aggregation"
+                        onChange={e => setAggregationType(e.target.value)}
+                      >
+                        <MenuItem value="sum">Sum</MenuItem>
+                        <MenuItem value="average">Average</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
                 <Grid item xs={12} sm={6}>
                   <FormControl fullWidth sx={{ minWidth: '200px' }}>
                     <InputLabel>Filter by Top N Items</InputLabel>
