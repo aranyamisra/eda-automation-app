@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import ColumnDropdowns from './ColumnDropdowns';
 import { Bar, Pie, Doughnut, Line, Scatter, Chart as ChartJS2 } from 'react-chartjs-2';
 import { Chart, CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Tooltip, Legend } from 'chart.js';
@@ -177,11 +177,15 @@ const AnalysisPage = () => {
   const [chartColumns, setChartColumns] = useState([]);
   const [showChart, setShowChart] = useState(false);
   const [chartsToReport, setChartsToReport] = useState({});
+  const [exportingChartId, setExportingChartId] = useState(null);
+
   
   // New state variables for filtering and sorting
   const [filterTop, setFilterTop] = useState('');
   const [sortOrder, setSortOrder] = useState('desc');
-  // New state for aggregation type
+
+  // Chart refs for all chart types
+  const chartRefs = useRef({});
   const [aggregationType, setAggregationType] = useState('sum'); // 'sum' or 'average'
 
   useEffect(() => {
@@ -306,7 +310,7 @@ const AnalysisPage = () => {
         return {
           labels: filteredLabels,
           datasets: [{
-            label: numCol + (aggregationType === 'average' ? ' (Average)' : ' (Sum)'),
+            abel: numCol + (aggregationType === 'average' ? ' (Average)' : ' (Sum)'),abel: numCol + (aggregationType === 'average' ? ' (Average)' : ' (Sum)'),
             data: filteredData,
             backgroundColor: 'rgba(54, 162, 235, 0.5)'
           }]
@@ -433,7 +437,7 @@ const AnalysisPage = () => {
         return {
           labels: filteredLabels,
           datasets: [{
-            label: numCol + (aggregationType === 'average' ? ' (Average)' : ' (Sum)'),
+            label: numCol,
             data: filteredData,
             backgroundColor: [
               'rgba(255, 99, 132, 0.5)',
@@ -635,26 +639,41 @@ const AnalysisPage = () => {
     return null;
   }
 
-  function renderChart(type, selectedCols) {
-    let colsToUse = selectedCols;
-    if (["groupedBar", "stackedBar"].includes(type)) {
-      // Always pick first two categoricals and first numerical
-      const colObjs = selectedCols.map(col => columns.find(c => c.name === col));
-      const cats = colObjs.filter(c => c.group === 'Categorical').map(c => c.name);
-      const nums = colObjs.filter(c => c.group === 'Numerical').map(c => c.name);
-      if (cats.length >= 2 && nums.length >= 1) {
-        colsToUse = [cats[0], cats[1], nums[0]];
-      } else {
-        // Not enough columns, don't render
-        return null;
+  // Helper to get chartId for current chart
+  function getChartId(type, cols, filterTop, sortOrder) {
+    return `${type}:${cols.join(',')}:filter=${filterTop}:sort=${sortOrder}`;
+  }
+
+  // Helper to get Chart.js options with black text/grid for export
+  function getExportChartOptions() {
+    return {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: '#111' } },
+        title: { color: '#111' },
+        datalabels: { color: '#111', font: { weight: 'bold', size: 16 } }
+      },
+      scales: {
+        x: {
+          grid: { color: '#333' },
+          ticks: { color: '#111' },
+          title: { color: '#111' }
+        },
+        y: {
+          grid: { color: '#333' },
+          ticks: { color: '#111' },
+          title: { color: '#111' }
+        }
       }
-    }
-    const data = getChartData(type, colsToUse);
+    };
+  }
+
+  function renderChart(type, selectedCols, forExport = false) {
+    const data = getChartData(type, selectedCols);
     if (!data) return null;
     // Default options
-    const options = {
+    const options = forExport ? getExportChartOptions() : {
       responsive: true,
-      maintainAspectRatio: false,
       plugins: {
         legend: { labels: { color: '#fff' } },
         title: { color: '#fff' }
@@ -672,35 +691,37 @@ const AnalysisPage = () => {
         }
       }
     };
+    const chartId = getChartId(type, selectedCols, filterTop, sortOrder);
+    if (!chartRefs.current[chartId]) {
+      chartRefs.current[chartId] = React.createRef();
+    }
     if (type === 'stackedBar') {
       return (
-        <Box sx={{ height: 400, width: '100%' }}>
-          <Bar
-            data={data}
-            options={{
-              ...options,
-              plugins: {
-                ...options.plugins,
-                title: { ...options.plugins.title, display: true, text: data.datasets[0]?.label || '' }
-              },
-              scales: {
-                ...options.scales,
-                x: { ...options.scales.x, stacked: true },
-                y: { ...options.scales.y, stacked: true }
-              }
-            }}
-          />
-        </Box>
+        <Bar
+          ref={chartRefs.current[chartId]}
+          data={data}
+          options={{
+            ...options,
+            plugins: {
+              ...options.plugins,
+              title: { ...options.plugins.title, display: true, text: data.datasets[0]?.label || '' }
+            },
+            scales: {
+              ...options.scales,
+              x: { ...options.scales.x, stacked: true },
+              y: { ...options.scales.y, stacked: true }
+            }
+          }}
+        />
       );
     }
     if (type === 'groupedBar') {
-      return <Box sx={{ height: 400, width: '100%' }}><Bar data={data} options={options} /></Box>;
+      return <Bar ref={chartRefs.current[chartId]} data={data} options={options} />;
     }
     if (type === 'correlation') {
       if (!data || !data.datasets || !data.datasets[0].data.length) return null;
       const matrixOptions = {
         responsive: true,
-        maintainAspectRatio: false,
         layout: {
           padding: {
             top: 40,    
@@ -743,8 +764,8 @@ const AnalysisPage = () => {
         }
       };
       return (
-        <Box sx={{ height: 400, width: '100%' }}>
-          <ChartJS2 type="matrix" data={data} options={matrixOptions} plugins={[ChartDataLabels]} />
+        <Box>
+          <ChartJS2 ref={chartRefs.current[chartId]} type="matrix" data={data} options={matrixOptions} plugins={[ChartDataLabels]} />
           {/* Color legend for correlation heatmap */}
           <Box mt={2} display="flex" flexDirection="column" alignItems="center" justifyContent="center">
             <Box
@@ -768,36 +789,87 @@ const AnalysisPage = () => {
     }
     switch (type) {
       case 'bar':
-        return <Box sx={{ height: 400, width: '100%' }}><Bar data={data} options={options} /></Box>;
+        return <Bar ref={chartRefs.current[chartId]} data={data} options={options} />;
       case 'horizontalBar':
-        return <Box sx={{ height: 400, width: '100%' }}><Bar data={data} options={{ ...options, indexAxis: 'y' }} /></Box>;
+        return <Bar ref={chartRefs.current[chartId]} data={data} options={{ ...options, indexAxis: 'y' }} />;
       case 'pie':
-        return <Box sx={{ height: 400, width: '100%' }}><Pie data={data} options={{
+        return <Pie ref={chartRefs.current[chartId]} data={data} options={{
           ...options,
           plugins: {
             ...options.plugins,
-            datalabels: { color: '#fff', font: { weight: 'bold', size: 16 } }
+            datalabels: { color: forExport ? '#111' : '#fff', font: { weight: 'bold', size: 16 } }
           }
-        }} plugins={[ChartDataLabels]} /></Box>;
+        }} plugins={[ChartDataLabels]} />;
       case 'donut':
-        return <Box sx={{ height: 400, width: '100%' }}><Doughnut data={data} options={{
+        return <Doughnut ref={chartRefs.current[chartId]} data={data} options={{
           ...options,
           plugins: {
             ...options.plugins,
-            datalabels: { color: '#fff', font: { weight: 'bold', size: 16 } }
+            datalabels: { color: forExport ? '#111' : '#fff', font: { weight: 'bold', size: 16 } }
           }
-        }} plugins={[ChartDataLabels]} /></Box>;
+        }} plugins={[ChartDataLabels]} />;
       case 'histogram':
-        return <Box sx={{ height: 400, width: '100%' }}><Bar data={data} options={options} /></Box>;
+        return <Bar ref={chartRefs.current[chartId]} data={data} options={options} />;
       case 'box':
       // Box plot support removed
       return null;
       case 'scatter':
-        return <Box sx={{ height: 400, width: '100%' }}><Scatter data={data} options={options} /></Box>;
+        return <Scatter ref={chartRefs.current[chartId]} data={data} options={options} />;
       case 'line':
-        return <Box sx={{ height: 400, width: '100%' }}><Line data={data} options={options} /></Box>;
+        return <Line ref={chartRefs.current[chartId]} data={data} options={options} />;
       default:
         return null;
+    }
+  }
+
+  // Add to Report handler for all chart types
+  function handleAddToReport(type, selectedCols, checked) {
+    const chartId = getChartId(type, selectedCols, filterTop, sortOrder);
+    if (checked) {
+      // Set state to trigger export rendering
+      setExportingChartId(chartId);
+      setTimeout(() => {
+        let image_base64 = '';
+        const ref = chartRefs.current[chartId];
+        let chartInstance = ref?.current;
+        if (chartInstance && typeof chartInstance.toBase64Image === 'function') {
+          image_base64 = chartInstance.toBase64Image();
+        } else if (chartInstance && chartInstance.chartInstance && typeof chartInstance.chartInstance.toBase64Image === 'function') {
+          image_base64 = chartInstance.chartInstance.toBase64Image();
+        }
+        if (!image_base64 || image_base64 === 'data:image/png;base64,' || image_base64.length < 100) {
+          alert('Failed to capture chart image. Please make sure the chart is visible before adding to report.');
+          setChartsToReport({
+            ...chartsToReport,
+            [chartId]: {
+              selected: false,
+              image_base64: ''
+            }
+          });
+          setExportingChartId(null);
+          return;
+        }
+        let clean_base64 = image_base64;
+        if (clean_base64.startsWith('data:image/png;base64,')) {
+          clean_base64 = clean_base64.replace('data:image/png;base64,', '');
+        }
+        setChartsToReport({
+          ...chartsToReport,
+          [chartId]: {
+            selected: checked,
+            image_base64: clean_base64
+          }
+        });
+        setExportingChartId(null); // revert to normal rendering
+      }, 300); // allow time for re-render
+    } else {
+      setChartsToReport({
+        ...chartsToReport,
+        [chartId]: {
+          selected: false,
+          image_base64: ''
+        }
+      });
     }
   }
 
@@ -928,7 +1000,7 @@ const AnalysisPage = () => {
             <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
               <Grid container spacing={3} alignItems="center">
                 {/* Aggregation toggle for relevant chart types */}
-                {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(selectedChart) && selectedColumns.length >= 2 && (
+              {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(selectedChart) && selectedColumns.length >= 2 && (
                   <Grid item xs={12} sm={6}>
                     <FormControl fullWidth>
                       <InputLabel>Aggregation</InputLabel>
@@ -1011,15 +1083,12 @@ const AnalysisPage = () => {
           )}
           {showChart && selectedChart && selectedColumns.length > 0 && (
             <Box mt={4}>
-              {renderChart(selectedChart, selectedColumns)}
+              {renderChart(selectedChart, selectedColumns, exportingChartId === getChartId(selectedChart, selectedColumns, filterTop, sortOrder))}
               <FormControlLabel
                 control={
                   <Checkbox
-                    checked={!!chartsToReport[`${selectedChart}:${selectedColumns.join(',')}`]}
-                    onChange={e => setChartsToReport({
-                      ...chartsToReport,
-                      [`${selectedChart}:${selectedColumns.join(',')}`]: e.target.checked
-                    })}
+                    checked={!!chartsToReport[getChartId(selectedChart, selectedColumns, filterTop, sortOrder)]?.selected}
+                    onChange={e => handleAddToReport(selectedChart, selectedColumns, e.target.checked)}
                   />
                 }
                 label="Add to Report"
@@ -1102,7 +1171,7 @@ const AnalysisPage = () => {
                     </FormControl>
                   </Grid>
                 )}
-                <Grid item xs={12} sm={6}>
+                              <Grid item xs={12} sm={6}>
                   <FormControl fullWidth sx={{ minWidth: '200px' }}>
                     <InputLabel>Filter by Top N Items</InputLabel>
                     <Select
@@ -1175,15 +1244,12 @@ const AnalysisPage = () => {
           </Button>
           {showChart && chartType && ((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
             <Box mt={4}>
-              {renderChart(chartType, chartColumns.filter(Boolean))}
+              {renderChart(chartType, chartColumns.filter(Boolean), exportingChartId === getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder))}
               <FormControlLabel
                 control={
                   <Checkbox
-                    checked={!!chartsToReport[`${chartType}:${chartColumns.filter(Boolean).join(',')}`]}
-                    onChange={e => setChartsToReport({
-                      ...chartsToReport,
-                      [`${chartType}:${chartColumns.filter(Boolean).join(',')}`]: e.target.checked
-                    })}
+                    checked={!!chartsToReport[getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder)]?.selected}
+                    onChange={e => handleAddToReport(chartType, chartColumns.filter(Boolean), e.target.checked)}
                   />
                 }
                 label="Add to Report"
@@ -1238,4 +1304,3 @@ const AnalysisPage = () => {
 }
 
 export default AnalysisPage;
-

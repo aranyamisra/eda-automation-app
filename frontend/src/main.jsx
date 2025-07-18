@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -9,8 +9,7 @@ import UploadPage from './UploadPage';
 import ReportPage from './ReportPage';
 import CleaningPage from './CleaningPage';
 import AnalysisPage from './AnalysisPage';
-// import AnalysisPage from './AnalysisPage'; // Removed
-// ...other imports
+import ExportPage from './ExportPage';
 
 const darkTheme = createTheme({
   palette: {
@@ -24,21 +23,62 @@ const darkTheme = createTheme({
   },
 });
 
+function MainRouter() {
+  const [chartsToReport, setChartsToReport] = useState({});
+  const [includedSections, setIncludedSections] = useState({
+    overview: true,
+    dataQuality: true,
+    cleaning: true,
+    outlier: true,
+    visualisations: true,
+    insights: true,
+  });
+  const [downloadCleaned, setDownloadCleaned] = useState(false);
+  const [reportTitle, setReportTitle] = useState('EDA Report');
+
+  const handleSectionToggle = (key) => {
+    setIncludedSections(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const handleDownloadCleanedChange = (checked) => {
+    setDownloadCleaned(checked);
+  };
+
+  return (
+    <ThemeProvider theme={darkTheme}>
+      <CssBaseline />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<App />}>
+            <Route index element={<LandingPage />} />
+            <Route path="upload" element={<UploadPage />} />
+            <Route path="report" element={<ReportPage />} />
+            <Route path="cleaning" element={<CleaningPage />} />
+            <Route path="/analysis" element={<AnalysisPage chartsToReport={chartsToReport} setChartsToReport={setChartsToReport} />} />
+            <Route path="/export" element={
+              <ExportPage
+                chartsToReport={chartsToReport}
+                setChartsToReport={setChartsToReport}
+                includedSections={includedSections}
+                onSectionToggle={handleSectionToggle}
+                downloadCleaned={downloadCleaned}
+                onDownloadCleanedChange={handleDownloadCleanedChange}
+                reportTitle={reportTitle}
+                onTitleChange={setReportTitle}
+              />
+            } />
+            {/* <Route path="analysis" element={<AnalysisPage />} /> */} {/* Removed */}
+            {/* Add more routes as needed */}
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </ThemeProvider>
+  );
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <ThemeProvider theme={darkTheme}>
-    <CssBaseline />
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<App />}>
-          <Route index element={<LandingPage />} />
-          <Route path="upload" element={<UploadPage />} />
-          <Route path="report" element={<ReportPage />} />
-          <Route path="cleaning" element={<CleaningPage />} />
-          <Route path="/analysis" element={<AnalysisPage />} />
-          {/* <Route path="analysis" element={<AnalysisPage />} /> */} {/* Removed */}
-          {/* Add more routes as needed */}
-        </Route>
-      </Routes>
-    </BrowserRouter>
-  </ThemeProvider>
+  <MainRouter />
 );
