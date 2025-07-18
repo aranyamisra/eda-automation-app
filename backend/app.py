@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, session, send_from_directory
+from flask import Flask, request, jsonify, session, send_from_directory, send_file
 import pandas as pd
 import os
 import json
@@ -7,6 +7,10 @@ from flask_cors import CORS
 import traceback
 import numpy as np
 import warnings
+import io
+from jinja2 import Template
+from weasyprint import HTML
+import zipfile
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key'
@@ -521,6 +525,150 @@ def analysis_metadata():
     except Exception as e:
         app.logger.error(traceback.format_exc())
         return jsonify({'error': f'Failed to load analysis metadata: {str(e)}'}), 500
+
+
+@app.route('/export', methods=['POST'])
+def export_report():
+    import datetime
+    data = request.json
+    # Extract options from request
+    report_title = data.get('reportTitle', 'EDA Report')
+    report_format = data.get('reportFormat', 'html')
+    # Accept both camelCase and snake_case for included_sections
+    included_sections = data.get('included_sections') or data.get('includedSections', {})
+    charts = data.get('charts', [])
+    download_cleaned = data.get('downloadCleaned', False)
+    project_name = data.get('projectName', '')
+    author_name = data.get('authorName', '')
+    final_insights = data.get('finalInsights', '')
+
+    # Find latest cleaned file for stats
+    upload_folder = app.config['UPLOAD_FOLDER']
+    files = [os.path.join(upload_folder, f) for f in os.listdir(upload_folder)
+             if os.path.isfile(os.path.join(upload_folder, f)) and f.startswith('cleaned_')]
+    if files:
+        cleaned_filepath = max(files, key=os.path.getctime)
+        ext = cleaned_filepath.split('.')[-1].lower()
+        if ext == 'csv':
+            df = pd.read_csv(cleaned_filepath)
+        elif ext in ['xls', 'xlsx']:
+            df = pd.read_excel(cleaned_filepath)
+        elif ext == 'json':
+            df = pd.read_json(cleaned_filepath, orient='records')
+        else:
+            df = pd.DataFrame()
+        file_size = f"{os.path.getsize(cleaned_filepath)/1024/1024:.2f} MB"
+    else:
+        df = pd.DataFrame()
+        file_size = '-'
+
+    # Overview
+    total_rows = len(df)
+    total_columns = len(df.columns)
+    num_numerical = len([c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])])
+    num_categorical = len([c for c in df.columns if df[c].dtype == 'object'])
+    num_datetime = len([c for c in df.columns if pd.api.types.is_datetime64_any_dtype(df[c])])
+
+    # Data Quality Summary
+    missing_values = f"{df.isnull().sum().sum()} ({(df.isnull().sum().sum()/(len(df)*len(df.columns))*100 if len(df)*len(df.columns) else 0):.2f}%)" if not df.empty else '-'
+    duplicates = f"{df.duplicated().sum()} ({(df.duplicated().sum()/len(df)*100 if len(df) else 0):.2f}%)" if not df.empty else '-'
+    # Dummy dtype fixes (should be provided by frontend or computed)
+    dtype_fixes = data.get('dtypeFixes', [])
+
+    # Cleaning Summary
+    cleaning_actions = data.get('cleaningActions', [])
+    cleaning_table = data.get('cleaningTable', [
+        {'metric': 'Total Rows', 'before': '-', 'after': '-'},
+        {'metric': 'Null Cells', 'before': '-', 'after': '-'},
+        {'metric': 'Duplicate Rows', 'before': '-', 'after': '-'}
+    ])
+
+    # Outlier Detection Summary
+    outlier_table = data.get('outlierTable', [])
+
+    # Charts (visualisations)
+    charts_data = []
+    for chart in charts:
+        charts_data.append({
+            'title': chart.get('title', ''),
+            'type': chart.get('type', ''),
+            'columns': ', '.join(chart.get('columns', [])),
+            'insight': chart.get('insight', ''),
+            'image_base64': chart.get('image_base64', '')
+        })
+
+    # Date & Time of Export
+    export_datetime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    # 1. Generate HTML report using Jinja2 template
+    html_template = open('templates/eda_report_template.html').read()
+    template = Template(html_template)
+    context = dict(
+        title=report_title,
+        export_datetime=export_datetime,
+        project_name=project_name,
+        author_name=author_name,
+        total_rows=total_rows,
+        total_columns=total_columns,
+        file_size=file_size,
+        num_numerical=num_numerical,
+        num_categorical=num_categorical,
+        num_datetime=num_datetime,
+        missing_values=missing_values,
+        duplicates=duplicates,
+        dtype_fixes=dtype_fixes,
+        cleaning_actions=cleaning_actions,
+        cleaning_table=cleaning_table,
+        outlier_table=outlier_table,
+        charts=charts_data,
+        final_insights=final_insights,
+        included_sections=included_sections  # <-- always pass this
+    )
+    html_content = template.render(**context)
+
+    # 2. Prepare report file (HTML or PDF)
+    report_bytes = None
+    report_filename = None
+    if report_format == 'pdf':
+        report_bytes = HTML(string=html_content).write_pdf()
+        report_filename = f"{report_title}.pdf"
+        report_mimetype = 'application/pdf'
+    else:
+        report_bytes = html_content.encode('utf-8')
+        report_filename = f"{report_title}.html"
+        report_mimetype = 'text/html'
+
+    # 3. Optionally, prepare cleaned dataset as CSV
+    cleaned_csv_bytes = None
+    cleaned_csv_filename = None
+    if download_cleaned and not df.empty:
+        buf = io.StringIO()
+        df.to_csv(buf, index=False)
+        cleaned_csv_bytes = buf.getvalue().encode('utf-8')
+        cleaned_csv_filename = os.path.basename(cleaned_filepath)
+
+    # 4. Return as ZIP if both report and CSV are requested
+    if download_cleaned and cleaned_csv_bytes:
+        zip_buf = io.BytesIO()
+        with zipfile.ZipFile(zip_buf, 'w') as zf:
+            zf.writestr(report_filename, report_bytes)
+            if cleaned_csv_filename is not None:
+                zf.writestr(cleaned_csv_filename, cleaned_csv_bytes)
+        zip_buf.seek(0)
+        return send_file(
+            zip_buf,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=f"{report_title}_export.zip"
+        )
+
+    # 5. Otherwise, return just the report
+    return send_file(
+        io.BytesIO(report_bytes),
+        mimetype=report_mimetype,
+        as_attachment=True,
+        download_name=report_filename
+    )
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)

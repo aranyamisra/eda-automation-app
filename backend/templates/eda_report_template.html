@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{{ title }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #222; background: #fff; }
+    h1, h2 { color: #009688; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 1.5em; }
+    th, td { border: 1px solid #ccc; padding: 6px 10px; }
+    th { background: #f0f0f0; }
+    .section { margin-bottom: 2em; }
+  </style>
+</head>
+<body>
+  <h1>{{ title }}</h1>
+  {% if included_sections.overview %}
+  <div class="section">
+    <h2>Overview</h2>
+    <p><b>Date & Time:</b> {{ export_datetime }}</p>
+    <p><b>Total Rows:</b> {{ total_rows }} | <b>Total Columns:</b> {{ total_columns }}</p>
+    <p><b>File Size:</b> {{ file_size }}</p>
+    <ul>
+      <li>Numerical: {{ num_numerical }}</li>
+      <li>Categorical: {{ num_categorical }}</li>
+      <li>DateTime: {{ num_datetime }}</li>
+    </ul>
+  </div>
+  {% endif %}
+  {% if included_sections.dataQuality %}
+  <div class="section">
+    <h2>Data Quality Summary</h2>
+    <p><b>Missing Values:</b> {{ missing_values }}</p>
+    <p><b>Duplicates:</b> {{ duplicates }}</p>
+    <p><b>Suggested Data Type Fixes:</b></p>
+    <ul>
+      {% for fix in dtype_fixes %}
+        <li>{{ fix }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  {% if included_sections.cleaning %}
+  <div class="section">
+    <h2>Cleaning Summary</h2>
+    <p><b>Actions Taken:</b></p>
+    <ul>
+      {% for action in cleaning_actions %}
+        <li>{{ action }}</li>
+      {% endfor %}
+    </ul>
+    <table>
+      <tr><th>Metric</th><th>Before</th><th>After</th></tr>
+      {% for row in cleaning_table %}
+        <tr>
+          <td>{{ row.metric }}</td>
+          <td>{{ row.before }}</td>
+          <td>{{ row.after }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+  {% if included_sections.outlier %}
+  <div class="section">
+    <h2>Outlier Detection Summary</h2>
+    <table>
+      <tr><th>Column</th><th>Method Used</th><th>Action</th></tr>
+      {% for outlier in outlier_table %}
+        <tr>
+          <td>{{ outlier.column }}</td>
+          <td>{{ outlier.method }}</td>
+          <td>{{ outlier.action }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+  {% if included_sections.visualisations %}
+  <div class="section">
+    <h2>Visualisations</h2>
+    {% for chart in charts %}
+      <div>
+        <h3>{{ chart.title }}</h3>
+        <p>Type: {{ chart.type }} | Columns: {{ chart.columns }}</p>
+        <p>{{ chart.insight }}</p>
+        <img src="data:image/png;base64,{{ chart.image_base64 }}" alt="{{ chart.title }}" style="max-width: 600px;"/>
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if included_sections.insights %}
+  <div class="section">
+    <h2>Final Insights</h2>
+    <p>{{ final_insights }}</p>
+  </div>
+  {% endif %}
+</body>
+</html>
