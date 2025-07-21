@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { CleaningSummaryContext } from './App';
 import { 
   Box, 
   Typography, 
@@ -57,6 +58,7 @@ function CleaningPage() {
   const [fillMethod, setFillMethod] = useState('specific');
   const [cleanedData, setCleanedData] = useState(null);
   const [hasCleaned, setHasCleaned] = useState(false);
+  const [cleaningSummary, setCleaningSummary] = useState([]);
 
   // Outlier method/action descriptions
   const OUTLIER_METHODS = [
@@ -103,15 +105,27 @@ function CleaningPage() {
     }
   }, [cleanedData]);
 
-  // Restore cleanedData and hasCleaned from localStorage on mount
+  // Save cleaningSummary to localStorage whenever it changes
   useEffect(() => {
-    const stored = localStorage.getItem('cleanedData');
+    localStorage.setItem('cleaningSummary', JSON.stringify(cleaningSummary));
+  }, [cleaningSummary]);
+
+  // Restore cleaningSummary from localStorage on mount, unconditionally
+  useEffect(() => {
+    const stored = localStorage.getItem('cleaningSummary');
     if (stored) {
-      setCleanedData(JSON.parse(stored));
+      setCleaningSummary(JSON.parse(stored));
     }
-    const cleanedFlag = localStorage.getItem('hasCleaned');
-    if (cleanedFlag === 'true') {
-      setHasCleaned(true);
+  }, []);
+
+  // Restore session from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('cleaningSession');
+    if (stored) {
+      const session = JSON.parse(stored);
+      setHasCleaned(session.hasCleaned || false);
+      setCleanedData(session.cleanedData || null);
+      setCleaningSummary(session.cleaningSummary || []);
     }
   }, []);
 
@@ -132,6 +146,7 @@ function CleaningPage() {
       
       const data = await response.json();
       setReport(data);
+      // setCleaningSummary([]); // <-- Only do this after upload, not on every report fetch
       
       // Initialize cleaning actions
       const initialActions = {
@@ -144,7 +159,7 @@ function CleaningPage() {
       // Initialize null value actions for each column
       if (data.nulls) {
         Object.keys(data.nulls).forEach(col => {
-          initialActions.nulls[col] = 'remain';
+          initialActions.nulls[col] = { action: 'remain' }; // Set default action object
         });
       }
       
@@ -184,6 +199,14 @@ function CleaningPage() {
     try {
       setLoading(true);
       
+      // Filter out 'remain' actions for nulls - only send columns we're actually cleaning
+      const nullActions = {};
+      Object.entries(cleaningActions.nulls || {}).forEach(([col, action]) => {
+        if (action?.action && action.action !== 'remain') {
+          nullActions[col] = action;
+        }
+      });
+      
       // Compose outlier config for backend
       let outlierConfig = {};
       if (report?.outliers) {
@@ -200,7 +223,7 @@ function CleaningPage() {
 
       const cleaningConfig = {
         duplicates: cleaningActions.duplicates,
-        nulls: cleaningActions.nulls,
+        nulls: nullActions,
         dataTypes: cleaningActions.dataTypes,
         fillValue,
         fillMethod,
@@ -220,13 +243,118 @@ function CleaningPage() {
         const result = await response.json();
         setCleanedData(result);
         setHasCleaned(true);
-        localStorage.setItem('hasCleaned', 'true');
+        // Accumulate actions for the session
+        const newSummary = [];
+        
+        // Duplicates summary
+        if (cleaningActions.duplicates === 'delete' && report.duplicates > 0) {
+          newSummary.push(`Removed ${report.duplicates} duplicate rows`);
+        }
+        
+        // Nulls summary
+        Object.entries(nullActions).forEach(([col, action]) => {
+          const nullCount = report.nulls?.[col] || 0;
+          if (action.action === 'delete_row' && nullCount > 0) {
+            newSummary.push(`Deleted ${nullCount} rows with null values in column "${col}"`);
+          } else if (action.action === 'delete_column' && nullCount > 0) {
+            newSummary.push(`Deleted column "${col}" (contained ${nullCount} null values)`);
+          } else if (action.action === 'fill' && nullCount > 0) {
+            const method = action.fillMethod || 'specific';
+            const value = action.fillValue || 'calculated value';
+            newSummary.push(`Filled ${nullCount} null values in column "${col}" using ${method} (${value})`);
+          }
+        });
+        
+        // Data type conversions summary
+        Object.entries(cleaningActions.dataTypes || {}).forEach(([col, action]) => {
+          if (action === 'convert' && report.suggested_dtypes?.[col]) {
+            newSummary.push(`Converted column "${col}" to ${report.suggested_dtypes[col]} data type`);
+          }
+        });
+        
+        // Outliers summary
+        Object.entries(outlierConfig).forEach(([col, config]) => {
+          const outlierCount = report.outliers?.[col]?.[config.method]?.count || 0;
+          if (outlierCount > 0) {
+            const actionText = config.action === 'remove' ? 'removed' : 'capped';
+            newSummary.push(`${actionText.charAt(0).toUpperCase() + actionText.slice(1)} ${outlierCount} outliers in column "${col}" using ${config.method} method`);
+          }
+        });
+        
+        // Only append if there are actual actions
+        if (newSummary.length > 0) {
+          const updatedSummary = [...cleaningSummary, ...newSummary];
+          setCleaningSummary(updatedSummary);
+          // Save the full result to localStorage for the Export page
+          localStorage.setItem('cleaningSession', JSON.stringify({
+            hasCleaned: true,
+            cleanedData: result,
+            cleaningSummary: updatedSummary
+          }));
+        } else {
+          // Still save cleanedData and hasCleaned if no new actions
+          localStorage.setItem('cleaningSession', JSON.stringify({
+            hasCleaned: true,
+            cleanedData: result,
+            cleaningSummary
+          }));
+        }
+        
+        // Reset outlier actions after successful cleaning
+        if (outlierConfig && Object.keys(outlierConfig).length > 0) {
+          const resetOutliers = {};
+          Object.keys(report.outliers || {}).forEach(col => {
+            resetOutliers[col] = {
+              method: 'iqr',
+              action: 'none'
+            };
+          });
+          setCleaningActions(prev => ({
+            ...prev,
+            outliers: resetOutliers
+          }));
+        }
+        
+        // Update the report with the cleaning result, but preserve null info for 'remain' columns
+        if (result.after?.nulls) {
+          const updatedReport = { ...report };
+          // Keep null counts for columns where we chose to 'remain'
+          Object.entries(cleaningActions.nulls || {}).forEach(([col, action]) => {
+            if (action?.action === 'remain' && report.nulls?.[col]) {
+              if (!result.after.nulls) result.after.nulls = {};
+              result.after.nulls[col] = report.nulls[col];
+            }
+          });
+          setReport(prev => ({
+            ...prev,
+            dataset_info: result.after.shape,
+            nulls: result.after.nulls,
+            duplicates: result.after.duplicates,
+            data_quality_score: result.after.data_quality_score,
+            quality_metrics: result.after.quality_metrics,
+            statistical_summary: result.after.statistical_summary,
+            outliers: result.after.outliers,
+            suggested_dtypes: result.after.suggested_dtypes || prev.suggested_dtypes
+          }));
+        } else {
+          // Update the report with the new dataset information
+          setReport(prev => ({
+            ...prev,
+            dataset_info: result.after.shape,
+            nulls: result.after.nulls || {},
+            duplicates: result.after.duplicates || 0,
+            data_quality_score: result.after.data_quality_score || 0,
+            quality_metrics: result.after.quality_metrics || {},
+            statistical_summary: result.after.statistical_summary || {},
+            outliers: result.after.outliers || {},
+            suggested_dtypes: result.after.suggested_dtypes || prev.suggested_dtypes
+          }));
+        }
+        
         // Store outlier actions for export
         if (cleaningActions.outliers) {
           localStorage.setItem('outlierActions', JSON.stringify(cleaningActions.outliers));
         }
-        // Refresh the report
-        fetchReport();
       } else {
         throw new Error('Failed to apply cleaning');
       }
@@ -274,6 +402,43 @@ function CleaningPage() {
   const handleFillValueChange = (col, value) => {
     handleCleaningAction('nulls', col, { action: 'fill', fillMethod: 'specific', fillValue: value });
   };
+
+  // Calculate expected shape after cleaning actions
+  const calculateExpectedShape = () => {
+    if (!report) return { rows: 0, columns: 0 };
+    
+    let expectedRows = report.dataset_info?.rows || 0;
+    let expectedColumns = report.dataset_info?.columns || 0;
+    
+    // Account for duplicate removal
+    if (cleaningActions.duplicates === 'delete') {
+      expectedRows -= report.duplicates || 0;
+    }
+    
+    // Account for null value actions
+    Object.entries(cleaningActions.nulls || {}).forEach(([col, action]) => {
+      const nullCount = report.nulls?.[col] || 0;
+      if (action?.action === 'delete_row') {
+        expectedRows -= nullCount;
+      } else if (action?.action === 'delete_column') {
+        expectedColumns -= 1;
+      }
+    });
+    
+    // Account for outlier removal
+    Object.entries(cleaningActions.outliers || {}).forEach(([col, config]) => {
+      if (config?.action === 'remove' && config?.method) {
+        const outlierCount = report.outliers?.[col]?.[config.method]?.count || 0;
+        expectedRows -= outlierCount;
+      }
+    });
+    
+    return { rows: Math.max(0, expectedRows), columns: Math.max(0, expectedColumns) };
+  };
+
+  const expectedShape = calculateExpectedShape();
+  const hasShapeChanges = expectedShape.rows !== (report?.dataset_info?.rows || 0) || 
+                         expectedShape.columns !== (report?.dataset_info?.columns || 0);
 
   if (loading) {
     return (
@@ -411,14 +576,15 @@ function CleaningPage() {
                   <FormControl component="fieldset" sx={{ mt: 1 }}>
                     <FormLabel component="legend" sx={{ fontSize: 14 }}>Action</FormLabel>
                           <RadioGroup
-                      row
-                      value={cleaningActions.nulls?.[col]?.action || ''}
-                      onChange={e => handleNullAction(col, e.target.value)}
+                            value={cleaningActions.nulls?.[col]?.action || 'remain'}
+                            onChange={e => handleNullAction(col, e.target.value)}
+                            row
                           >
-                      <FormControlLabel value="delete_row" control={<Radio />} label="Delete rows" />
-                      <FormControlLabel value="delete_column" control={<Radio />} label="Delete column" />
-                      <FormControlLabel value="fill" control={<Radio />} label="Fill with value" />
-                    </RadioGroup>
+                            <FormControlLabel value="remain" control={<Radio />} label="Keep nulls" />
+                            <FormControlLabel value="delete_row" control={<Radio />} label="Delete rows" />
+                            <FormControlLabel value="delete_column" control={<Radio />} label="Delete column" />
+                            <FormControlLabel value="fill" control={<Radio />} label="Fill with value" />
+                          </RadioGroup>
                   </FormControl>
                   <Box
                     sx={{
@@ -656,6 +822,23 @@ function CleaningPage() {
           <Alert severity="success" sx={{ mb: 3 }}>
             Data cleaning applied successfully! The dataset has been updated.
           </Alert>
+          
+          {/* Cleaning Actions Summary */}
+          {cleaningSummary && cleaningSummary.length > 0 && (
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Cleaning Actions Applied
+              </Typography>
+              <Box component="ul" sx={{ pl: 2, m: 0 }}>
+                {cleaningSummary.map((action, index) => (
+                  <Typography key={index} component="li" sx={{ mb: 1 }}>
+                    {action}
+                  </Typography>
+                ))}
+              </Box>
+            </Paper>
+          )}
+          
           {/* Statistical Summary After Cleaning */}
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>

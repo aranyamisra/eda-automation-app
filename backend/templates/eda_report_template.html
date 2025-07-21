@@ -3,12 +3,46 @@
 <head>
   <title>{{ title }}</title>
   <style>
-    body { font-family: Arial, sans-serif; color: #222; background: #fff; }
-    h1, h2 { color: #009688; }
-    table { border-collapse: collapse; width: 100%; margin-bottom: 1.5em; }
-    th, td { border: 1px solid #ccc; padding: 6px 10px; }
-    th { background: #f0f0f0; }
-    .section { margin-bottom: 2em; }
+    @page {
+      size: A4;
+      margin: 2cm;
+    }
+    body { 
+      font-family: Arial, sans-serif; 
+      color: #222; 
+      background: #fff;
+      margin: 0;
+      padding: 20px;
+    }
+    h1, h2 { 
+      color: #009688;
+      break-after: avoid;
+    }
+    table { 
+      border-collapse: collapse; 
+      width: 100%; 
+      margin-bottom: 1.5em;
+      page-break-inside: avoid;
+    }
+    th, td { 
+      border: 1px solid #ccc; 
+      padding: 6px 10px; 
+    }
+    th { 
+      background: #f0f0f0; 
+    }
+    .section { 
+      margin-bottom: 2em;
+      page-break-inside: avoid;
+    }
+    .chart-container {
+      page-break-inside: avoid;
+      margin-bottom: 2em;
+    }
+    img {
+      max-width: 100% !important;
+      height: auto !important;
+    }
   </style>
 </head>
 <body>
@@ -79,11 +113,11 @@
   <div class="section">
     <h2>Visualisations</h2>
     {% for chart in charts %}
-      <div>
+      <div class="chart-container">
         <h3>{{ chart.title }}</h3>
-        <p>Type: {{ chart.type }} | Columns: {{ chart.columns }}</p>
+        <p>Type: {{ chart.type }} | Columns: {{ chart.columns }}{% if chart.aggregationType %} | Aggregation: {{ chart.aggregationType }}{% endif %}</p>
         <p>{{ chart.insight }}</p>
-        <img src="data:image/png;base64,{{ chart.image_base64 }}" alt="{{ chart.title }}" style="max-width: 600px;"/>
+        <img src="data:image/png;base64,{{ chart.image_base64 }}" alt="{{ chart.title }}"/>
       </div>
     {% endfor %}
   </div>

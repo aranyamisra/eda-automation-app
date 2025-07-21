@@ -207,7 +207,8 @@ def clean_data():
                 'quality_metrics': after_report['quality_metrics'],
                 'statistical_summary': after_report['statistical_summary'],
                 'data_quality_score': after_report['data_quality_score'],
-                'preview': after_report['preview']
+                'preview': after_report['preview'],
+                'outliers': after_report['outliers']
             },
             'dtype_changes': dtype_changes,
             'warnings': warnings,
@@ -268,8 +269,6 @@ def apply_cleaning_operations(df, config):
 
     # Handle outlier cleaning
     outlier_config = config.get('outliers', {})
-    # --- Refactored: Build masks for all columns, apply once at end ---
-    masks = []
     for column, outlier_action in outlier_config.items():
         if column in df.columns and pd.api.types.is_numeric_dtype(df[column]):
             method = outlier_action.get('method', 'none')
@@ -282,6 +281,7 @@ def apply_cleaning_operations(df, config):
                     q05 = col_data.quantile(0.05)
                     q95 = col_data.quantile(0.95)
                     mask = (col_data >= q05) & (col_data <= q95)
+                    df = df[mask]
                 elif method == 'iqr':
                     q1 = col_data.quantile(0.25)
                     q3 = col_data.quantile(0.75)
@@ -289,17 +289,14 @@ def apply_cleaning_operations(df, config):
                     iqr_low = q1 - 1.5 * iqr
                     iqr_high = q3 + 1.5 * iqr
                     mask = (col_data >= iqr_low) & (col_data <= iqr_high)
+                    df = df[mask]
                 elif method == 'zscore':
                     mean = col_data.mean()
                     std = col_data.std()
                     if std > 0:
                         z_scores = (col_data - mean) / std
                         mask = z_scores.abs() <= 3
-                    else:
-                        mask = pd.Series([True]*len(col_data), index=col_data.index)
-                else:
-                    mask = pd.Series([True]*len(col_data), index=col_data.index)
-                masks.append(mask)
+                        df = df[mask]
             elif action == 'cap':
                 if method == 'winsorizing':
                     q05 = col_data.quantile(0.05)
@@ -317,12 +314,6 @@ def apply_cleaning_operations(df, config):
                     std = col_data.std()
                     if std > 0:
                         df[column] = col_data.clip(lower=mean - 3*std, upper=mean + 3*std)
-    # Apply combined mask if any
-    if masks:
-        combined_mask = masks[0]
-        for m in masks[1:]:
-            combined_mask = combined_mask & m
-        df = df[combined_mask]
     
     return df
 
@@ -595,13 +586,17 @@ def export_report():
     # Charts (visualisations)
     charts_data = []
     for chart in charts:
-        charts_data.append({
+        chart_info = {
             'title': chart.get('title', ''),
             'type': chart.get('type', ''),
             'columns': ', '.join(chart.get('columns', [])),
             'insight': chart.get('insight', ''),
             'image_base64': chart.get('image_base64', '')
-        })
+        }
+        # Add aggregation type if applicable
+        if chart.get('aggregationType') and chart.get('type') in ['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut']:
+            chart_info['aggregationType'] = chart.get('aggregationType')
+        charts_data.append(chart_info)
 
     # Date & Time of Export
     export_datetime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')

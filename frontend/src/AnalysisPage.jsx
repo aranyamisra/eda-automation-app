@@ -5,6 +5,7 @@ import { Chart, CategoryScale, LinearScale, BarElement, PointElement, LineElemen
 import { MatrixController, MatrixElement } from 'chartjs-chart-matrix';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Checkbox } from '@mui/material';
+import { useChartsToReport } from './ChartsToReportContext';
 
 
 // Color interpolation functions for diverging heatmap
@@ -176,17 +177,25 @@ const AnalysisPage = () => {
   const [chartType, setChartType] = useState('');
   const [chartColumns, setChartColumns] = useState([]);
   const [showChart, setShowChart] = useState(false);
-  const [chartsToReport, setChartsToReport] = useState({});
+  const { chartsToReport, setChartsToReport } = useChartsToReport();
   const [exportingChartId, setExportingChartId] = useState(null);
 
   
   // New state variables for filtering and sorting
   const [filterTop, setFilterTop] = useState('');
-  const [sortOrder, setSortOrder] = useState('desc');
+  const [sortOrder, setSortOrder] = useState('none'); // Default to no sort
 
   // Chart refs for all chart types
   const chartRefs = useRef({});
   const [aggregationType, setAggregationType] = useState('sum'); // 'sum' or 'average'
+  const [chartCapturing, setChartCapturing] = useState(false);
+
+  // Clean up chart refs when component unmounts
+  useEffect(() => {
+    return () => {
+      chartRefs.current = {};
+    };
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -202,6 +211,17 @@ const AnalysisPage = () => {
         setLoading(false);
       });
   }, []);
+
+  // On mount, always load chartsToReport from localStorage (even if empty)
+  // useEffect(() => {
+  //   const storedCharts = localStorage.getItem('chartsToReport');
+  //   setChartsToReport(storedCharts ? JSON.parse(storedCharts) : {});
+  // }, []);
+
+  // On every change, always save to localStorage
+  // useEffect(() => {
+  //   localStorage.setItem('chartsToReport', JSON.stringify(chartsToReport));
+  // }, [chartsToReport]);
 
   // Update suggested charts when columns change
   useEffect(() => {
@@ -310,7 +330,7 @@ const AnalysisPage = () => {
         return {
           labels: filteredLabels,
           datasets: [{
-            abel: numCol + (aggregationType === 'average' ? ' (Average)' : ' (Sum)'),abel: numCol + (aggregationType === 'average' ? ' (Average)' : ' (Sum)'),
+            label: numCol + (aggregationType === 'average' ? ' (Average)' : ' (Sum)'),
             data: filteredData,
             backgroundColor: 'rgba(54, 162, 235, 0.5)'
           }]
@@ -641,7 +661,12 @@ const AnalysisPage = () => {
 
   // Helper to get chartId for current chart
   function getChartId(type, cols, filterTop, sortOrder) {
-    return `${type}:${cols.join(',')}:filter=${filterTop}:sort=${sortOrder}`;
+    const baseId = `${type}:${cols.join(',')}:filter=${filterTop}:sort=${sortOrder}`;
+    // Add aggregation type to chart ID if applicable
+    if (['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(type) && cols.length >= 2) {
+      return `${baseId}:agg=${aggregationType}`;
+    }
+    return baseId;
   }
 
   // Helper to get Chart.js options with black text/grid for export
@@ -671,52 +696,60 @@ const AnalysisPage = () => {
   function renderChart(type, selectedCols, forExport = false) {
     const data = getChartData(type, selectedCols);
     if (!data) return null;
-    // Default options
-    const options = forExport ? getExportChartOptions() : {
-      responsive: true,
-      plugins: {
-        legend: { labels: { color: '#fff' } },
-        title: { color: '#fff' }
-      },
-      scales: {
-        x: {
-          grid: { color: '#fff' },
-          ticks: { color: '#fff' },
-          title: { color: '#fff' }
-        },
-        y: {
-          grid: { color: '#fff' },
-          ticks: { color: '#fff' },
-          title: { color: '#fff' }
-        }
-      }
-    };
+    
     const chartId = getChartId(type, selectedCols, filterTop, sortOrder);
+    
+    // Ensure chart ref exists
     if (!chartRefs.current[chartId]) {
       chartRefs.current[chartId] = React.createRef();
     }
+    
+    // Add data-chartid to chart props
+    const chartProps = {
+      ref: chartRefs.current[chartId],
+      'data-chartid': chartId,
+      data: data,
+      options: forExport ? getExportChartOptions() : {
+        responsive: true,
+        plugins: {
+          legend: { labels: { color: '#fff' } },
+          title: { color: '#fff' }
+        },
+        scales: {
+          x: {
+            grid: { color: '#fff' },
+            ticks: { color: '#fff' },
+            title: { color: '#fff' }
+          },
+          y: {
+            grid: { color: '#fff' },
+            ticks: { color: '#fff' },
+            title: { color: '#fff' }
+          }
+        }
+      }
+    };
     if (type === 'stackedBar') {
       return (
         <Bar
-          ref={chartRefs.current[chartId]}
-          data={data}
+          {...chartProps}
           options={{
-            ...options,
+            ...chartProps.options,
             plugins: {
-              ...options.plugins,
-              title: { ...options.plugins.title, display: true, text: data.datasets[0]?.label || '' }
+              ...chartProps.options.plugins,
+              title: { ...chartProps.options.plugins.title, display: true, text: data.datasets[0]?.label || '' }
             },
             scales: {
-              ...options.scales,
-              x: { ...options.scales.x, stacked: true },
-              y: { ...options.scales.y, stacked: true }
+              ...chartProps.options.scales,
+              x: { ...chartProps.options.scales.x, stacked: true },
+              y: { ...chartProps.options.scales.y, stacked: true }
             }
           }}
         />
       );
     }
     if (type === 'groupedBar') {
-      return <Bar ref={chartRefs.current[chartId]} data={data} options={options} />;
+      return <Bar {...chartProps} />;
     }
     if (type === 'correlation') {
       if (!data || !data.datasets || !data.datasets[0].data.length) return null;
@@ -765,7 +798,7 @@ const AnalysisPage = () => {
       };
       return (
         <Box>
-          <ChartJS2 ref={chartRefs.current[chartId]} type="matrix" data={data} options={matrixOptions} plugins={[ChartDataLabels]} />
+          <ChartJS2 {...chartProps} type="matrix" options={matrixOptions} plugins={[ChartDataLabels]} />
           {/* Color legend for correlation heatmap */}
           <Box mt={2} display="flex" flexDirection="column" alignItems="center" justifyContent="center">
             <Box
@@ -789,34 +822,34 @@ const AnalysisPage = () => {
     }
     switch (type) {
       case 'bar':
-        return <Bar ref={chartRefs.current[chartId]} data={data} options={options} />;
+        return <Bar {...chartProps} />;
       case 'horizontalBar':
-        return <Bar ref={chartRefs.current[chartId]} data={data} options={{ ...options, indexAxis: 'y' }} />;
+        return <Bar {...chartProps} options={{ ...chartProps.options, indexAxis: 'y' }} />;
       case 'pie':
-        return <Pie ref={chartRefs.current[chartId]} data={data} options={{
-          ...options,
+        return <Pie {...chartProps} options={{
+          ...chartProps.options,
           plugins: {
-            ...options.plugins,
+            ...chartProps.options.plugins,
             datalabels: { color: forExport ? '#111' : '#fff', font: { weight: 'bold', size: 16 } }
           }
         }} plugins={[ChartDataLabels]} />;
       case 'donut':
-        return <Doughnut ref={chartRefs.current[chartId]} data={data} options={{
-          ...options,
+        return <Doughnut {...chartProps} options={{
+          ...chartProps.options,
           plugins: {
-            ...options.plugins,
+            ...chartProps.options.plugins,
             datalabels: { color: forExport ? '#111' : '#fff', font: { weight: 'bold', size: 16 } }
           }
         }} plugins={[ChartDataLabels]} />;
       case 'histogram':
-        return <Bar ref={chartRefs.current[chartId]} data={data} options={options} />;
+        return <Bar {...chartProps} options={chartProps.options} />;
       case 'box':
       // Box plot support removed
       return null;
       case 'scatter':
-        return <Scatter ref={chartRefs.current[chartId]} data={data} options={options} />;
+        return <Scatter {...chartProps} options={chartProps.options} />;
       case 'line':
-        return <Line ref={chartRefs.current[chartId]} data={data} options={options} />;
+        return <Line {...chartProps} options={chartProps.options} />;
       default:
         return null;
     }
@@ -826,42 +859,72 @@ const AnalysisPage = () => {
   function handleAddToReport(type, selectedCols, checked) {
     const chartId = getChartId(type, selectedCols, filterTop, sortOrder);
     if (checked) {
-      // Set state to trigger export rendering
+      setChartCapturing(true);
       setExportingChartId(chartId);
+      
       setTimeout(() => {
-        let image_base64 = '';
-        const ref = chartRefs.current[chartId];
-        let chartInstance = ref?.current;
-        if (chartInstance && typeof chartInstance.toBase64Image === 'function') {
-          image_base64 = chartInstance.toBase64Image();
-        } else if (chartInstance && chartInstance.chartInstance && typeof chartInstance.chartInstance.toBase64Image === 'function') {
-          image_base64 = chartInstance.chartInstance.toBase64Image();
-        }
-        if (!image_base64 || image_base64 === 'data:image/png;base64,' || image_base64.length < 100) {
-          alert('Failed to capture chart image. Please make sure the chart is visible before adding to report.');
-          setChartsToReport({
-            ...chartsToReport,
-            [chartId]: {
-              selected: false,
-              image_base64: ''
+        try {
+          let image_base64 = '';
+          const ref = chartRefs.current[chartId];
+          let chartInstance = ref?.current;
+          
+          // Try multiple methods to get the canvas
+          let canvas = null;
+          if (chartInstance?.canvas) {
+            canvas = chartInstance.canvas;
+          } else if (chartInstance?.chartInstance?.canvas) {
+            canvas = chartInstance.chartInstance.canvas;
+          } else if (ref?.current?.canvas) {
+            canvas = ref.current.canvas;
+          } else {
+            // Try to find the canvas directly in the DOM
+            const canvasElement = document.querySelector(`canvas[data-chartid="${chartId}"]`);
+            if (canvasElement) {
+              canvas = canvasElement;
             }
-          });
-          setExportingChartId(null);
-          return;
-        }
-        let clean_base64 = image_base64;
-        if (clean_base64.startsWith('data:image/png;base64,')) {
-          clean_base64 = clean_base64.replace('data:image/png;base64,', '');
-        }
-        setChartsToReport({
-          ...chartsToReport,
-          [chartId]: {
-            selected: checked,
-            image_base64: clean_base64
           }
-        });
-        setExportingChartId(null); // revert to normal rendering
-      }, 300); // allow time for re-render
+
+          if (canvas) {
+            try {
+              image_base64 = canvas.toDataURL('image/png');
+            } catch (e) {
+              console.error('Canvas capture error:', e);
+            }
+          }
+
+          if (!image_base64 || image_base64 === 'data:image/png;base64,' || image_base64.length < 100) {
+            alert('Failed to capture chart image. Please make sure the chart is visible before adding to report.');
+            setChartsToReport({
+              ...chartsToReport,
+              [chartId]: {
+                selected: false,
+                image_base64: ''
+              }
+            });
+          } else {
+            let clean_base64 = image_base64;
+            if (clean_base64.startsWith('data:image/png;base64,')) {
+              clean_base64 = clean_base64.replace('data:image/png;base64,', '');
+            }
+            setChartsToReport({
+              ...chartsToReport,
+              [chartId]: {
+                selected: checked,
+                image_base64: clean_base64,
+                type,
+                columns: selectedCols,
+                aggregationType: ['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(type) && selectedCols.length >= 2 ? aggregationType : undefined
+              }
+            });
+          }
+        } catch (error) {
+          console.error('Error capturing chart:', error);
+          alert('Failed to capture chart image. Please try again.');
+        } finally {
+          setExportingChartId(null);
+          setChartCapturing(false);
+        }
+      }, 1000);
     } else {
       setChartsToReport({
         ...chartsToReport,
@@ -929,6 +992,8 @@ const AnalysisPage = () => {
       }
     }
   }
+
+  const shouldShowChart = showChart || chartCapturing;
 
   return (
     <Box p={5}>
@@ -1081,7 +1146,7 @@ const AnalysisPage = () => {
           {selectedChart && (
             <Button variant="contained" sx={{ mt: 2 }} onClick={() => setShowChart(true)}>Generate Chart</Button>
           )}
-          {showChart && selectedChart && selectedColumns.length > 0 && (
+          {shouldShowChart && selectedChart && selectedColumns.length > 0 && (
             <Box mt={4}>
               {renderChart(selectedChart, selectedColumns, exportingChartId === getChartId(selectedChart, selectedColumns, filterTop, sortOrder))}
               <FormControlLabel
@@ -1242,7 +1307,7 @@ const AnalysisPage = () => {
           >
             Generate Chart
           </Button>
-          {showChart && chartType && ((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
+          {shouldShowChart && chartType && ((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
             <Box mt={4}>
               {renderChart(chartType, chartColumns.filter(Boolean), exportingChartId === getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder))}
               <FormControlLabel
@@ -1289,13 +1354,26 @@ const AnalysisPage = () => {
       </Paper>
       <Box mt={4}>
         <Typography variant="h6">Charts Added to Report</Typography>
-        {Object.keys(chartsToReport).filter(key => chartsToReport[key]).length === 0 ? (
+        {Object.keys(chartsToReport).filter(key => chartsToReport[key]?.selected).length === 0 ? (
           <Typography color="text.secondary">No charts added yet.</Typography>
         ) : (
           <ul>
-            {Object.keys(chartsToReport).filter(key => chartsToReport[key]).map(key => (
-              <li key={key}>{key}</li>
-            ))}
+            {Object.keys(chartsToReport).filter(key => chartsToReport[key]?.selected).map(key => {
+              // Parse chart ID to display readable information
+              const parts = key.split(':');
+              const chartType = parts[0];
+              const columns = parts[1]?.split(',') || [];
+              const filter = parts[2]?.replace('filter=', '') || '';
+              const sort = parts[3]?.replace('sort=', '') || '';
+              const agg = parts[4]?.replace('agg=', '') || '';
+              
+              let displayText = `${chartType}: ${columns.join(', ')}`;
+              if (filter) displayText += ` (filter: ${filter})`;
+              if (sort) displayText += ` (sort: ${sort})`;
+              if (agg) displayText += ` (${agg})`;
+              
+              return <li key={key}>{displayText}</li>;
+            })}
           </ul>
         )}
       </Box>

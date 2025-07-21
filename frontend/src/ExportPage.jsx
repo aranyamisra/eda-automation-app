@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, Paper, Grid, Radio, RadioGroup, FormControlLabel, TextField, Button, Divider, Checkbox, FormGroup, List, ListItem, ListItemIcon, ListItemText, useTheme
 } from '@mui/material';
+import { useChartsToReport } from './ChartsToReportContext';
 
 const SECTION_OPTIONS = [
   { key: 'overview', label: 'Overview' },
@@ -34,44 +35,45 @@ const ExportPage = ({
   reportFormat,
   onFormatChange,
   onTitleChange,
-  downloadCleaned,
-  onDownloadCleanedChange,
-  includedSections,
-  onSectionToggle,
-  chartsToReport,
-  setChartsToReport
+  // downloadCleaned,
+  // onDownloadCleanedChange,
+  // includedSections,
+  // onSectionToggle
 }) => {
   const theme = useTheme();
   const [loading, setLoading] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
-  const [cleaningReport, setCleaningReport] = useState(null);
+  const [cleaningSummary, setCleaningSummary] = useState([]);
+  const [hasCleaned, setHasCleaned] = useState(false);
   const [cleanedData, setCleanedData] = useState(null);
   const [outlierActions, setOutlierActions] = useState({});
+  const { chartsToReport, setChartsToReport } = useChartsToReport();
 
-  // Fetch cleaning report and cleaned data on mount
+  // Local state for downloadCleaned, includedSections, and reportTitle
+  const [localDownloadCleaned, setLocalDownloadCleaned] = useState(false);
+  const [localIncludedSections, setLocalIncludedSections] = useState({
+    overview: true,
+    dataQuality: true,
+    cleaning: true,
+    outlier: true,
+    visualisations: true,
+    insights: true,
+  });
+  const [localReportTitle, setLocalReportTitle] = useState('EDA Report');
+
   useEffect(() => {
-    fetch('http://localhost:5001/cleaning', { credentials: 'include' })
-      .then(res => res.json())
-      .then(data => setCleaningReport(data));
-    // Try to get last cleanedData from localStorage (if user has cleaned)
-    const stored = localStorage.getItem('cleanedData');
+    const stored = localStorage.getItem('cleaningSession');
     if (stored) {
-      try {
-        setCleanedData(JSON.parse(stored));
-      } catch {}
-    }
-    // Try to get outlier actions from localStorage
-    const outlierStored = localStorage.getItem('outlierActions');
-    if (outlierStored) {
-      try {
-        setOutlierActions(JSON.parse(outlierStored));
-      } catch {}
+      const session = JSON.parse(stored);
+      setHasCleaned(session.hasCleaned || false);
+      setCleanedData(session.cleanedData || null);
+      setCleaningSummary(session.cleaningSummary || []);
     }
   }, []);
 
   // Transform chartsToReport into visualisations array
   const visualisations = Object.keys(chartsToReport || {})
-    .filter(key => chartsToReport[key])
+    .filter(key => chartsToReport[key]?.selected)
     .map(key => {
       const { type, columns, filter, sort } = parseChartKey(key);
       return {
@@ -86,7 +88,7 @@ const ExportPage = ({
     });
 
   const handleVisualisationToggle = (id) => {
-    setChartsToReport && setChartsToReport(prev => ({
+    setChartsToReport(prev => ({
       ...prev,
       [id]: !prev[id]
     }));
@@ -98,9 +100,9 @@ const ExportPage = ({
     dtypeFixes = Object.entries(cleanedData.dtype_changes).map(
       ([col, change]) => `${col}: ${change.before} → ${change.after}`
     );
-  } else if (cleaningReport?.suggested_dtypes && Object.keys(cleaningReport.suggested_dtypes).length > 0) {
-    dtypeFixes = Object.entries(cleaningReport.suggested_dtypes).map(
-      ([col, dtype]) => `${col}: → ${dtype}`
+  } else if (cleaningSummary && Object.keys(cleaningSummary).length > 0) {
+    dtypeFixes = Object.entries(cleaningSummary).map(
+      ([col, change]) => `${col}: → ${change}`
     );
   }
 
@@ -110,14 +112,14 @@ const ExportPage = ({
     cleaningActions = cleanedData.warnings;
   } else {
     // Fallback: summarize from cleaningReport
-    if (cleaningReport) {
-      if (cleaningReport.duplicates > 0) cleaningActions.push(`Removed ${cleaningReport.duplicates} duplicate rows`);
-      if (cleaningReport.nulls && Object.keys(cleaningReport.nulls).length > 0) cleaningActions.push('Handled missing values');
-      if (cleaningReport.suggested_dtypes && Object.keys(cleaningReport.suggested_dtypes).length > 0) cleaningActions.push('Converted columns to suggested data types');
+    if (cleaningSummary) {
+      if (cleaningSummary.duplicates > 0) cleaningActions.push(`Removed ${cleaningSummary.duplicates} duplicate rows`);
+      if (cleaningSummary.nulls && Object.keys(cleaningSummary.nulls).length > 0) cleaningActions.push('Handled missing values');
+      if (cleaningSummary.suggested_dtypes && Object.keys(cleaningSummary.suggested_dtypes).length > 0) cleaningActions.push('Converted columns to suggested data types');
     }
   }
 
-  // Build cleaningTable from cleanedData before/after or cleaningReport
+  // Build cleaningTable from cleanedData before/after
   let cleaningTable = [];
   if (cleanedData?.before && cleanedData?.after) {
     cleaningTable = [
@@ -137,36 +139,12 @@ const ExportPage = ({
         after: cleanedData.after.duplicates ?? '-'
       }
     ];
-  } else if (cleaningReport) {
-    cleaningTable = [
-      {
-        metric: 'Total Rows',
-        before: cleaningReport.dataset_info?.rows ?? '-',
-        after: cleaningReport.dataset_info?.rows ?? '-'
-      },
-      {
-        metric: 'Null Cells',
-        before: cleaningReport.quality_metrics?.null_percentage != null ? `${cleaningReport.quality_metrics.null_percentage}%` : '-',
-        after: cleaningReport.quality_metrics?.null_percentage != null ? `${cleaningReport.quality_metrics.null_percentage}%` : '-'
-      },
-      {
-        metric: 'Duplicate Rows',
-        before: cleaningReport.duplicates ?? '-',
-        after: cleaningReport.duplicates ?? '-'
-      }
-    ];
   }
 
-  // Build outlierTable from outlierActions (localStorage) if available, else from cleaningReport
+  // Build outlierTable from cleanedData if available
   let outlierTable = [];
-  if (outlierActions && Object.keys(outlierActions).length > 0) {
-    outlierTable = Object.entries(outlierActions).map(([col, actionObj]) => ({
-      column: col,
-      method: actionObj.method ? actionObj.method.charAt(0).toUpperCase() + actionObj.method.slice(1) : 'None',
-      action: actionObj.action === 'remove' ? 'Removed' : actionObj.action === 'cap' ? 'Capped' : 'None'
-    }));
-  } else if (cleaningReport?.outliers && Object.keys(cleaningReport.outliers).length > 0) {
-    outlierTable = Object.entries(cleaningReport.outliers).map(([col, out]) => {
+  if (cleanedData?.after?.outliers && Object.keys(cleanedData.after.outliers).length > 0) {
+    outlierTable = Object.entries(cleanedData.after.outliers).map(([col, out]) => {
       // Pick the method with the most outliers as a summary
       let method = 'None', action = 'None', maxCount = 0;
       for (const m of ['winsorizing', 'iqr', 'zscore']) {
@@ -189,20 +167,20 @@ const ExportPage = ({
     image_base64: chartsToReport[viz.id]?.image_base64 || ''
   }));
 
-  const safeReportTitle = reportTitle && reportTitle.trim() ? reportTitle : 'EDA_Report';
+  const safeReportTitle = localReportTitle && localReportTitle.trim() ? localReportTitle : 'EDA_Report';
 
   const handleGeneratePreview = async () => {
     setLoading(true);
     const payload = {
       reportTitle: safeReportTitle,
       reportFormat: 'html',
-      includedSections,
+      includedSections: localIncludedSections,
       charts,
-      downloadCleaned,
+      downloadCleaned: localDownloadCleaned,
       dtypeFixes,
       cleaningActions,
-      cleaningTable,
-      outlierTable
+      cleaning_table: cleaningTable,
+      outlier_table: outlierTable
     };
     // Log the payload for debugging
     console.log('Export payload:', payload);
@@ -226,13 +204,13 @@ const ExportPage = ({
     const payload = {
       reportTitle: safeReportTitle,
       reportFormat,
-      includedSections,
+      includedSections: localIncludedSections,
       charts,
-      downloadCleaned,
+      downloadCleaned: localDownloadCleaned,
       dtypeFixes,
       cleaningActions,
-      cleaningTable,
-      outlierTable
+      cleaning_table: cleaningTable,
+      outlier_table: outlierTable
     };
     try {
       const response = await fetch('http://localhost:5001/export', {
@@ -272,8 +250,8 @@ const ExportPage = ({
             <TextField
               fullWidth
               variant="filled"
-              value={reportTitle}
-              onChange={e => onTitleChange && onTitleChange(e.target.value)}
+              value={localReportTitle}
+              onChange={e => setLocalReportTitle(e.target.value)}
               sx={{ mb: 3 }}
               InputProps={{ disableUnderline: true }}
               placeholder="EDA Report"
@@ -305,8 +283,8 @@ const ExportPage = ({
               control={
                 <Checkbox
                   color="primary"
-                  checked={!!downloadCleaned}
-                  onChange={e => onDownloadCleanedChange && onDownloadCleanedChange(e.target.checked)}
+                  checked={!!localDownloadCleaned}
+                  onChange={e => setLocalDownloadCleaned(e.target.checked)}
                 />
               }
               label="Download cleaned dataset"
@@ -323,8 +301,11 @@ const ExportPage = ({
                   control={
                     <Checkbox
                       color="primary"
-                      checked={!!includedSections?.[section.key]}
-                      onChange={() => onSectionToggle && onSectionToggle(section.key)}
+                      checked={!!localIncludedSections[section.key]}
+                      onChange={() => setLocalIncludedSections(prev => ({
+                        ...prev,
+                        [section.key]: !prev[section.key]
+                      }))}
                     />
                   }
                   label={section.label}

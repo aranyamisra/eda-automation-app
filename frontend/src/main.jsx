@@ -10,15 +10,16 @@ import ReportPage from './ReportPage';
 import CleaningPage from './CleaningPage';
 import AnalysisPage from './AnalysisPage';
 import ExportPage from './ExportPage';
+import { ChartsToReportProvider } from './ChartsToReportContext';
 
 const darkTheme = createTheme({
   palette: {
     mode: 'dark',
-    primary: { main: '#009688' },    // teal
-    secondary: { main: '#e91e63' },  // pink
+    primary: { main: '#009688' },
+    secondary: { main: '#e91e63' },
     background: {
-      default: '#121212',            // dark background
-      paper: '#1e1e1e',              // dark card/paper
+      default: '#121212',
+      paper: '#1e1e1e',
     },
   },
 });
@@ -57,21 +58,8 @@ function MainRouter() {
             <Route path="upload" element={<UploadPage />} />
             <Route path="report" element={<ReportPage />} />
             <Route path="cleaning" element={<CleaningPage />} />
-            <Route path="/analysis" element={<AnalysisPage chartsToReport={chartsToReport} setChartsToReport={setChartsToReport} />} />
-            <Route path="/export" element={
-              <ExportPage
-                chartsToReport={chartsToReport}
-                setChartsToReport={setChartsToReport}
-                includedSections={includedSections}
-                onSectionToggle={handleSectionToggle}
-                downloadCleaned={downloadCleaned}
-                onDownloadCleanedChange={handleDownloadCleanedChange}
-                reportTitle={reportTitle}
-                onTitleChange={setReportTitle}
-              />
-            } />
-            {/* <Route path="analysis" element={<AnalysisPage />} /> */} {/* Removed */}
-            {/* Add more routes as needed */}
+            <Route path="analysis" element={<AnalysisPage />} />
+            <Route path="export" element={<ExportPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
@@ -80,5 +68,9 @@ function MainRouter() {
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <MainRouter />
+  <React.StrictMode>
+    <ChartsToReportProvider>
+      <MainRouter />
+    </ChartsToReportProvider>
+  </React.StrictMode>
 );
