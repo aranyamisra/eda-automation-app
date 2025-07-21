@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, createContext } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Button, IconButton, Box } from '@mui/material';
 import { Link } from 'react-router-dom';
@@ -8,6 +8,8 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import CleaningServicesIcon from '@mui/icons-material/CleaningServices';
 import InsightsIcon from '@mui/icons-material/Insights';
 import SaveAltIcon from '@mui/icons-material/SaveAlt';
+
+export const CleaningSummaryContext = createContext();
 
 const navItems = [
   { label: 'Upload', link: '/upload', icon: <UploadFileIcon /> },
@@ -19,9 +21,10 @@ const navItems = [
 
 function App() {
   const location = useLocation();
+  const [cleaningSummary, setCleaningSummary] = useState([]);
 
   return (
-    <>
+    <CleaningSummaryContext.Provider value={{ cleaningSummary, setCleaningSummary }}>
       <AppBar position="static" sx={{ backgroundColor: '#004d40', boxShadow: 'none' }}>
         <Toolbar>
           <IconButton
@@ -74,7 +77,7 @@ function App() {
       </AppBar>
       {/* This renders the matched child route */}
       <Outlet />
-    </>
+    </CleaningSummaryContext.Provider>
   );
 }
 

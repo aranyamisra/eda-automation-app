@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { Box, Button, Typography, Paper, InputLabel, Divider, Grid } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
+import { CleaningSummaryContext } from './App';
 
 function UploadPage() {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const navigate = useNavigate();
+  const { setCleaningSummary } = useContext(CleaningSummaryContext);
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
@@ -19,8 +21,8 @@ function UploadPage() {
     setUploading(true);
 
     // Clear cleaning state when a new file is uploaded
-    localStorage.removeItem('hasCleaned');
-    localStorage.removeItem('cleanedData');
+    localStorage.removeItem('cleaningSession');
+    // (Do NOT clear cleaningSummary here)
 
     const formData = new FormData();
     formData.append('dataset', file);
@@ -32,6 +34,7 @@ function UploadPage() {
         credentials: 'include',
       });
       if (res.ok) {
+        localStorage.removeItem('cleaningSession'); // Reset localStorage
         navigate('/report'); // Redirect to the report page after successful upload
       } else {
         alert('Upload failed');
