@@ -53,6 +53,7 @@
     <p><b>Date & Time:</b> {{ export_datetime }}</p>
     <p><b>Total Rows:</b> {{ total_rows }} | <b>Total Columns:</b> {{ total_columns }}</p>
     <p><b>File Size:</b> {{ file_size }}</p>
+    <p><b>Column Data Types:</b></p>
     <ul>
       <li>Numerical: {{ num_numerical }}</li>
       <li>Categorical: {{ num_categorical }}</li>
@@ -64,13 +65,24 @@
   <div class="section">
     <h2>Data Quality Summary</h2>
     <p><b>Missing Values:</b> {{ missing_values }}</p>
+    {% if nulls %}
+      <ul>
+        {% for col, count in nulls.items() %}
+          <li>{{ col }}: {{ count }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
     <p><b>Duplicates:</b> {{ duplicates }}</p>
-    <p><b>Suggested Data Type Fixes:</b></p>
-    <ul>
-      {% for fix in dtype_fixes %}
-        <li>{{ fix }}</li>
-      {% endfor %}
-    </ul>
+    {% if dtype_fixes %}
+      <p><b>Suggested Data Type Fixes:</b></p>
+      <ul>
+        {% for fix in dtype_fixes %}
+          <li>{{ fix }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p><b>Suggested Data Type Fixes:</b> None</p>
+    {% endif %}
   </div>
   {% endif %}
   {% if included_sections.cleaning %}
@@ -82,31 +94,6 @@
         <li>{{ action }}</li>
       {% endfor %}
     </ul>
-    <table>
-      <tr><th>Metric</th><th>Before</th><th>After</th></tr>
-      {% for row in cleaning_table %}
-        <tr>
-          <td>{{ row.metric }}</td>
-          <td>{{ row.before }}</td>
-          <td>{{ row.after }}</td>
-        </tr>
-      {% endfor %}
-    </table>
-  </div>
-  {% endif %}
-  {% if included_sections.outlier %}
-  <div class="section">
-    <h2>Outlier Detection Summary</h2>
-    <table>
-      <tr><th>Column</th><th>Method Used</th><th>Action</th></tr>
-      {% for outlier in outlier_table %}
-        <tr>
-          <td>{{ outlier.column }}</td>
-          <td>{{ outlier.method }}</td>
-          <td>{{ outlier.action }}</td>
-        </tr>
-      {% endfor %}
-    </table>
   </div>
   {% endif %}
   {% if included_sections.visualisations %}
@@ -115,7 +102,12 @@
     {% for chart in charts %}
       <div class="chart-container">
         <h3>{{ chart.title }}</h3>
-        <p>Type: {{ chart.type }} | Columns: {{ chart.columns }}{% if chart.aggregationType %} | Aggregation: {{ chart.aggregationType }}{% endif %}</p>
+        <p>
+          Type: {{ chart.type }} | Columns: {{ chart.columns }}
+          {% if chart.filter %}| Filter: {{ chart.filter }}{% endif %}
+          {% if chart.sort and chart.sort != 'none' %}| Sort: {{ chart.sort }}{% endif %}
+          {% if chart.aggregationType %}| Aggregation: {{ chart.aggregationType }}{% endif %}
+        </p>
         <p>{{ chart.insight }}</p>
         <img src="data:image/png;base64,{{ chart.image_base64 }}" alt="{{ chart.title }}"/>
       </div>

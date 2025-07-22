@@ -568,6 +568,8 @@ def export_report():
 
     # Data Quality Summary
     missing_values = f"{df.isnull().sum().sum()} ({(df.isnull().sum().sum()/(len(df)*len(df.columns))*100 if len(df)*len(df.columns) else 0):.2f}%)" if not df.empty else '-'
+    nulls = df.isnull().sum()
+    nulls_dict = nulls[nulls > 0].to_dict()
     duplicates = f"{df.duplicated().sum()} ({(df.duplicated().sum()/len(df)*100 if len(df) else 0):.2f}%)" if not df.empty else '-'
     # Dummy dtype fixes (should be provided by frontend or computed)
     dtype_fixes = data.get('dtypeFixes', [])
@@ -591,7 +593,9 @@ def export_report():
             'type': chart.get('type', ''),
             'columns': ', '.join(chart.get('columns', [])),
             'insight': chart.get('insight', ''),
-            'image_base64': chart.get('image_base64', '')
+            'image_base64': chart.get('image_base64', ''),
+            'filter': chart.get('filter', ''),
+            'sort': chart.get('sort', '')
         }
         # Add aggregation type if applicable
         if chart.get('aggregationType') and chart.get('type') in ['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut']:
@@ -616,6 +620,7 @@ def export_report():
         num_categorical=num_categorical,
         num_datetime=num_datetime,
         missing_values=missing_values,
+        nulls=nulls_dict,
         duplicates=duplicates,
         dtype_fixes=dtype_fixes,
         cleaning_actions=cleaning_actions,
@@ -671,5 +676,27 @@ def export_report():
         download_name=report_filename
     )
 
+@app.route('/download-cleaned', methods=['GET'])
+def download_cleaned():
+    upload_folder = app.config['UPLOAD_FOLDER']
+    # List all files for debugging
+    print("Files in upload folder:", os.listdir(upload_folder))
+    # Find latest cleaned file (filename starts with 'cleaned_')
+    files = [os.path.join(upload_folder, f) for f in os.listdir(upload_folder)
+             if os.path.isfile(os.path.join(upload_folder, f)) and f.startswith('cleaned_')]
+    if not files:
+        return jsonify({'error': 'No cleaned files found.'}), 404
+    cleaned_filepath = max(files, key=os.path.getctime)
+    # Remove all cleaned_ prefixes for download
+    original_name = os.path.basename(cleaned_filepath)
+    base_name = original_name
+    while base_name.startswith('cleaned_'):
+        base_name = base_name[len('cleaned_'):]
+    download_name = f"cleaned_{base_name}"
+    return send_file(
+        cleaned_filepath,
+        as_attachment=True,
+        download_name=download_name
+    )
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
