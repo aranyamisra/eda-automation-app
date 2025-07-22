@@ -8,7 +8,6 @@ const SECTION_OPTIONS = [
   { key: 'overview', label: 'Overview' },
   { key: 'dataQuality', label: 'Data Quality Summary' },
   { key: 'cleaning', label: 'Cleaning Summary' },
-  { key: 'outlier', label: 'Outlier Detection Summary' },
   { key: 'visualisations', label: 'Visualisations' },
   { key: 'insights', label: 'Final Insights' },
 ];
@@ -32,8 +31,6 @@ function parseChartKey(key) {
 const ExportPage = ({
   reportData,
   reportTitle,
-  reportFormat,
-  onFormatChange,
   onTitleChange,
   // downloadCleaned,
   // onDownloadCleanedChange,
@@ -49,17 +46,16 @@ const ExportPage = ({
   const [outlierActions, setOutlierActions] = useState({});
   const { chartsToReport, setChartsToReport } = useChartsToReport();
 
-  // Local state for downloadCleaned, includedSections, and reportTitle
-  const [localDownloadCleaned, setLocalDownloadCleaned] = useState(false);
+  // Local state for downloadCleaned, includedSections, reportTitle, and reportFormat
   const [localIncludedSections, setLocalIncludedSections] = useState({
     overview: true,
     dataQuality: true,
     cleaning: true,
-    outlier: true,
     visualisations: true,
     insights: true,
   });
   const [localReportTitle, setLocalReportTitle] = useState('EDA Report');
+  const [reportFormat, setReportFormat] = useState('');
 
   useEffect(() => {
     const stored = localStorage.getItem('cleaningSession');
@@ -94,29 +90,18 @@ const ExportPage = ({
     }));
   };
 
-  // Build dtypeFixes from cleaningReport or cleanedData
+  // Build dtypeFixes from suggested_dtypes in cleanedData.after (remaining suggestions only)
   let dtypeFixes = [];
-  if (cleanedData?.dtype_changes && Object.keys(cleanedData.dtype_changes).length > 0) {
-    dtypeFixes = Object.entries(cleanedData.dtype_changes).map(
-      ([col, change]) => `${col}: ${change.before} → ${change.after}`
-    );
-  } else if (cleaningSummary && Object.keys(cleaningSummary).length > 0) {
-    dtypeFixes = Object.entries(cleaningSummary).map(
-      ([col, change]) => `${col}: → ${change}`
+  if (cleanedData?.after?.suggested_dtypes && Object.keys(cleanedData.after.suggested_dtypes).length > 0) {
+    dtypeFixes = Object.entries(cleanedData.after.suggested_dtypes).map(
+      ([col, dtype]) => `Column '${col}' could be converted to ${dtype}.`
     );
   }
 
-  // Build cleaningActions from cleanedData.warnings or summarize actions
+  // Build cleaningActions from the actual cleaningSummary (actions performed)
   let cleaningActions = [];
-  if (cleanedData?.warnings && cleanedData.warnings.length > 0) {
-    cleaningActions = cleanedData.warnings;
-  } else {
-    // Fallback: summarize from cleaningReport
-    if (cleaningSummary) {
-      if (cleaningSummary.duplicates > 0) cleaningActions.push(`Removed ${cleaningSummary.duplicates} duplicate rows`);
-      if (cleaningSummary.nulls && Object.keys(cleaningSummary.nulls).length > 0) cleaningActions.push('Handled missing values');
-      if (cleaningSummary.suggested_dtypes && Object.keys(cleaningSummary.suggested_dtypes).length > 0) cleaningActions.push('Converted columns to suggested data types');
-    }
+  if (cleaningSummary && cleaningSummary.length > 0) {
+    cleaningActions = cleaningSummary;
   }
 
   // Build cleaningTable from cleanedData before/after
@@ -141,28 +126,14 @@ const ExportPage = ({
     ];
   }
 
-  // Build outlierTable from cleanedData if available
-  let outlierTable = [];
-  if (cleanedData?.after?.outliers && Object.keys(cleanedData.after.outliers).length > 0) {
-    outlierTable = Object.entries(cleanedData.after.outliers).map(([col, out]) => {
-      // Pick the method with the most outliers as a summary
-      let method = 'None', action = 'None', maxCount = 0;
-      for (const m of ['winsorizing', 'iqr', 'zscore']) {
-        if (out[m]?.count > maxCount) {
-          method = m.charAt(0).toUpperCase() + m.slice(1);
-          maxCount = out[m].count;
-        }
-      }
-      if (maxCount > 0) action = 'Detected';
-      return { column: col, method, action };
-    });
-  }
-
   // Build chart images for export (use base64 from chartsToReport)
   const charts = visualisations.map(viz => ({
-    title: viz.title,
+    title: `${viz.type.charAt(0).toUpperCase() + viz.type.slice(1)}: ${viz.columns.join(', ')}`,
     type: viz.type,
     columns: viz.columns,
+    filter: viz.filter,
+    aggregationType: chartsToReport[viz.id]?.aggregationType || '',
+    sort: viz.sort,
     insight: '',
     image_base64: chartsToReport[viz.id]?.image_base64 || ''
   }));
@@ -176,12 +147,12 @@ const ExportPage = ({
       reportFormat: 'html',
       includedSections: localIncludedSections,
       charts,
-      downloadCleaned: localDownloadCleaned,
       dtypeFixes,
       cleaningActions,
-      cleaning_table: cleaningTable,
-      outlier_table: outlierTable
+      cleaning_table: cleaningTable
     };
+    // Debug log for charts filter/sort
+    console.log('Export charts:', charts.map(c => ({title: c.title, filter: c.filter, sort: c.sort, aggregationType: c.aggregationType})));
     // Log the payload for debugging
     console.log('Export payload:', payload);
     try {
@@ -200,17 +171,19 @@ const ExportPage = ({
   };
 
   const handleDownload = async () => {
+    if (!reportFormat) {
+      alert("Please select export format.");
+      return;
+    }
     setLoading(true);
     const payload = {
       reportTitle: safeReportTitle,
       reportFormat,
       includedSections: localIncludedSections,
       charts,
-      downloadCleaned: localDownloadCleaned,
       dtypeFixes,
       cleaningActions,
-      cleaning_table: cleaningTable,
-      outlier_table: outlierTable
+      cleaning_table: cleaningTable
     };
     try {
       const response = await fetch('http://localhost:5001/export', {
@@ -234,6 +207,35 @@ const ExportPage = ({
     }
   };
 
+  const handleDownloadCleaned = async () => {
+    try {
+      const response = await fetch('http://localhost:5001/download-cleaned', {
+        method: 'GET',
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        alert('No cleaned dataset found.');
+        return;
+      }
+      const disposition = response.headers.get('Content-Disposition');
+      let filename = 'cleaned_dataset';
+      if (disposition && disposition.indexOf('filename=') !== -1) {
+        filename = disposition.split('filename=')[1].replace(/['"]/g, '');
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Download failed.');
+    }
+  };
+
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: theme.palette.background.default, color: theme.palette.text.primary, p: 5 }}>
       <Typography variant="h4" sx={{ mb: 3 }}>
@@ -241,7 +243,7 @@ const ExportPage = ({
       </Typography>
       <Grid container spacing={4}>
         {/* Left: Export Options */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={5}>
           <Paper sx={{ bgcolor: theme.palette.background.paper, p: 4, borderRadius: 2 }}>
             {/* Report Title */}
             <Typography variant="subtitle1" sx={{ mb: 1 }}>
@@ -262,7 +264,7 @@ const ExportPage = ({
             </Typography>
             <RadioGroup
               value={reportFormat}
-              onChange={e => onFormatChange && onFormatChange(e.target.value)}
+              onChange={e => setReportFormat(e.target.value)}
               sx={{ mb: 2 }}
             >
               <FormControlLabel
@@ -278,18 +280,6 @@ const ExportPage = ({
                 sx={{ mb: 1 }}
               />
             </RadioGroup>
-            {/* Download Cleaned Dataset */}
-            <FormControlLabel
-              control={
-                <Checkbox
-                  color="primary"
-                  checked={!!localDownloadCleaned}
-                  onChange={e => setLocalDownloadCleaned(e.target.checked)}
-                />
-              }
-              label="Download cleaned dataset"
-              sx={{ mb: 2 }}
-            />
             {/* Sections to Include */}
             <Typography variant="subtitle1" sx={{ mb: 1 }}>
               Sections to Include
@@ -336,9 +326,10 @@ const ExportPage = ({
                   <ListItemText
                     primary={
                       <>
-                        <b>{viz.title}</b> &nbsp;
+                        <b>{viz.title}</b>
+                        <br />
                         <span style={{ color: theme.palette.text.secondary, fontSize: 13 }}>
-                          [Type: {viz.type}] [Columns: {viz.columns.join(', ')}] [Filter: {viz.filter || 'None'}] [Sort: {viz.sort || 'None'}]
+                          [Type: {viz.type}] [Columns: {viz.columns.join(', ')}] [Filter: {viz.filter || 'None'}] [Sort: {viz.sort || 'None'}]{chartsToReport[viz.id]?.aggregationType ? ` [Aggregation: ${chartsToReport[viz.id].aggregationType}]` : ''}
                         </span>
                       </>
                     }
@@ -359,12 +350,24 @@ const ExportPage = ({
                 </Box>
               ) : null
             ))}
+            <Button
+              variant="outlined"
+              color="secondary"
+              size="medium"
+              fullWidth
+              sx={{ fontWeight: 500, fontSize: 14, borderRadius: 1, mt: 1 }}
+              onClick={handleDownloadCleaned}
+              disabled={loading}
+            >
+              Download Cleaned Dataset
+            </Button>
             {/* Generate/Download Buttons */}
             <Button
               variant="contained"
               color="primary"
+              size="medium"
               fullWidth
-              sx={{ fontWeight: 700, fontSize: 16, borderRadius: 2, mt: 2 }}
+              sx={{ fontWeight: 500, fontSize: 14, borderRadius: 1, mt: 1 }}
               onClick={handleGeneratePreview}
               disabled={loading}
             >
@@ -373,8 +376,9 @@ const ExportPage = ({
             <Button
               variant="outlined"
               color="primary"
+              size="medium"
               fullWidth
-              sx={{ fontWeight: 700, fontSize: 16, borderRadius: 2, mt: 2 }}
+              sx={{ fontWeight: 500, fontSize: 14, borderRadius: 1, mt: 1 }}
               onClick={handleDownload}
               disabled={loading}
             >
@@ -383,8 +387,8 @@ const ExportPage = ({
           </Paper>
         </Grid>
         {/* Right: Report Preview */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ bgcolor: theme.palette.background.paper, p: 4, borderRadius: 2, minHeight: 600, maxHeight: '90vh', overflow: 'auto' }}>
+        <Grid item xs={12} md={7}>
+          <Paper sx={{ bgcolor: theme.palette.background.paper, p: 4, borderRadius: 2, minHeight: 600, maxHeight: '90vh', minWidth: 600, maxWidth: '100%', overflow: 'auto' }}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
               Report Preview
             </Typography>
@@ -403,6 +407,8 @@ const ExportPage = ({
                 justifyContent: 'center',
                 overflow: 'auto',
                 maxHeight: '80vh',
+                minWidth: 550,
+                width: '100%'
               }}
             >
               {previewHtml ? (
