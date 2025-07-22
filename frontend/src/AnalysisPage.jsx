@@ -6,6 +6,32 @@ import { MatrixController, MatrixElement } from 'chartjs-chart-matrix';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Checkbox } from '@mui/material';
 import { useChartsToReport } from './ChartsToReportContext';
+import { Link } from 'react-router-dom';
+import {
+  Box,
+  Typography,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  Tabs,
+  Tab,
+  Paper,
+  Grid,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl,
+  Button,
+  Chip,
+  Divider,
+  CircularProgress,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from '@mui/material';
+import axios from 'axios';
 
 
 // Color interpolation functions for diverging heatmap
@@ -30,27 +56,6 @@ function getCorrelationColor(v) {
 Chart.register(MatrixController, MatrixElement);
 
 Chart.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Tooltip, Legend);
-import {
-  Box,
-  Typography,
-  RadioGroup,
-  FormControlLabel,
-  Radio,
-  Tabs,
-  Tab,
-  Paper,
-  Grid,
-  Select,
-  MenuItem,
-  InputLabel,
-  FormControl,
-  Button,
-  Chip,
-  Divider,
-  CircularProgress,
-  Alert,
-} from '@mui/material';
-import axios from 'axios';
 
 const chartTypeOptions = [
   { value: 'bar', label: 'Bar Chart' },
@@ -179,6 +184,9 @@ const AnalysisPage = () => {
   const [showChart, setShowChart] = useState(false);
   const { chartsToReport, setChartsToReport } = useChartsToReport();
   const [exportingChartId, setExportingChartId] = useState(null);
+  const [showUncleanedDialog, setShowUncleanedDialog] = useState(false);
+  const [proceedUncleaned, setProceedUncleaned] = useState(false);
+  const [isCleaned, setIsCleaned] = useState(true); // Assume cleaned by default
 
   
   // New state variables for filtering and sorting
@@ -205,9 +213,20 @@ const AnalysisPage = () => {
         setPreview(res.data.preview || []);
         setData(res.data.data || []); // set full dataset
         setLoading(false);
+        // Check if the filename starts with 'cleaned_'
+        if (res.data.filename && !res.data.filename.startsWith('cleaned_')) {
+          setIsCleaned(false);
+          setShowUncleanedDialog(true);
+        } else {
+          setIsCleaned(true);
+        }
       })
       .catch(err => {
         setError(err.response?.data?.error || 'Failed to load analysis metadata');
+        // Clear any old data to prevent showing stale analysis
+        setColumns([]);
+        setPreview([]);
+        setData([]);
         setLoading(false);
       });
   }, []);
@@ -938,7 +957,31 @@ const AnalysisPage = () => {
 
   // UI rendering
   if (loading) return <Box mt={4}><CircularProgress /></Box>;
-  if (error) return <Box mt={4}><Alert severity="error">{error}</Alert></Box>;
+  if (error) {
+    return (
+      <Box mt={4}>
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    );
+  }
+
+  // Show confirmation dialog if data is not cleaned and user hasn't confirmed
+  if (showUncleanedDialog && !proceedUncleaned) {
+    return (
+      <Dialog open={showUncleanedDialog}>
+        <DialogTitle>Proceed Without Cleaning?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Your data has not been cleaned yet. Do you still wish to proceed to the Analysis page?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { window.location.href = '/cleaning'; }}>Go to Cleaning</Button>
+          <Button onClick={() => { setProceedUncleaned(true); setShowUncleanedDialog(false); }} variant="contained" color="primary">Proceed to Analysis</Button>
+        </DialogActions>
+      </Dialog>
+    );
+  }
 
   // Group columns for display
   // Only allow numerical columns to be selected for correlation heatmap
@@ -997,333 +1040,333 @@ const AnalysisPage = () => {
 
   return (
     <Box p={5}>
-      <Typography variant="h4" gutterBottom>
-        Data Analysis
+        <Typography variant="h4" gutterBottom>
+          Data Analysis
+          </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+          Explore, visualize, and analyze your cleaned dataset using interactive charts and statistical tools. Uncover patterns, relationships, and trends to gain deeper insights from your data.
         </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Explore, visualize, and analyze your cleaned dataset using interactive charts and statistical tools. Uncover patterns, relationships, and trends to gain deeper insights from your data.
-      </Typography>
-      
-      {/* Remove always-visible filter/sort controls here */}
+        
+        {/* Remove always-visible filter/sort controls here */}
 
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <RadioGroup
-          row
-          value={mode}
-          onChange={e => {
-            setMode(e.target.value);
-            setSelectedColumns([]);
-            setSelectedChart('');
-            setChartType('');
-            setChartColumns([]);
-          }}
-        >
-          <FormControlLabel value="byColumn" control={<Radio />} label="Analysis by Column" />
-          <FormControlLabel value="byChart" control={<Radio />} label="Analysis by Chart Type" />
-        </RadioGroup>
-      </Paper>
-
-      {mode === 'byColumn' && (
         <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6">Select Columns</Typography>
-          <Grid container spacing={2}>
-            {groupedColumns.map(g => (
-              <Grid item xs={12} sm={4} key={g.group}>
-                <Typography variant="subtitle1">{g.group}</Typography>
-                {g.cols.map(col => (
-                  <Chip
-                    key={col.name}
-                    label={`${col.name} (${col.dtype})`}
-                    color={selectedColumns.includes(col.name) ? 'primary' : 'default'}
-                    onClick={() => {
-                      setSelectedColumns(selectedColumns.includes(col.name)
-                        ? selectedColumns.filter(c => c !== col.name)
-                        : [...selectedColumns, col.name]);
-                    }}
-                    sx={{ m: 0.5, cursor: 'pointer' }}
-                  />
-                ))}
-              </Grid>
-            ))}
-          </Grid>
-          <Divider sx={{ my: 2 }} />
-          <Typography variant="subtitle1">Suggested Chart Types</Typography>
-          <Box>
-            {suggestedCharts.length === 0 && <Typography color="text.secondary">Select columns to see chart suggestions.</Typography>}
-            {suggestedCharts.map(chart => (
-              <Chip
-                key={chart}
-                label={chartTypeOptions.find(opt => opt.value === chart)?.label || chart}
-                color={selectedChart === chart ? 'primary' : 'default'}
-                onClick={() => setSelectedChart(chart)}
-                sx={{ m: 0.5, cursor: 'pointer' }}
-              />
-            ))}
-          </Box>
-          {/* Show filter/sort controls only if a chart is selected and columns are selected */}
-          {selectedChart && selectedColumns.length > 0 && (
-            <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
-              <Grid container spacing={3} alignItems="center">
-                {/* Aggregation toggle for relevant chart types */}
-              {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(selectedChart) && selectedColumns.length >= 2 && (
+          <RadioGroup
+            row
+            value={mode}
+            onChange={e => {
+              setMode(e.target.value);
+              setSelectedColumns([]);
+              setSelectedChart('');
+              setChartType('');
+              setChartColumns([]);
+            }}
+          >
+            <FormControlLabel value="byColumn" control={<Radio />} label="Analysis by Column" />
+            <FormControlLabel value="byChart" control={<Radio />} label="Analysis by Chart Type" />
+          </RadioGroup>
+        </Paper>
+
+        {mode === 'byColumn' && (
+          <Paper sx={{ p: 2, mb: 3 }}>
+            <Typography variant="h6">Select Columns</Typography>
+            <Grid container spacing={2}>
+              {groupedColumns.map(g => (
+                <Grid item xs={12} sm={4} key={g.group}>
+                  <Typography variant="subtitle1">{g.group}</Typography>
+                  {g.cols.map(col => (
+                    <Chip
+                      key={col.name}
+                      label={`${col.name} (${col.dtype})`}
+                      color={selectedColumns.includes(col.name) ? 'primary' : 'default'}
+                      onClick={() => {
+                        setSelectedColumns(selectedColumns.includes(col.name)
+                          ? selectedColumns.filter(c => c !== col.name)
+                          : [...selectedColumns, col.name]);
+                      }}
+                      sx={{ m: 0.5, cursor: 'pointer' }}
+                    />
+                  ))}
+                </Grid>
+              ))}
+            </Grid>
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="subtitle1">Suggested Chart Types</Typography>
+            <Box>
+              {suggestedCharts.length === 0 && <Typography color="text.secondary">Select columns to see chart suggestions.</Typography>}
+              {suggestedCharts.map(chart => (
+                <Chip
+                  key={chart}
+                  label={chartTypeOptions.find(opt => opt.value === chart)?.label || chart}
+                  color={selectedChart === chart ? 'primary' : 'default'}
+                  onClick={() => setSelectedChart(chart)}
+                  sx={{ m: 0.5, cursor: 'pointer' }}
+                />
+              ))}
+            </Box>
+            {/* Show filter/sort controls only if a chart is selected and columns are selected */}
+            {selectedChart && selectedColumns.length > 0 && (
+              <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
+                <Grid container spacing={3} alignItems="center">
+                  {/* Aggregation toggle for relevant chart types */}
+                {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(selectedChart) && selectedColumns.length >= 2 && (
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Aggregation</InputLabel>
+                        <Select
+                          value={aggregationType}
+                          label="Aggregation"
+                          onChange={e => setAggregationType(e.target.value)}
+                        >
+                          <MenuItem value="sum">Sum</MenuItem>
+                          <MenuItem value="average">Average</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  )}
                   <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>Aggregation</InputLabel>
+                    <FormControl fullWidth sx={{ minWidth: '200px' }}>
+                      <InputLabel>Filter by Top N Items</InputLabel>
                       <Select
-                        value={aggregationType}
-                        label="Aggregation"
-                        onChange={e => setAggregationType(e.target.value)}
+                        value={filterTop}
+                        label="Filter by Top N Items"
+                        onChange={(e) => setFilterTop(e.target.value)}
                       >
-                        <MenuItem value="sum">Sum</MenuItem>
-                        <MenuItem value="average">Average</MenuItem>
+                        <MenuItem value="">No Filter</MenuItem>
+                        <MenuItem value="5">Top 5</MenuItem>
+                        <MenuItem value="10">Top 10</MenuItem>
+                        <MenuItem value="15">Top 15</MenuItem>
+                        <MenuItem value="20">Top 20</MenuItem>
+                        <MenuItem value="25">Top 25</MenuItem>
+                        <MenuItem value="50">Top 50</MenuItem>
                       </Select>
                     </FormControl>
                   </Grid>
-                )}
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth sx={{ minWidth: '200px' }}>
-                    <InputLabel>Filter by Top N Items</InputLabel>
-                    <Select
-                      value={filterTop}
-                      label="Filter by Top N Items"
-                      onChange={(e) => setFilterTop(e.target.value)}
-                    >
-                      <MenuItem value="">No Filter</MenuItem>
-                      <MenuItem value="5">Top 5</MenuItem>
-                      <MenuItem value="10">Top 10</MenuItem>
-                      <MenuItem value="15">Top 15</MenuItem>
-                      <MenuItem value="20">Top 20</MenuItem>
-                      <MenuItem value="25">Top 25</MenuItem>
-                      <MenuItem value="50">Top 50</MenuItem>
-                    </Select>
-                  </FormControl>
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth>
+                      <InputLabel>Sort Order</InputLabel>
+                      <Select
+                        value={sortOrder}
+                        label="Sort Order"
+                        onChange={(e) => setSortOrder(e.target.value)}
+                      >
+                        <MenuItem value="desc">Descending (High to Low)</MenuItem>
+                        <MenuItem value="asc">Ascending (Low to High)</MenuItem>
+                        <MenuItem value="none">No Sort</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  {/* Sum, Average, and Count display for any single-column chart */}
+                  {selectedColumns.length === 1 && (() => {
+                    const chartData = getChartData(selectedChart, selectedColumns);
+                    const dataArr = chartData && chartData.datasets && chartData.datasets[0] ? chartData.datasets[0].data : [];
+                    if (!dataArr.length) return null;
+                    const isNumeric = dataArr.every(v => typeof v === 'number' && !isNaN(v));
+                    if (isNumeric) {
+                      const sum = dataArr.reduce((a, b) => a + b, 0);
+                      const avg = sum / dataArr.length;
+                      return (
+                        <Grid item xs={12} sm={12} md={12} lg={12} sx={{ mt: 2 }}>
+                          <Box display="flex" gap={4} alignItems="center">
+                            <Typography variant="subtitle2">Sum: <b>{sum.toLocaleString(undefined, { maximumFractionDigits: 2 })}</b></Typography>
+                            <Typography variant="subtitle2">Average: <b>{avg.toLocaleString(undefined, { maximumFractionDigits: 2 })}</b></Typography>
+                            <Typography variant="subtitle2">Count: <b>{dataArr.length.toLocaleString()}</b></Typography>
+                          </Box>
+                        </Grid>
+                      );
+                    } else {
+                      return (
+                        <Grid item xs={12} sm={12} md={12} lg={12} sx={{ mt: 2 }}>
+                          <Box display="flex" gap={4} alignItems="center">
+                            <Typography variant="subtitle2">Count: <b>{dataArr.length.toLocaleString()}</b></Typography>
+                          </Box>
+                        </Grid>
+                      );
+                    }
+                  })()}
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth>
-                    <InputLabel>Sort Order</InputLabel>
-                    <Select
-                      value={sortOrder}
-                      label="Sort Order"
-                      onChange={(e) => setSortOrder(e.target.value)}
-                    >
-                      <MenuItem value="desc">Descending (High to Low)</MenuItem>
-                      <MenuItem value="asc">Ascending (Low to High)</MenuItem>
-                      <MenuItem value="none">No Sort</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                {/* Sum, Average, and Count display for any single-column chart */}
-                {selectedColumns.length === 1 && (() => {
-                  const chartData = getChartData(selectedChart, selectedColumns);
-                  const dataArr = chartData && chartData.datasets && chartData.datasets[0] ? chartData.datasets[0].data : [];
-                  if (!dataArr.length) return null;
-                  const isNumeric = dataArr.every(v => typeof v === 'number' && !isNaN(v));
-                  if (isNumeric) {
-                    const sum = dataArr.reduce((a, b) => a + b, 0);
-                    const avg = sum / dataArr.length;
-                    return (
-                      <Grid item xs={12} sm={12} md={12} lg={12} sx={{ mt: 2 }}>
-                        <Box display="flex" gap={4} alignItems="center">
-                          <Typography variant="subtitle2">Sum: <b>{sum.toLocaleString(undefined, { maximumFractionDigits: 2 })}</b></Typography>
-                          <Typography variant="subtitle2">Average: <b>{avg.toLocaleString(undefined, { maximumFractionDigits: 2 })}</b></Typography>
-                          <Typography variant="subtitle2">Count: <b>{dataArr.length.toLocaleString()}</b></Typography>
-                        </Box>
-                      </Grid>
-                    );
-                  } else {
-                    return (
-                      <Grid item xs={12} sm={12} md={12} lg={12} sx={{ mt: 2 }}>
-                        <Box display="flex" gap={4} alignItems="center">
-                          <Typography variant="subtitle2">Count: <b>{dataArr.length.toLocaleString()}</b></Typography>
-                        </Box>
-                      </Grid>
-                    );
+              </Paper>
+            )}
+            {selectedChart && (
+              <Button variant="contained" sx={{ mt: 2 }} onClick={() => setShowChart(true)}>Generate Chart</Button>
+            )}
+            {shouldShowChart && selectedChart && selectedColumns.length > 0 && (
+              <Box mt={4}>
+                {renderChart(selectedChart, selectedColumns, exportingChartId === getChartId(selectedChart, selectedColumns, filterTop, sortOrder))}
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={!!chartsToReport[getChartId(selectedChart, selectedColumns, filterTop, sortOrder)]?.selected}
+                      onChange={e => handleAddToReport(selectedChart, selectedColumns, e.target.checked)}
+                    />
                   }
-                })()}
-              </Grid>
-            </Paper>
-          )}
-          {selectedChart && (
-            <Button variant="contained" sx={{ mt: 2 }} onClick={() => setShowChart(true)}>Generate Chart</Button>
-          )}
-          {shouldShowChart && selectedChart && selectedColumns.length > 0 && (
-            <Box mt={4}>
-              {renderChart(selectedChart, selectedColumns, exportingChartId === getChartId(selectedChart, selectedColumns, filterTop, sortOrder))}
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={!!chartsToReport[getChartId(selectedChart, selectedColumns, filterTop, sortOrder)]?.selected}
-                    onChange={e => handleAddToReport(selectedChart, selectedColumns, e.target.checked)}
-                  />
-                }
-                label="Add to Report"
-                sx={{ mt: 2 }}
-              />
-            </Box>
-          )}
-        </Paper>
-      )}
+                  label="Add to Report"
+                  sx={{ mt: 2 }}
+                />
+              </Box>
+            )}
+          </Paper>
+        )}
 
-      {mode === 'byChart' && (
-        <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6">Select Chart Type</Typography>
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Chart Type</InputLabel>
-            <Select
-              value={chartType}
-              label="Chart Type"
-              onChange={e => {
-                setChartType(e.target.value);
-                setChartColumns([]);
-                setShowChart(false);
-              }}
-            >
-              {chartTypeOptions.map(opt => (
-                <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-      {chartType && (
-        <>
-          <Typography variant="subtitle1">Select Compatible Columns</Typography>
-          {/* Correlation Heatmap: Multi-select for numerical columns only */}
-          {chartType === 'correlation' ? (
+        {mode === 'byChart' && (
+          <Paper sx={{ p: 2, mb: 3 }}>
+            <Typography variant="h6">Select Chart Type</Typography>
             <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel id="correlation-columns-label">Numerical Columns</InputLabel>
+              <InputLabel>Chart Type</InputLabel>
               <Select
-                labelId="correlation-columns-label"
-                id="correlation-columns"
-                label="Numerical Columns"
-                multiple
-                value={chartColumns}
-                onChange={e => setChartColumns(e.target.value)}
-                renderValue={selected => selected.join(', ')}
+                value={chartType}
+                label="Chart Type"
+                onChange={e => {
+                  setChartType(e.target.value);
+                  setChartColumns([]);
+                  setShowChart(false);
+                }}
               >
-                {columns.filter(c => c.group === 'Numerical').map(col => (
-                  <MenuItem key={col.name} value={col.name}>
-                    {col.name}
-                  </MenuItem>
+                {chartTypeOptions.map(opt => (
+                  <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
                 ))}
               </Select>
             </FormControl>
-          ) : (
-            // ...existing ColumnDropdowns logic for other chart types...
-            <ColumnDropdowns
-              chartType={chartType}
-              columns={columns}
-              combos={getCompatibleColumnsForChart(chartType, columns)}
-              chartColumns={chartColumns}
-              setChartColumns={setChartColumns}
-            />
-          )}
-          {/* Show filter/sort controls only if chartType and columns are selected and valid */}
-          {((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
-            <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
-              <Grid container spacing={3} alignItems="center">
-                {/* Aggregation toggle for relevant chart types */}
-                {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(chartType) && chartColumns.length >= 2 && (
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>Aggregation</InputLabel>
+        {chartType && (
+          <>
+            <Typography variant="subtitle1">Select Compatible Columns</Typography>
+            {/* Correlation Heatmap: Multi-select for numerical columns only */}
+            {chartType === 'correlation' ? (
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="correlation-columns-label">Numerical Columns</InputLabel>
+                <Select
+                  labelId="correlation-columns-label"
+                  id="correlation-columns"
+                  label="Numerical Columns"
+                  multiple
+                  value={chartColumns}
+                  onChange={e => setChartColumns(e.target.value)}
+                  renderValue={selected => selected.join(', ')}
+                >
+                  {columns.filter(c => c.group === 'Numerical').map(col => (
+                    <MenuItem key={col.name} value={col.name}>
+                      {col.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ) : (
+              // ...existing ColumnDropdowns logic for other chart types...
+              <ColumnDropdowns
+                chartType={chartType}
+                columns={columns}
+                combos={getCompatibleColumnsForChart(chartType, columns)}
+                chartColumns={chartColumns}
+                setChartColumns={setChartColumns}
+              />
+            )}
+            {/* Show filter/sort controls only if chartType and columns are selected and valid */}
+            {((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
+              <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
+                <Grid container spacing={3} alignItems="center">
+                  {/* Aggregation toggle for relevant chart types */}
+                  {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(chartType) && chartColumns.length >= 2 && (
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Aggregation</InputLabel>
+                        <Select
+                          value={aggregationType}
+                          label="Aggregation"
+                          onChange={e => setAggregationType(e.target.value)}
+                        >
+                          <MenuItem value="sum">Sum</MenuItem>
+                          <MenuItem value="average">Average</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  )}
+                              <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth sx={{ minWidth: '200px' }}>
+                      <InputLabel>Filter by Top N Items</InputLabel>
                       <Select
-                        value={aggregationType}
-                        label="Aggregation"
-                        onChange={e => setAggregationType(e.target.value)}
+                        value={filterTop}
+                        label="Filter by Top N Items"
+                        onChange={(e) => setFilterTop(e.target.value)}
                       >
-                        <MenuItem value="sum">Sum</MenuItem>
-                        <MenuItem value="average">Average</MenuItem>
+                        <MenuItem value="">No Filter</MenuItem>
+                        <MenuItem value="5">Top 5</MenuItem>
+                        <MenuItem value="10">Top 10</MenuItem>
+                        <MenuItem value="15">Top 15</MenuItem>
+                        <MenuItem value="20">Top 20</MenuItem>
+                        <MenuItem value="25">Top 25</MenuItem>
+                        <MenuItem value="50">Top 50</MenuItem>
                       </Select>
                     </FormControl>
                   </Grid>
-                )}
-                              <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth sx={{ minWidth: '200px' }}>
-                    <InputLabel>Filter by Top N Items</InputLabel>
-                    <Select
-                      value={filterTop}
-                      label="Filter by Top N Items"
-                      onChange={(e) => setFilterTop(e.target.value)}
-                    >
-                      <MenuItem value="">No Filter</MenuItem>
-                      <MenuItem value="5">Top 5</MenuItem>
-                      <MenuItem value="10">Top 10</MenuItem>
-                      <MenuItem value="15">Top 15</MenuItem>
-                      <MenuItem value="20">Top 20</MenuItem>
-                      <MenuItem value="25">Top 25</MenuItem>
-                      <MenuItem value="50">Top 50</MenuItem>
-                    </Select>
-                  </FormControl>
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth>
+                      <InputLabel>Sort Order</InputLabel>
+                      <Select
+                        value={sortOrder}
+                        label="Sort Order"
+                        onChange={(e) => setSortOrder(e.target.value)}
+                      >
+                        <MenuItem value="desc">Descending (High to Low)</MenuItem>
+                        <MenuItem value="asc">Ascending (Low to High)</MenuItem>
+                        <MenuItem value="none">No Sort</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  {/* Sum, Average, and Count display for any single-column chart in byChart mode */}
+                  {chartColumns.length === 1 && (() => {
+                    const chartData = getChartData(chartType, chartColumns);
+                    const dataArr = chartData && chartData.datasets && chartData.datasets[0] ? chartData.datasets[0].data : [];
+                    if (!dataArr.length) return null;
+                    const isNumeric = dataArr.every(v => typeof v === 'number' && !isNaN(v));
+                    if (isNumeric) {
+                      const sum = dataArr.reduce((a, b) => a + b, 0);
+                      const avg = sum / dataArr.length;
+                      return (
+                        <Grid item xs={12} sm={12} md={12} lg={12} sx={{ mt: 2 }}>
+                          <Box display="flex" gap={4} alignItems="center">
+                            <Typography variant="subtitle2">Sum: <b>{sum.toLocaleString(undefined, { maximumFractionDigits: 2 })}</b></Typography>
+                            <Typography variant="subtitle2">Average: <b>{avg.toLocaleString(undefined, { maximumFractionDigits: 2 })}</b></Typography>
+                            <Typography variant="subtitle2">Count: <b>{dataArr.length.toLocaleString()}</b></Typography>
+                          </Box>
+                        </Grid>
+                      );
+                    } else {
+                      return (
+                        <Grid item xs={12} sm={12} md={12} lg={12} sx={{ mt: 2 }}>
+                          <Box display="flex" gap={4} alignItems="center">
+                            <Typography variant="subtitle2">Count: <b>{dataArr.length.toLocaleString()}</b></Typography>
+                          </Box>
+                        </Grid>
+                      );
+                    }
+                  })()}
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth>
-                    <InputLabel>Sort Order</InputLabel>
-                    <Select
-                      value={sortOrder}
-                      label="Sort Order"
-                      onChange={(e) => setSortOrder(e.target.value)}
-                    >
-                      <MenuItem value="desc">Descending (High to Low)</MenuItem>
-                      <MenuItem value="asc">Ascending (Low to High)</MenuItem>
-                      <MenuItem value="none">No Sort</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                {/* Sum, Average, and Count display for any single-column chart in byChart mode */}
-                {chartColumns.length === 1 && (() => {
-                  const chartData = getChartData(chartType, chartColumns);
-                  const dataArr = chartData && chartData.datasets && chartData.datasets[0] ? chartData.datasets[0].data : [];
-                  if (!dataArr.length) return null;
-                  const isNumeric = dataArr.every(v => typeof v === 'number' && !isNaN(v));
-                  if (isNumeric) {
-                    const sum = dataArr.reduce((a, b) => a + b, 0);
-                    const avg = sum / dataArr.length;
-                    return (
-                      <Grid item xs={12} sm={12} md={12} lg={12} sx={{ mt: 2 }}>
-                        <Box display="flex" gap={4} alignItems="center">
-                          <Typography variant="subtitle2">Sum: <b>{sum.toLocaleString(undefined, { maximumFractionDigits: 2 })}</b></Typography>
-                          <Typography variant="subtitle2">Average: <b>{avg.toLocaleString(undefined, { maximumFractionDigits: 2 })}</b></Typography>
-                          <Typography variant="subtitle2">Count: <b>{dataArr.length.toLocaleString()}</b></Typography>
-                        </Box>
-                      </Grid>
-                    );
-                  } else {
-                    return (
-                      <Grid item xs={12} sm={12} md={12} lg={12} sx={{ mt: 2 }}>
-                        <Box display="flex" gap={4} alignItems="center">
-                          <Typography variant="subtitle2">Count: <b>{dataArr.length.toLocaleString()}</b></Typography>
-                        </Box>
-                      </Grid>
-                    );
+              </Paper>
+            )}
+            <Button
+              variant="contained"
+              sx={{ mt: 2 }}
+              disabled={chartType === 'correlation' ? chartColumns.length < 2 : !isValidSelection}
+              onClick={() => setShowChart(true)}
+            >
+              Generate Chart
+            </Button>
+            {shouldShowChart && chartType && ((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
+              <Box mt={4}>
+                {renderChart(chartType, chartColumns.filter(Boolean), exportingChartId === getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder))}
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={!!chartsToReport[getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder)]?.selected}
+                      onChange={e => handleAddToReport(chartType, chartColumns.filter(Boolean), e.target.checked)}
+                    />
                   }
-                })()}
-              </Grid>
-            </Paper>
-          )}
-          <Button
-            variant="contained"
-            sx={{ mt: 2 }}
-            disabled={chartType === 'correlation' ? chartColumns.length < 2 : !isValidSelection}
-            onClick={() => setShowChart(true)}
-          >
-            Generate Chart
-          </Button>
-          {shouldShowChart && chartType && ((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
-            <Box mt={4}>
-              {renderChart(chartType, chartColumns.filter(Boolean), exportingChartId === getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder))}
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={!!chartsToReport[getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder)]?.selected}
-                    onChange={e => handleAddToReport(chartType, chartColumns.filter(Boolean), e.target.checked)}
-                  />
-                }
-                label="Add to Report"
-                sx={{ mt: 2 }}
-              />
-            </Box>
-          )}
-        </>
-      )}
+                  label="Add to Report"
+                  sx={{ mt: 2 }}
+                />
+              </Box>
+            )}
+          </>
+        )}
         </Paper>
       )}
 
@@ -1363,9 +1406,9 @@ const AnalysisPage = () => {
               const parts = key.split(':');
               const chartType = parts[0];
               const columns = parts[1]?.split(',') || [];
-              const filter = parts[2]?.replace('filter=', '') || '';
-              const sort = parts[3]?.replace('sort=', '') || '';
-              const agg = parts[4]?.replace('agg=', '') || '';
+              const filter = parts[2]?.replace('filter=','') || '';
+              const sort = parts[3]?.replace('sort=','') || '';
+              const agg = parts[4]?.replace('agg=','') || '';
               
               let displayText = `${chartType}: ${columns.join(', ')}`;
               if (filter) displayText += ` (filter: ${filter})`;
@@ -1376,6 +1419,19 @@ const AnalysisPage = () => {
             })}
           </ul>
         )}
+      </Box>
+      {/* Button to move to Export Page */}
+      <Box mt={6} textAlign="center">
+        <Button
+          component={Link}
+          to="/export"
+          variant="contained"
+          color="secondary"
+          size="large"
+          sx={{ px: 4, py: 1.5 }}
+        >
+          Go to Export
+        </Button>
       </Box>
     </Box>
   )

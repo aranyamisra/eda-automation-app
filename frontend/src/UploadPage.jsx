@@ -5,6 +5,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { CleaningSummaryContext } from './App';
+import { useCallback } from 'react';
 import { useChartsToReport } from './ChartsToReportContext';
 
 function UploadPage() {
@@ -49,6 +50,27 @@ function UploadPage() {
       setUploading(false);
     }
   };
+
+  // Reset handler
+  const handleReset = useCallback(async () => {
+    if (!window.confirm('Are you sure you want to reset? This will remove the current dataset and all progress.')) return;
+    try {
+      const res = await fetch('http://localhost:5001/reset', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setFile(null);
+        localStorage.removeItem('cleaningSession');
+        // Optionally clear other local state if needed
+        alert('Dataset and session have been reset.');
+      } else {
+        alert('Reset failed.');
+      }
+    } catch (err) {
+      alert('Reset error.');
+    }
+  }, []);
 
   return (
     <Box
@@ -107,6 +129,17 @@ function UploadPage() {
           sx={{ py: 1.5, fontSize: '1rem' }}
         >
           {uploading ? 'Uploading...' : 'Upload'}
+        </Button>
+
+        {/* Reset Button */}
+        <Button
+          variant="outlined"
+          color="error"
+          onClick={handleReset}
+          fullWidth
+          sx={{ mt: 2, py: 1.5, fontSize: '1rem' }}
+        >
+          Reset Dataset
         </Button>
 
         {/* Divider */}

@@ -55,6 +55,7 @@ const ExportPage = ({
     insights: true,
   });
   const [localReportTitle, setLocalReportTitle] = useState('EDA Report');
+  const [noDataset, setNoDataset] = useState(false);
   const [reportFormat, setReportFormat] = useState('');
 
   useEffect(() => {
@@ -64,8 +65,39 @@ const ExportPage = ({
       setHasCleaned(session.hasCleaned || false);
       setCleanedData(session.cleanedData || null);
       setCleaningSummary(session.cleaningSummary || []);
+    } else {
+      // Fallback: check with backend if any dataset is present
+      fetch('http://localhost:5001/analysis', { credentials: 'include' })
+        .then(res => {
+          if (!res.ok) throw new Error('No dataset');
+          return res.json();
+        })
+        .then(data => {
+          if (!data || !data.columns || data.columns.length === 0) {
+            setNoDataset(true);
+          }
+        })
+        .catch(() => setNoDataset(true));
     }
   }, []);
+
+  if (noDataset) {
+    return (
+      <Box sx={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 5 }}>
+        <Paper sx={{ p: 4, borderRadius: 2, textAlign: 'center', maxWidth: 400 }} elevation={3}>
+          <Typography variant="h5" color="error" sx={{ mb: 2 }}>
+            No dataset uploaded
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 3 }}>
+            Please upload a dataset before exporting a report.
+          </Typography>
+          <Button variant="contained" color="primary" href="/upload" sx={{ fontWeight: 700, fontSize: 16, borderRadius: 2 }}>
+            Go to Upload Page
+          </Button>
+        </Paper>
+      </Box>
+    );
+  }
 
   // Transform chartsToReport into visualisations array
   const visualisations = Object.keys(chartsToReport || {})
