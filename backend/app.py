@@ -55,6 +55,7 @@ def upload_file():
         # Store file path in session
         session['dataset_path'] = filepath
         session['filename'] = uploaded_file.filename
+        session.pop('cleaned_filename', None)  # Invalidate previous cleaned file
         
         return jsonify({
             'message': 'File uploaded successfully', 
@@ -156,6 +157,8 @@ def clean_data():
             df_cleaned.to_excel(cleaned_filepath, index=False)
         elif ext == 'json':
             df_cleaned.to_json(cleaned_filepath, orient='records')
+        
+        session['cleaned_filename'] = cleaned_filename  # Track cleaned file for current session
 
         # --- AFTER REPORT ---
         after_report = data_quality_report(df_cleaned, cleaned_filename)
@@ -477,31 +480,39 @@ def internal_error(e):
 
 @app.route('/analysis', methods=['GET'])
 def analysis_metadata():
-    """Return column names, dtypes, grouped types, and preview from the latest cleaned dataset."""
+    """Return column names, dtypes, grouped types, and preview from the latest cleaned dataset if available, otherwise from the raw uploaded dataset."""
     try:
         upload_folder = app.config['UPLOAD_FOLDER']
-        # Find latest cleaned file (filename starts with 'cleaned_')
-        files = [os.path.join(upload_folder, f) for f in os.listdir(upload_folder)
-                 if os.path.isfile(os.path.join(upload_folder, f)) and f.startswith('cleaned_')]
-        if not files:
-            return jsonify({'error': 'No cleaned files found. Please clean a dataset first.'}), 400
-        filepath = max(files, key=os.path.getctime)
-        filename = os.path.basename(filepath)
-        ext = filepath.split('.')[-1].lower()
-        # Load dataset
+        uploaded_filename = session.get('filename')
+        cleaned_filename = session.get('cleaned_filename')
+        if not uploaded_filename:
+            return jsonify({'error': 'No uploaded file found. Please upload a dataset first.'}), 400
+
+        # Prefer cleaned file if available and matches
+        expected_cleaned_filename = f"cleaned_{uploaded_filename}"
+        use_cleaned = cleaned_filename == expected_cleaned_filename
+        if use_cleaned:
+            analysis_filepath = os.path.join(upload_folder, cleaned_filename)
+        else:
+            analysis_filepath = os.path.join(upload_folder, uploaded_filename)
+
+        if not os.path.exists(analysis_filepath):
+            return jsonify({'error': 'Analysis file not found. Please upload a dataset first.'}), 400
+
+        ext = analysis_filepath.split('.')[-1].lower()
         if ext == 'csv':
-            df = pd.read_csv(filepath)
+            df = pd.read_csv(analysis_filepath)
         elif ext in ['xls', 'xlsx']:
-            df = pd.read_excel(filepath)
+            df = pd.read_excel(analysis_filepath)
         elif ext == 'json':
-            df = pd.read_json(filepath, orient='records')
+            df = pd.read_json(analysis_filepath, orient='records')
         else:
             return jsonify({'error': 'Unsupported file format'}), 400
+
         # Group columns by type
         columns = []
         for col in df.columns:
             dtype = df[col].dtype.name
-            # Grouping logic
             if pd.api.types.is_numeric_dtype(df[col]):
                 group = 'Numerical'
             elif pd.api.types.is_datetime64_any_dtype(df[col]):
@@ -509,12 +520,11 @@ def analysis_metadata():
             else:
                 group = 'Categorical'
             columns.append({'name': col, 'dtype': dtype, 'group': group})
-        # Preview (first 5 rows)
+
         preview = df.head().replace({np.nan: None}).to_dict(orient='records')
-        # Full data (all rows, NaN to None)
         data = df.replace({np.nan: None}).to_dict(orient='records')
         return jsonify({
-            'filename': filename,
+            'filename': os.path.basename(analysis_filepath),
             'columns': columns,
             'preview': preview,
             'data': data
@@ -670,6 +680,17 @@ def export_report():
         as_attachment=True,
         download_name=report_filename
     )
+
+@app.route('/reset', methods=['POST'])
+def reset():
+    session.clear()
+    # Optionally, delete all files in the uploads folder
+    upload_folder = app.config['UPLOAD_FOLDER']
+    for f in os.listdir(upload_folder):
+        file_path = os.path.join(upload_folder, f)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+    return jsonify({'message': 'Session and uploads reset.'}), 200
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)

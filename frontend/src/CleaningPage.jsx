@@ -460,463 +460,463 @@ function CleaningPage() {
 
   return (
     <Box p={5}>
-      <Typography variant="h4" gutterBottom>
-        Data Cleaning
-      </Typography>
+        <Typography variant="h4" gutterBottom>
+          Data Cleaning
+        </Typography>
 
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Clean and prepare your dataset for analysis by addressing missing values, duplicates, data type inconsistencies, and outliers. Use the interactive tools below to apply data cleaning actions and improve the quality of your data.
-      </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+          Clean and prepare your dataset for analysis by addressing missing values, duplicates, data type inconsistencies, and outliers. Use the interactive tools below to apply data cleaning actions and improve the quality of your data.
+        </Typography>
 
-      {/* Data Summary */}
-      <Paper sx={{ mb: 4 }}>
-        <Box p={3}>
-          <Typography variant="h6" gutterBottom>
-            Dataset Summary
-          </Typography>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={3}>
-              <Card>
-                <CardContent>
-                  <Box display="flex" alignItems="center" mb={1}>
-                    <Storage color="primary" sx={{ mr: 1 }} />
-                    <Typography variant="h6">Shape</Typography>
-                  </Box>
-                  <Typography variant="h4" color="primary">
-                    {report.dataset_info?.rows || 0} × {report.dataset_info?.columns || 0}
-                  </Typography>
-                </CardContent>
-              </Card>
+        {/* Data Summary */}
+        <Paper sx={{ mb: 4 }}>
+          <Box p={3}>
+            <Typography variant="h6" gutterBottom>
+              Dataset Summary
+            </Typography>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={3}>
+                <Card>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" mb={1}>
+                      <Storage color="primary" sx={{ mr: 1 }} />
+                      <Typography variant="h6">Shape</Typography>
+                    </Box>
+                    <Typography variant="h4" color="primary">
+                      {report.dataset_info?.rows || 0} × {report.dataset_info?.columns || 0}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Card>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" mb={1}>
+                      <Assessment color="primary" sx={{ mr: 1 }} />
+                      <Typography variant="h6">Quality Score</Typography>
+                    </Box>
+                    <Typography variant="h4" color="primary">
+                      {report.data_quality_score || 0}%
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Card>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" mb={1}>
+                      <Warning color="warning" sx={{ mr: 1 }} />
+                      <Typography variant="h6">Missing Values</Typography>
+                    </Box>
+                    <Typography variant="h4" color="warning.main">
+                      {report.quality_metrics?.null_percentage || 0}%
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Card>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" mb={1}>
+                      <ContentCopy color="info" sx={{ mr: 1 }} />
+                      <Typography variant="h6">Duplicates</Typography>
+                    </Box>
+                    <Typography variant="h4" color="info.main">
+                      {report.duplicates || 0}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
             </Grid>
-            <Grid item xs={12} md={3}>
-              <Card>
-                <CardContent>
-                  <Box display="flex" alignItems="center" mb={1}>
-                    <Assessment color="primary" sx={{ mr: 1 }} />
-                    <Typography variant="h6">Quality Score</Typography>
-                  </Box>
-                  <Typography variant="h4" color="primary">
-                    {report.data_quality_score || 0}%
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <Card>
-                <CardContent>
-                  <Box display="flex" alignItems="center" mb={1}>
-                    <Warning color="warning" sx={{ mr: 1 }} />
-                    <Typography variant="h6">Missing Values</Typography>
-                  </Box>
-                  <Typography variant="h4" color="warning.main">
-                    {report.quality_metrics?.null_percentage || 0}%
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <Card>
-                <CardContent>
-                  <Box display="flex" alignItems="center" mb={1}>
-                    <ContentCopy color="info" sx={{ mr: 1 }} />
-                    <Typography variant="h6">Duplicates</Typography>
-                  </Box>
-                  <Typography variant="h4" color="info.main">
-                    {report.duplicates || 0}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+          </Box>
+        </Paper>
+
+        {/* Cleaning Options */}
+        <Grid container spacing={3}>
+          {/* Duplicate Handling */}
+          <Grid item xs={12} md={6}>
+            <Paper>
+              <Box p={3}>
+                <Typography variant="h6" gutterBottom>
+                  Duplicate Values ({report.duplicates || 0} found)
+                </Typography>
+                {report.duplicates > 0 ? (
+                  <div>
+                    <FormControl component="fieldset">
+                      <FormLabel component="legend">Action:</FormLabel>
+                      <RadioGroup
+                        value={cleaningActions.duplicates || 'remain'}
+                        onChange={(e) => handleCleaningAction('duplicates', null, e.target.value)}
+                      >
+                        <FormControlLabel value="delete" control={<Radio />} label="Delete duplicates" />
+                        <FormControlLabel value="remain" control={<Radio />} label="Keep duplicates" />
+                      </RadioGroup>
+                    </FormControl>
+                  </div>
+                ) : (
+                  <Typography color="success.main">✓ No duplicate values found</Typography>
+                )}
+              </Box>
+            </Paper>
           </Grid>
-        </Box>
-      </Paper>
 
-      {/* Cleaning Options */}
-      <Grid container spacing={3}>
-        {/* Duplicate Handling */}
-        <Grid item xs={12} md={6}>
-          <Paper>
-            <Box p={3}>
-              <Typography variant="h6" gutterBottom>
-                Duplicate Values ({report.duplicates || 0} found)
-              </Typography>
-              {report.duplicates > 0 ? (
-                <div>
-              <FormControl component="fieldset">
-                <FormLabel component="legend">Action:</FormLabel>
-                <RadioGroup
-                  value={cleaningActions.duplicates || 'remain'}
-                  onChange={(e) => handleCleaningAction('duplicates', null, e.target.value)}
-                >
-                  <FormControlLabel value="delete" control={<Radio />} label="Delete duplicates" />
-                  <FormControlLabel value="remain" control={<Radio />} label="Keep duplicates" />
-                </RadioGroup>
-              </FormControl>
-                </div>
-              ) : (
-                <Typography color="success.main">✓ No duplicate values found</Typography>
-              )}
-            </Box>
-          </Paper>
-        </Grid>
-
-        {/* Null Value Handling */}
-        <Grid item xs={12} md={6}>
-          <Paper>
-            <Box p={3}>
-              <Typography variant="h6" gutterBottom>
-                Handle Missing Values
-              </Typography>
-              {Object.keys(report.nulls || {}).length > 0 ? (
-                Object.entries(report.nulls).map(([col, count]) => (
-                <Paper key={col} elevation={2} sx={{ mb: 3, p: 2, minHeight: 170, position: 'relative', overflow: 'visible' }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    {col} <span style={{ color: '#888' }}>({count} nulls)</span>
-                        </Typography>
-                  <FormControl component="fieldset" sx={{ mt: 1 }}>
-                    <FormLabel component="legend" sx={{ fontSize: 14 }}>Action</FormLabel>
-                          <RadioGroup
-                            value={cleaningActions.nulls?.[col]?.action || 'remain'}
-                            onChange={e => handleNullAction(col, e.target.value)}
-                            row
-                          >
-                            <FormControlLabel value="remain" control={<Radio />} label="Keep nulls" />
-                            <FormControlLabel value="delete_row" control={<Radio />} label="Delete rows" />
-                            <FormControlLabel value="delete_column" control={<Radio />} label="Delete column" />
-                            <FormControlLabel value="fill" control={<Radio />} label="Fill with value" />
-                          </RadioGroup>
-                  </FormControl>
-                  <Box
-                    sx={{
-                      ml: 3,
-                      mt: 1,
-                      minHeight: 60, // Reserve space for fill options/input
-                      transition: 'min-height 0.3s',
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}
-                  >
-                    {cleaningActions.nulls?.[col]?.action === 'fill' && (
-                      <Box sx={{ ml: 3, mt: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <FormControl size="small" sx={{ minWidth: 180 }}>
-                          <InputLabel id={`fill-method-label-${col}`}>Fill method</InputLabel>
-                          <Select
-                            labelId={`fill-method-label-${col}`}
-                            id={`fill-method-select-${col}`}
-                            value={cleaningActions.nulls?.[col]?.fillMethod || 'specific'}
-                            label="Fill method"
-                            onChange={e => handleFillMethodChange(col, e.target.value)}
-                          >
-                            <MenuItem value="specific">Specific value</MenuItem>
-                            <MenuItem value="mean">Mean</MenuItem>
-                            <MenuItem value="median">Median</MenuItem>
-                            <MenuItem value="mode">Mode</MenuItem>
-                            <MenuItem value="forward">Forward fill</MenuItem>
-                            <MenuItem value="backward">Backward fill</MenuItem>
-                          </Select>
-                        </FormControl>
-                        {cleaningActions.nulls?.[col]?.fillMethod === 'specific' && (
-                          <TextField
-                            label={`Fill value for "${col}"`}
-                            value={cleaningActions.nulls?.[col]?.fillValue || ''}
-                            onChange={e => handleFillValueChange(col, e.target.value)}
-                            size="small"
-                            sx={{ width: 180 }}
-                            variant="outlined"
-                          />
+          {/* Null Value Handling */}
+          <Grid item xs={12} md={6}>
+            <Paper>
+              <Box p={3}>
+                <Typography variant="h6" gutterBottom>
+                  Handle Missing Values
+                </Typography>
+                {Object.keys(report.nulls || {}).length > 0 ? (
+                  Object.entries(report.nulls).map(([col, count]) => (
+                    <Paper key={col} elevation={2} sx={{ mb: 3, p: 2, minHeight: 170, position: 'relative', overflow: 'visible' }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                        {col} <span style={{ color: '#888' }}>({count} nulls)</span>
+                      </Typography>
+                      <FormControl component="fieldset" sx={{ mt: 1 }}>
+                        <FormLabel component="legend" sx={{ fontSize: 14 }}>Action</FormLabel>
+                        <RadioGroup
+                          value={cleaningActions.nulls?.[col]?.action || 'remain'}
+                          onChange={e => handleNullAction(col, e.target.value)}
+                          row
+                        >
+                          <FormControlLabel value="remain" control={<Radio />} label="Keep nulls" />
+                          <FormControlLabel value="delete_row" control={<Radio />} label="Delete rows" />
+                          <FormControlLabel value="delete_column" control={<Radio />} label="Delete column" />
+                          <FormControlLabel value="fill" control={<Radio />} label="Fill with value" />
+                        </RadioGroup>
+                      </FormControl>
+                      <Box
+                        sx={{
+                          ml: 3,
+                          mt: 1,
+                          minHeight: 60, // Reserve space for fill options/input
+                          transition: 'min-height 0.3s',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        {cleaningActions.nulls?.[col]?.action === 'fill' && (
+                          <Box sx={{ ml: 3, mt: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <FormControl size="small" sx={{ minWidth: 180 }}>
+                              <InputLabel id={`fill-method-label-${col}`}>Fill method</InputLabel>
+                              <Select
+                                labelId={`fill-method-label-${col}`}
+                                id={`fill-method-select-${col}`}
+                                value={cleaningActions.nulls?.[col]?.fillMethod || 'specific'}
+                                label="Fill method"
+                                onChange={e => handleFillMethodChange(col, e.target.value)}
+                              >
+                                <MenuItem value="specific">Specific value</MenuItem>
+                                <MenuItem value="mean">Mean</MenuItem>
+                                <MenuItem value="median">Median</MenuItem>
+                                <MenuItem value="mode">Mode</MenuItem>
+                                <MenuItem value="forward">Forward fill</MenuItem>
+                                <MenuItem value="backward">Backward fill</MenuItem>
+                              </Select>
+                            </FormControl>
+                            {cleaningActions.nulls?.[col]?.fillMethod === 'specific' && (
+                              <TextField
+                                label={`Fill value for "${col}"`}
+                                value={cleaningActions.nulls?.[col]?.fillValue || ''}
+                                onChange={e => handleFillValueChange(col, e.target.value)}
+                                size="small"
+                                sx={{ width: 180 }}
+                                variant="outlined"
+                              />
+                            )}
+                          </Box>
                         )}
-                </Box>
-              )}
+                      </Box>
+                    </Paper>
+                  ))
+                ) : (
+                  <Typography color="success.main">✓ No missing values to handle</Typography>
+                )}
+              </Box>
+            </Paper>
+          </Grid>
+
+          {/* Data Type Conversions */}
+          <Grid item xs={12}>
+            <Paper>
+              <Box p={3}>
+                <Typography variant="h6" gutterBottom>
+                  Data Type Optimizations
+                </Typography>
+                {report.suggested_dtypes && Object.keys(report.suggested_dtypes).length > 0 ? (
+                  <Grid container spacing={2}>
+                    {Object.entries(report.suggested_dtypes).map(([col, dtype]) => (
+                      <Grid item xs={12} md={6} key={col}>
+                        <Card variant="outlined">
+                          <CardContent>
+                            <Typography variant="subtitle1" gutterBottom>
+                              {col} → {dtype}
+                            </Typography>
+                            <FormControl component="fieldset">
+                              <RadioGroup
+                                value={cleaningActions.dataTypes[col] || 'convert'}
+                                onChange={(e) => handleCleaningAction('dataTypes', col, e.target.value)}
+                              >
+                                <FormControlLabel 
+                                  value="convert" 
+                                  control={<Radio />} 
+                                  label="Convert to suggested type" 
+                                />
+                                <FormControlLabel 
+                                  value="keep" 
+                                  control={<Radio />} 
+                                  label="Keep current type" 
+                                />
+                              </RadioGroup>
+                            </FormControl>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Typography color="success.main">✓ All data types are optimized</Typography>
+                )}
+              </Box>
+            </Paper>
+          </Grid>
+
+          {/* Outlier Cleaning Options */}
+          {report.outliers && Object.keys(report.outliers).length > 0 && (
+            <>
+              <Grid item xs={12}>
+                <Paper>
+                  <Box p={3}>
+                    <Typography variant="h6" gutterBottom>
+                      Outlier Cleaning
+                    </Typography>
+                    <Typography variant="body2" sx={{ mb: 2 }}>
+                      Choose a method and action for each numeric column with detected outliers.<br/>
+                      <b>Winsorizing:</b> Limits extreme values by capping them at the 5th and 95th percentiles.<br/>
+                      <b>IQR (Interquartile Range):</b> Detects outliers as values outside 1.5×IQR below Q1 or above Q3.<br/>
+                      <b>Z-Score:</b> Identifies outliers as values with a Z-score above 3 or below -3.
+                    </Typography>
+                    <Grid container spacing={2} alignItems="stretch">
+                      {Object.entries(report.outliers).map(([col, out]) => {
+                        const win = out.winsorizing?.count || 0;
+                        const iqr = out.iqr?.count || 0;
+                        const z = out.zscore?.count || 0;
+                        if (win === 0 && iqr === 0 && z === 0) return null;
+                        return (
+                          <Grid item xs={12} md={4} key={col} style={{ display: 'flex' }}>
+                            <Paper elevation={2} sx={{ p: 2, height: '100%', width: '100%' }}>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{col}</Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
+                                <FormControl size="small" sx={{ minWidth: 160 }}>
+                                  <InputLabel>Method</InputLabel>
+                                  <Select
+                                    value={cleaningActions.outliers?.[col]?.method || 'iqr'}
+                                    label="Method"
+                                    onChange={e => handleOutlierAction(col, 'method', e.target.value)}
+                                  >
+                                    {OUTLIER_METHODS.map(m => (
+                                      <MenuItem key={m.value} value={m.value}>{m.label}</MenuItem>
+                                    ))}
+                                  </Select>
+                                </FormControl>
+                                <FormControl size="small" sx={{ minWidth: 160 }}>
+                                  <InputLabel>Action</InputLabel>
+                                  <Select
+                                    value={cleaningActions.outliers?.[col]?.action || 'none'}
+                                    label="Action"
+                                    onChange={e => handleOutlierAction(col, 'action', e.target.value)}
+                                  >
+                                    {OUTLIER_ACTIONS.map(a => (
+                                      <MenuItem key={a.value} value={a.value}>{a.label}</MenuItem>
+                                    ))}
+                                  </Select>
+                                </FormControl>
+                              </Box>
+                              <Box sx={{ mt: 1, fontSize: 13 }}>
+                                <b>Detected:</b> Winsorizing: {win}, IQR: {iqr}, Z-Score: {z}
+                              </Box>
+                            </Paper>
+                          </Grid>
+                        );
+                      })}
+                    </Grid>
                   </Box>
                 </Paper>
-              ))
-              ) : (
-                <Typography color="success.main">✓ No missing values to handle</Typography>
-              )}
-            </Box>
-          </Paper>
+              </Grid>
+              <Grid item xs={12}>
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  <b>Note:</b> Removing outliers may not reduce the outlier count to zero, because outlier thresholds are recalculated on the cleaned data. You can repeat the process if you want to further reduce outliers.
+                </Alert>
+              </Grid>
+              <Grid item xs={12}>
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  <b>What do the actions mean?</b><br/>
+                  <b>Remove</b>: Deletes rows where the value is an outlier.<br/>
+                  <b>Cap</b>: Replaces outlier values with the nearest threshold (e.g., 5th/95th percentile for Winsorizing).
+                </Alert>
+              </Grid>
+            </>
+          )}
+
+          {/* Fill Value Configuration */}
+          {Object.values(cleaningActions.nulls || {}).some(action => action === 'fill') && (
+            <Grid item xs={12}>
+              <Paper>
+                <Box p={3}>
+                  <Typography variant="h6" gutterBottom>
+                    Fill Value Configuration
+                  </Typography>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} md={4}>
+                      <FormControl fullWidth>
+                        <InputLabel>Fill Method</InputLabel>
+                        <Select
+                          value={fillMethod}
+                          onChange={(e) => setFillMethod(e.target.value)}
+                          label="Fill Method"
+                        >
+                          <MenuItem value="specific">Specific Value</MenuItem>
+                          <MenuItem value="mean">Mean</MenuItem>
+                          <MenuItem value="median">Median</MenuItem>
+                          <MenuItem value="mode">Mode</MenuItem>
+                          <MenuItem value="forward">Forward Fill</MenuItem>
+                          <MenuItem value="backward">Backward Fill</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    {fillMethod === 'specific' && (
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          fullWidth
+                          label="Fill Value"
+                          value={fillValue}
+                          onChange={(e) => setFillValue(e.target.value)}
+                          placeholder="Enter value (e.g., NA, 0, 'Unknown')"
+                        />
+                      </Grid>
+                    )}
+                  </Grid>
+                </Box>
+              </Paper>
+            </Grid>
+          )}
         </Grid>
 
-        {/* Data Type Conversions */}
-        <Grid item xs={12}>
-          <Paper>
-            <Box p={3}>
+        {/* Apply Button */}
+        <Box sx={{ mt: 4, textAlign: 'center' }}>
+          <Button
+            variant="contained"
+            size="large"
+            onClick={handleApplyCleaning}
+            disabled={loading}
+            sx={{ px: 4, py: 1.5 }}
+          >
+            {loading ? 'Applying Changes...' : 'Apply Data Cleaning'}
+          </Button>
+        </Box>
+
+        {/* Success Message and Summary only after cleaning */}
+        {hasCleaned && cleanedData && (
+          <Box sx={{ mt: 3 }}>
+            <Alert severity="success" sx={{ mb: 3 }}>
+              Data cleaning applied successfully! The dataset has been updated.
+            </Alert>
+            
+            {/* Cleaning Actions Summary */}
+            {cleaningSummary && cleaningSummary.length > 0 && (
+              <Paper sx={{ p: 3, mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Cleaning Actions Applied
+                </Typography>
+                <Box component="ul" sx={{ pl: 2, m: 0 }}>
+                  {cleaningSummary.map((action, index) => (
+                    <Typography key={index} component="li" sx={{ mb: 1 }}>
+                      {action}
+                    </Typography>
+                  ))}
+                </Box>
+              </Paper>
+            )}
+            
+            {/* Statistical Summary After Cleaning */}
+            <Paper sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom>
-                Data Type Optimizations
+                Statistical Summary After Cleaning
               </Typography>
-              {report.suggested_dtypes && Object.keys(report.suggested_dtypes).length > 0 ? (
+              {cleanedData.after?.statistical_summary ? (
                 <Grid container spacing={2}>
-                  {Object.entries(report.suggested_dtypes).map(([col, dtype]) => (
-                    <Grid item xs={12} md={6} key={col}>
+                  {Object.entries(cleanedData.after.statistical_summary).map(([stat, values]) => (
+                    <Grid item xs={12} md={6} key={stat}>
                       <Card variant="outlined">
                         <CardContent>
-                          <Typography variant="subtitle1" gutterBottom>
-                            {col} → {dtype}
+                          <Typography variant="subtitle1" gutterBottom sx={{ textTransform: 'capitalize' }}>
+                            {stat}
                           </Typography>
-                          <FormControl component="fieldset">
-                            <RadioGroup
-                              value={cleaningActions.dataTypes[col] || 'convert'}
-                              onChange={(e) => handleCleaningAction('dataTypes', col, e.target.value)}
-                            >
-                              <FormControlLabel 
-                                value="convert" 
-                                control={<Radio />} 
-                                label="Convert to suggested type" 
-                              />
-                              <FormControlLabel 
-                                value="keep" 
-                                control={<Radio />} 
-                                label="Keep current type" 
-                              />
-                            </RadioGroup>
-                          </FormControl>
+                          <TableContainer>
+                            <Table size="small">
+                              <TableHead>
+                                <TableRow>
+                                  <TableCell>Column</TableCell>
+                                  <TableCell align="right">Value</TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {Object.entries(values).map(([col, val]) => (
+                                  <TableRow key={col}>
+                                    <TableCell>{col}</TableCell>
+                                    <TableCell align="right">
+                                      {typeof val === 'number' ? val.toFixed(2) : val}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
                         </CardContent>
                       </Card>
                     </Grid>
                   ))}
                 </Grid>
               ) : (
-                <Typography color="success.main">✓ All data types are optimized</Typography>
-              )}
-            </Box>
-          </Paper>
-        </Grid>
-
-        {/* Outlier Cleaning Options */}
-        {report.outliers && Object.keys(report.outliers).length > 0 && (
-          <>
-            <Grid item xs={12}>
-              <Paper>
-                <Box p={3}>
-                  <Typography variant="h6" gutterBottom>
-                    Outlier Cleaning
-                  </Typography>
-                  <Typography variant="body2" sx={{ mb: 2 }}>
-                    Choose a method and action for each numeric column with detected outliers.<br/>
-                    <b>Winsorizing:</b> Limits extreme values by capping them at the 5th and 95th percentiles.<br/>
-                    <b>IQR (Interquartile Range):</b> Detects outliers as values outside 1.5×IQR below Q1 or above Q3.<br/>
-                    <b>Z-Score:</b> Identifies outliers as values with a Z-score above 3 or below -3.
-                  </Typography>
-                  <Grid container spacing={2} alignItems="stretch">
-                    {Object.entries(report.outliers).map(([col, out]) => {
-                      const win = out.winsorizing?.count || 0;
-                      const iqr = out.iqr?.count || 0;
-                      const z = out.zscore?.count || 0;
-                      if (win === 0 && iqr === 0 && z === 0) return null;
-                      return (
-                        <Grid item xs={12} md={4} key={col} style={{ display: 'flex' }}>
-                          <Paper elevation={2} sx={{ p: 2, height: '100%', width: '100%' }}>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{col}</Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
-                              <FormControl size="small" sx={{ minWidth: 160 }}>
-                                <InputLabel>Method</InputLabel>
-                                <Select
-                                  value={cleaningActions.outliers?.[col]?.method || 'iqr'}
-                                  label="Method"
-                                  onChange={e => handleOutlierAction(col, 'method', e.target.value)}
-                                >
-                                  {OUTLIER_METHODS.map(m => (
-                                    <MenuItem key={m.value} value={m.value}>{m.label}</MenuItem>
-                                  ))}
-                                </Select>
-                              </FormControl>
-                              <FormControl size="small" sx={{ minWidth: 160 }}>
-                                <InputLabel>Action</InputLabel>
-                                <Select
-                                  value={cleaningActions.outliers?.[col]?.action || 'none'}
-                                  label="Action"
-                                  onChange={e => handleOutlierAction(col, 'action', e.target.value)}
-                                >
-                                  {OUTLIER_ACTIONS.map(a => (
-                                    <MenuItem key={a.value} value={a.value}>{a.label}</MenuItem>
-                                  ))}
-                                </Select>
-                              </FormControl>
-                            </Box>
-                            <Box sx={{ mt: 1, fontSize: 13 }}>
-                              <b>Detected:</b> Winsorizing: {win}, IQR: {iqr}, Z-Score: {z}
-                            </Box>
-                          </Paper>
-                        </Grid>
-                      );
-                    })}
-                  </Grid>
-                </Box>
-              </Paper>
-            </Grid>
-            <Grid item xs={12}>
-              <Alert severity="info" sx={{ mt: 2 }}>
-                <b>Note:</b> Removing outliers may not reduce the outlier count to zero, because outlier thresholds are recalculated on the cleaned data. You can repeat the process if you want to further reduce outliers.
-              </Alert>
-            </Grid>
-            <Grid item xs={12}>
-              <Alert severity="info" sx={{ mt: 2 }}>
-                <b>What do the actions mean?</b><br/>
-                <b>Remove</b>: Deletes rows where the value is an outlier.<br/>
-                <b>Cap</b>: Replaces outlier values with the nearest threshold (e.g., 5th/95th percentile for Winsorizing).
-              </Alert>
-            </Grid>
-          </>
-        )}
-
-        {/* Fill Value Configuration */}
-        {Object.values(cleaningActions.nulls || {}).some(action => action === 'fill') && (
-          <Grid item xs={12}>
-            <Paper>
-              <Box p={3}>
-                <Typography variant="h6" gutterBottom>
-                  Fill Value Configuration
+                <Typography color="text.secondary">
+                  No statistical summary available for the cleaned data.
                 </Typography>
-                <Grid container spacing={2} alignItems="center">
-                  <Grid item xs={12} md={4}>
-                    <FormControl fullWidth>
-                      <InputLabel>Fill Method</InputLabel>
-                      <Select
-                        value={fillMethod}
-                        onChange={(e) => setFillMethod(e.target.value)}
-                        label="Fill Method"
-                      >
-                        <MenuItem value="specific">Specific Value</MenuItem>
-                        <MenuItem value="mean">Mean</MenuItem>
-                        <MenuItem value="median">Median</MenuItem>
-                        <MenuItem value="mode">Mode</MenuItem>
-                        <MenuItem value="forward">Forward Fill</MenuItem>
-                        <MenuItem value="backward">Backward Fill</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  {fillMethod === 'specific' && (
-                    <Grid item xs={12} md={4}>
-                      <TextField
-                        fullWidth
-                        label="Fill Value"
-                        value={fillValue}
-                        onChange={(e) => setFillValue(e.target.value)}
-                        placeholder="Enter value (e.g., NA, 0, 'Unknown')"
-                      />
-                    </Grid>
-                  )}
-                </Grid>
-              </Box>
+              )}
             </Paper>
-          </Grid>
+          </Box>
         )}
-      </Grid>
 
-      {/* Apply Button */}
-      <Box sx={{ mt: 4, textAlign: 'center' }}>
-        <Button
-          variant="contained"
-          size="large"
-          onClick={handleApplyCleaning}
-          disabled={loading}
-          sx={{ px: 4, py: 1.5 }}
-        >
-          {loading ? 'Applying Changes...' : 'Apply Data Cleaning'}
-        </Button>
-      </Box>
-
-      {/* Success Message and Summary only after cleaning */}
-      {hasCleaned && cleanedData && (
-        <Box sx={{ mt: 3 }}>
-          <Alert severity="success" sx={{ mb: 3 }}>
-            Data cleaning applied successfully! The dataset has been updated.
-          </Alert>
-          
-          {/* Cleaning Actions Summary */}
-          {cleaningSummary && cleaningSummary.length > 0 && (
-            <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Cleaning Actions Applied
-              </Typography>
-              <Box component="ul" sx={{ pl: 2, m: 0 }}>
-                {cleaningSummary.map((action, index) => (
-                  <Typography key={index} component="li" sx={{ mb: 1 }}>
-                    {action}
-                  </Typography>
-                ))}
-              </Box>
-            </Paper>
-          )}
-          
-          {/* Statistical Summary After Cleaning */}
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Statistical Summary After Cleaning
+        {/* Confirmation Dialog */}
+        <Dialog open={showConfirmDialog} onClose={() => setShowConfirmDialog(false)}>
+          <DialogTitle>Confirm Action</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to {confirmAction?.action === 'delete_row' ? 'delete rows with null values' : 'delete the entire column'}?
+              This action cannot be undone.
             </Typography>
-            {cleanedData.after?.statistical_summary ? (
-              <Grid container spacing={2}>
-                {Object.entries(cleanedData.after.statistical_summary).map(([stat, values]) => (
-                  <Grid item xs={12} md={6} key={stat}>
-                    <Card variant="outlined">
-                      <CardContent>
-                        <Typography variant="subtitle1" gutterBottom sx={{ textTransform: 'capitalize' }}>
-                          {stat}
-                        </Typography>
-                        <TableContainer>
-                          <Table size="small">
-                            <TableHead>
-                              <TableRow>
-                                <TableCell>Column</TableCell>
-                                <TableCell align="right">Value</TableCell>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {Object.entries(values).map(([col, val]) => (
-                                <TableRow key={col}>
-                                  <TableCell>{col}</TableCell>
-                                  <TableCell align="right">
-                                    {typeof val === 'number' ? val.toFixed(2) : val}
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </TableContainer>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            ) : (
-              <Typography color="text.secondary">
-                No statistical summary available for the cleaned data.
-              </Typography>
-            )}
-          </Paper>
-        </Box>
-      )}
-
-      {/* Confirmation Dialog */}
-      <Dialog open={showConfirmDialog} onClose={() => setShowConfirmDialog(false)}>
-        <DialogTitle>Confirm Action</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to {confirmAction?.action === 'delete_row' ? 'delete rows with null values' : 'delete the entire column'}?
-            This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowConfirmDialog(false)}>Cancel</Button>
-          <Button onClick={executeAction} color="error" variant="contained">
-            Confirm
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowConfirmDialog(false)}>Cancel</Button>
+            <Button onClick={executeAction} color="error" variant="contained">
+              Confirm
+            </Button>
+          </DialogActions>
+        </Dialog>
+        
+        <Box sx={{ mt: 4, textAlign: 'center' }}>
+          <Button
+            component={Link}
+            to="/analysis"
+            variant="contained"
+            color="secondary"
+            size="large"
+            sx={{ px: 4, py: 1.5 }}
+          >
+            Go to Analysis
           </Button>
-        </DialogActions>
-      </Dialog>
-      
-      <Box sx={{ mt: 4, textAlign: 'center' }}>
-        <Button
-          component={Link}
-          to="/analysis"
-          variant="contained"
-          color="secondary"
-          size="large"
-          sx={{ px: 4, py: 1.5 }}
-        >
-          Go to Analysis
-        </Button>
+        </Box>
       </Box>
-    </Box>
   );
 }
 
