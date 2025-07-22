@@ -6,12 +6,14 @@ import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { CleaningSummaryContext } from './App';
 import { useCallback } from 'react';
+import { useChartsToReport } from './ChartsToReportContext';
 
 function UploadPage() {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const navigate = useNavigate();
   const { setCleaningSummary } = useContext(CleaningSummaryContext);
+  const { setChartsToReport } = useChartsToReport();
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
@@ -36,6 +38,8 @@ function UploadPage() {
       });
       if (res.ok) {
         localStorage.removeItem('cleaningSession'); // Reset localStorage
+        localStorage.removeItem('chartsToReport'); // Clear charts added to report
+        setChartsToReport({}); // Reset chartsToReport context state
         navigate('/report'); // Redirect to the report page after successful upload
       } else {
         alert('Upload failed');
