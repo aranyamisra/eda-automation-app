@@ -8,6 +8,9 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import CleaningServicesIcon from '@mui/icons-material/CleaningServices';
 import InsightsIcon from '@mui/icons-material/Insights';
 import SaveAltIcon from '@mui/icons-material/SaveAlt';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import { useThemeMode } from './ThemeContext';
 
 export const CleaningSummaryContext = createContext();
 
@@ -22,6 +25,7 @@ const navItems = [
 function App() {
   const location = useLocation();
   const [cleaningSummary, setCleaningSummary] = useState([]);
+  const { mode, toggleTheme } = useThemeMode();
 
   return (
     <CleaningSummaryContext.Provider value={{ cleaningSummary, setCleaningSummary }}>
@@ -72,6 +76,9 @@ function App() {
                 {item.label}
               </Button>
             ))}
+            <IconButton sx={{ ml: 2 }} color="inherit" onClick={toggleTheme}>
+              {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+            </IconButton>
           </Box>
         </Toolbar>
       </AppBar>

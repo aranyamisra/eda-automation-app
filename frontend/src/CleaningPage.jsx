@@ -450,10 +450,18 @@ function CleaningPage() {
 
   if (!report || report.error) {
     return (
-      <Box p={3}>
-        <Alert severity="error">
-          {report?.error || 'No data available. Please upload a file first.'}
-        </Alert>
+      <Box sx={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 5 }}>
+        <Paper sx={{ p: 4, borderRadius: 2, textAlign: 'center', maxWidth: 400 }} elevation={3}>
+          <Typography variant="h5" color="error" sx={{ mb: 2 }}>
+            No dataset uploaded
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 3 }}>
+            Please upload a dataset before cleaning your data.
+          </Typography>
+          <Button variant="contained" color="primary" href="/upload" sx={{ fontWeight: 700, fontSize: 16, borderRadius: 2 }}>
+            Go to Upload Page
+          </Button>
+        </Paper>
       </Box>
     );
   }

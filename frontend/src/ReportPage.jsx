@@ -67,7 +67,21 @@ function ReportPage() {
   }
 
   if (!report) return <p>Loading...</p>;
-  if (report.error) return <p>Error: {report.error}</p>;
+  if (report.error) return (
+    <Box sx={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 5 }}>
+      <Paper sx={{ p: 4, borderRadius: 2, textAlign: 'center', maxWidth: 400 }} elevation={3}>
+        <Typography variant="h5" color="error" sx={{ mb: 2 }}>
+          No dataset uploaded
+        </Typography>
+        <Typography variant="body1" sx={{ mb: 3 }}>
+          Please upload a dataset before viewing the report.
+        </Typography>
+        <Button variant="contained" color="primary" href="/upload" sx={{ fontWeight: 700, fontSize: 16, borderRadius: 2 }}>
+          Go to Upload Page
+        </Button>
+      </Paper>
+    </Box>
+  );
 
   // Get the preview rows (if available)
   const previewRows = report.preview || [];

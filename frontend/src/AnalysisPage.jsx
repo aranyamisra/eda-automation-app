@@ -32,6 +32,8 @@ import {
   DialogActions,
 } from '@mui/material';
 import axios from 'axios';
+import 'chartjs-chart-box-and-violin-plot';
+import Plot from 'react-plotly.js';
 
 
 // Color interpolation functions for diverging heatmap
@@ -528,8 +530,39 @@ const AnalysisPage = () => {
       };
     }
     if (type === "box") {
-      // Box plot support removed
-      return null;
+      // Box plot: single numerical column
+      const numCol = selectedCols[0];
+      const arr = (data.length > 0 ? data : preview)
+        .map(row => row[numCol])
+        .filter(v => typeof v === 'number' && !isNaN(v));
+      if (arr.length === 0) return null;
+      // Calculate box plot stats
+      const sorted = [...arr].sort((a, b) => a - b);
+      const min = sorted[0];
+      const max = sorted[sorted.length - 1];
+      const q1 = quantile(sorted, 0.25);
+      const median = quantile(sorted, 0.5);
+      const q3 = quantile(sorted, 0.75);
+      function quantile(arr, q) {
+        const pos = (arr.length - 1) * q;
+        const base = Math.floor(pos);
+        const rest = pos - base;
+        if (arr[base + 1] !== undefined) {
+          return arr[base] + rest * (arr[base + 1] - arr[base]);
+        } else {
+          return arr[base];
+        }
+      }
+      return {
+        labels: [numCol],
+        datasets: [{
+          label: numCol,
+          data: [{ min, q1, median, q3, max }],
+          backgroundColor: 'rgba(54, 162, 235, 0.5)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+        }],
+        raw: arr // <-- add raw data for Plotly
+      };
     }
     if (type === "scatter") {
       // Scatter: two numerical columns
@@ -863,8 +896,26 @@ const AnalysisPage = () => {
       case 'histogram':
         return <Bar {...chartProps} options={chartProps.options} />;
       case 'box':
-      // Box plot support removed
-      return null;
+        return <Plot
+          data={[ 
+            {
+              y: data.raw,
+              type: 'box',
+              name: data.labels[0],
+              boxpoints: 'outliers',
+              marker: { color: 'rgba(54, 162, 235, 0.5)' }
+            }
+          ]}
+          layout={{
+            title: `Box Plot of ${data.labels[0]}`,
+            yaxis: { title: data.labels[0] },
+            paper_bgcolor: 'transparent',
+            plot_bgcolor: 'transparent',
+            font: { color: '#fff' }
+          }}
+          style={{ width: '100%', height: 400 }}
+          config={{ displayModeBar: false }}
+        />;
       case 'scatter':
         return <Scatter {...chartProps} options={chartProps.options} />;
       case 'line':
@@ -959,8 +1010,18 @@ const AnalysisPage = () => {
   if (loading) return <Box mt={4}><CircularProgress /></Box>;
   if (error) {
     return (
-      <Box mt={4}>
-        <Alert severity="error">{error}</Alert>
+      <Box sx={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 5 }}>
+        <Paper sx={{ p: 4, borderRadius: 2, textAlign: 'center', maxWidth: 400 }} elevation={3}>
+          <Typography variant="h5" color="error" sx={{ mb: 2 }}>
+            No dataset uploaded
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 3 }}>
+            Please upload a dataset before analyzing your data.
+          </Typography>
+          <Button variant="contained" color="primary" href="/upload" sx={{ fontWeight: 700, fontSize: 16, borderRadius: 2 }}>
+            Go to Upload Page
+          </Button>
+        </Paper>
       </Box>
     );
   }
@@ -1104,7 +1165,7 @@ const AnalysisPage = () => {
               ))}
             </Box>
             {/* Show filter/sort controls only if a chart is selected and columns are selected */}
-            {selectedChart && selectedColumns.length > 0 && (
+            {selectedChart && selectedColumns.length > 0 && selectedChart !== 'box' && (
               <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
                 <Grid container spacing={3} alignItems="center">
                   {/* Aggregation toggle for relevant chart types */}
@@ -1123,6 +1184,7 @@ const AnalysisPage = () => {
                       </FormControl>
                     </Grid>
                   )}
+                  {/* Filter and Sort controls */}
                   <Grid item xs={12} sm={6}>
                     <FormControl fullWidth sx={{ minWidth: '200px' }}>
                       <InputLabel>Filter by Top N Items</InputLabel>
@@ -1137,24 +1199,26 @@ const AnalysisPage = () => {
                         <MenuItem value="15">Top 15</MenuItem>
                         <MenuItem value="20">Top 20</MenuItem>
                         <MenuItem value="25">Top 25</MenuItem>
-                        <MenuItem value="50">Top 50</MenuItem>
                       </Select>
                     </FormControl>
                   </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>Sort Order</InputLabel>
-                      <Select
-                        value={sortOrder}
-                        label="Sort Order"
-                        onChange={(e) => setSortOrder(e.target.value)}
-                      >
-                        <MenuItem value="desc">Descending (High to Low)</MenuItem>
-                        <MenuItem value="asc">Ascending (Low to High)</MenuItem>
-                        <MenuItem value="none">No Sort</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
+                  {/* Only show Sort Order for chart types where it makes sense (not line) */}
+                  {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut', 'histogram'].includes(selectedChart) && (
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth sx={{ minWidth: '200px' }}>
+                        <InputLabel>Sort Order</InputLabel>
+                        <Select
+                          value={sortOrder}
+                          label="Sort Order"
+                          onChange={(e) => setSortOrder(e.target.value)}
+                        >
+                          <MenuItem value="none">No Sort</MenuItem>
+                          <MenuItem value="asc">Ascending</MenuItem>
+                          <MenuItem value="desc">Descending</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  )}
                   {/* Sum, Average, and Count display for any single-column chart */}
                   {selectedColumns.length === 1 && (() => {
                     const chartData = getChartData(selectedChart, selectedColumns);
@@ -1260,7 +1324,7 @@ const AnalysisPage = () => {
               />
             )}
             {/* Show filter/sort controls only if chartType and columns are selected and valid */}
-            {((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
+            {((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection && chartType !== 'box')) && (
               <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
                 <Grid container spacing={3} alignItems="center">
                   {/* Aggregation toggle for relevant chart types */}
@@ -1293,24 +1357,26 @@ const AnalysisPage = () => {
                         <MenuItem value="15">Top 15</MenuItem>
                         <MenuItem value="20">Top 20</MenuItem>
                         <MenuItem value="25">Top 25</MenuItem>
-                        <MenuItem value="50">Top 50</MenuItem>
                       </Select>
                     </FormControl>
                   </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>Sort Order</InputLabel>
-                      <Select
-                        value={sortOrder}
-                        label="Sort Order"
-                        onChange={(e) => setSortOrder(e.target.value)}
-                      >
-                        <MenuItem value="desc">Descending (High to Low)</MenuItem>
-                        <MenuItem value="asc">Ascending (Low to High)</MenuItem>
-                        <MenuItem value="none">No Sort</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
+                  {/* Only show Sort Order for chart types where it makes sense (not line) */}
+                  {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut', 'histogram'].includes(chartType) && (
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth sx={{ minWidth: '200px' }}>
+                        <InputLabel>Sort Order</InputLabel>
+                        <Select
+                          value={sortOrder}
+                          label="Sort Order"
+                          onChange={(e) => setSortOrder(e.target.value)}
+                        >
+                          <MenuItem value="none">No Sort</MenuItem>
+                          <MenuItem value="asc">Ascending</MenuItem>
+                          <MenuItem value="desc">Descending</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  )}
                   {/* Sum, Average, and Count display for any single-column chart in byChart mode */}
                   {chartColumns.length === 1 && (() => {
                     const chartData = getChartData(chartType, chartColumns);
