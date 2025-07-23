@@ -80,7 +80,8 @@ function getCompatibleCharts(selectedColumns, columns) {
     (col) => columns.find((c) => c.name === col)
   );
   const num = colObjs.filter((c) => c.group === 'Numerical').length;
-  const cat = colObjs.filter((c) => c.group === 'Categorical').length;
+  const bool = colObjs.filter((c) => c.group === 'Boolean').length;
+  const cat = colObjs.filter((c) => c.group === 'Categorical' || c.group === 'Boolean').length;
   const dt = colObjs.filter((c) => c.group === 'Date/Time').length;
   const charts = [];
   // Bar, Horizontal Bar
@@ -169,7 +170,8 @@ function getCompatibleColumnsForChart(chartType, columns) {
   }
 }
 
-const groupOrder = ['Numerical', 'Categorical', 'Date/Time'];
+// Group columns by type
+const groupOrder = ['Numerical', 'Boolean', 'Categorical', 'Date/Time'];
 
 const AnalysisPage = () => {
   const [loading, setLoading] = useState(true);
@@ -211,7 +213,14 @@ const AnalysisPage = () => {
     setLoading(true);
     axios.get('http://localhost:5001/analysis', { withCredentials: true })
       .then(res => {
-        setColumns(res.data.columns || []);
+        // Patch: If any column has dtype 'bool' or group is missing, set group to 'Boolean'
+        const patchedColumns = (res.data.columns || []).map(col => {
+          if (col.dtype === 'bool' || col.group === undefined) {
+            return { ...col, group: 'Boolean' };
+          }
+          return col;
+        });
+        setColumns(patchedColumns);
         setPreview(res.data.preview || []);
         setData(res.data.data || []); // set full dataset
         setLoading(false);
