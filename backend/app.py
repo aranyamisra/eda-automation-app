@@ -322,11 +322,35 @@ def apply_cleaning_operations(df, config):
 
 def get_suggested_dtype(series):
     # Get suggested data type for a column
+    # 1. Check for boolean dtype
+    if series.dtype == 'bool':
+        return None  # Already boolean, no suggestion needed
+    else:
+        # 2. Check for only two unique values (excluding NaN)
+        unique_vals = series.dropna().unique()
+        if len(unique_vals) == 2:
+            # Check for common boolean representations
+            bool_sets = [
+                {True, False},
+                {1, 0},
+                {'yes', 'no'},
+                {'Yes', 'No'},
+                {'true', 'false'},
+                {'True', 'False'},
+                {'Y', 'N'},
+                {'y', 'n'}
+            ]
+            unique_set = set(unique_vals)
+            for bset in bool_sets:
+                if unique_set == bset:
+                    return 'boolean'
+    # 3. Check for numeric
     try:
         pd.to_numeric(series)
         if series.dtype not in ['float64', 'int64']:
             return 'numeric'
     except:
+        # 4. Check for datetime
         try:
             pd.to_datetime(series)
             if series.dtype != 'datetime64[ns]':
@@ -573,6 +597,7 @@ def export_report():
     total_rows = len(df)
     total_columns = len(df.columns)
     num_numerical = len([c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])])
+    num_boolean = len([c for c in df.columns if df[c].dtype == 'bool'])
     num_categorical = len([c for c in df.columns if df[c].dtype == 'object'])
     num_datetime = len([c for c in df.columns if pd.api.types.is_datetime64_any_dtype(df[c])])
 
@@ -627,6 +652,7 @@ def export_report():
         total_columns=total_columns,
         file_size=file_size,
         num_numerical=num_numerical,
+        num_boolean=num_boolean,
         num_categorical=num_categorical,
         num_datetime=num_datetime,
         missing_values=missing_values,
