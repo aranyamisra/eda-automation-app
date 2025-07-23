@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "chartjs-chart-box-and-violin-plot": "^4.0.0",
+    "plotly.js": "^3.0.2",
+    "react-plotly.js": "^2.6.0"
+  }
+}

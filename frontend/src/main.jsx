@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import App from './App.jsx';
 import LandingPage from './LandingPage';
@@ -11,20 +11,10 @@ import CleaningPage from './CleaningPage';
 import AnalysisPage from './AnalysisPage';
 import ExportPage from './ExportPage';
 import { ChartsToReportProvider } from './ChartsToReportContext';
-
-const darkTheme = createTheme({
-  palette: {
-    mode: 'dark',
-    primary: { main: '#009688' },
-    secondary: { main: '#e91e63' },
-    background: {
-      default: '#121212',
-      paper: '#1e1e1e',
-    },
-  },
-});
+import { ThemeModeProvider, useThemeMode } from './ThemeContext';
 
 function MainRouter() {
+  const { theme } = useThemeMode();
   const [chartsToReport, setChartsToReport] = useState({});
   const [includedSections, setIncludedSections] = useState({
     overview: true,
@@ -49,7 +39,7 @@ function MainRouter() {
   };
 
   return (
-    <ThemeProvider theme={darkTheme}>
+    <ThemeProvider theme={theme}>
       <CssBaseline />
       <BrowserRouter>
         <Routes>
@@ -70,7 +60,9 @@ function MainRouter() {
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ChartsToReportProvider>
-      <MainRouter />
+      <ThemeModeProvider>
+        <MainRouter />
+      </ThemeModeProvider>
     </ChartsToReportProvider>
   </React.StrictMode>
 );

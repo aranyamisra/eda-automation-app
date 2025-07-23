@@ -273,6 +273,9 @@ const ExportPage = ({
       <Typography variant="h4" sx={{ mb: 3 }}>
         Export Reports
       </Typography>
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+        Export a comprehensive EDA report with your selected visualisations, data quality summary, and cleaning actions. Choose your preferred format and customize the sections to include in your final report.
+      </Typography>
       <Grid container spacing={4}>
         {/* Left: Export Options */}
         <Grid item xs={12} md={5}>
