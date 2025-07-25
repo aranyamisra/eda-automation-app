@@ -344,6 +344,8 @@ const AnalysisPage = () => {
         };
       } else {
         let catCol, numCol;
+        console.log('DEBUG: selectedCols', selectedCols);
+        console.log('DEBUG: columns', columns);
         if (columns.find(c => c.name === selectedCols[0])?.group === 'Categorical' && columns.find(c => c.name === selectedCols[1])?.group === 'Numerical') {
           catCol = selectedCols[0];
           numCol = selectedCols[1];
@@ -354,6 +356,7 @@ const AnalysisPage = () => {
           catCol = selectedCols[0];
           numCol = selectedCols[1];
         }
+        console.log('DEBUG: Using catCol:', catCol, 'numCol:', numCol);
         const { labels, data } = aggregateByCategory(catCol, numCol);
         const { labels: filteredLabels, data: filteredData } = applyFilterAndSort(labels, data);
         
@@ -1352,23 +1355,26 @@ const AnalysisPage = () => {
                       </FormControl>
                     </Grid>
                   )}
-                              <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth sx={{ minWidth: '200px' }}>
-                      <InputLabel>Filter by Top N Items</InputLabel>
-                      <Select
-                        value={filterTop}
-                        label="Filter by Top N Items"
-                        onChange={(e) => setFilterTop(e.target.value)}
-                      >
-                        <MenuItem value="">No Filter</MenuItem>
-                        <MenuItem value="5">Top 5</MenuItem>
-                        <MenuItem value="10">Top 10</MenuItem>
-                        <MenuItem value="15">Top 15</MenuItem>
-                        <MenuItem value="20">Top 20</MenuItem>
-                        <MenuItem value="25">Top 25</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
+                  {/* Filter by Top N Items: only for relevant chart types (not scatter) */}
+                  {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut', 'histogram'].includes(chartType) && chartType !== 'scatter' && (
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth sx={{ minWidth: '200px' }}>
+                        <InputLabel>Filter by Top N Items</InputLabel>
+                        <Select
+                          value={filterTop}
+                          label="Filter by Top N Items"
+                          onChange={(e) => setFilterTop(e.target.value)}
+                        >
+                          <MenuItem value="">No Filter</MenuItem>
+                          <MenuItem value="5">Top 5</MenuItem>
+                          <MenuItem value="10">Top 10</MenuItem>
+                          <MenuItem value="15">Top 15</MenuItem>
+                          <MenuItem value="20">Top 20</MenuItem>
+                          <MenuItem value="25">Top 25</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  )}
                   {/* Only show Sort Order for chart types where it makes sense (not line) */}
                   {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut', 'histogram'].includes(chartType) && (
                     <Grid item xs={12} sm={6}>
@@ -1421,7 +1427,11 @@ const AnalysisPage = () => {
               variant="contained"
               sx={{ mt: 2 }}
               disabled={chartType === 'correlation' ? chartColumns.length < 2 : !isValidSelection}
-              onClick={() => setShowChart(true)}
+              onClick={() => {
+                // Before generating the chart, add debug print
+                console.log('DEBUG: chartType', chartType, 'chartColumns', chartColumns);
+                setShowChart(true);
+              }}
             >
               Generate Chart
             </Button>

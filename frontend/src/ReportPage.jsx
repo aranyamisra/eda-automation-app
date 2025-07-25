@@ -300,18 +300,38 @@ function ReportPage() {
                 Quality Metrics
               </Typography>
               <Box display="flex" gap={3} flexWrap="wrap">
-                {Object.entries(report.quality_metrics)
-                  .filter(([metric]) => metric !== 'data_types_optimized')
-                  .map(([metric, value]) => (
-                    <Box key={metric} sx={{ minWidth: 150 }}>
-                      <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
-                        {metric.replace(/_/g, ' ')}
-                      </Typography>
-                      <Typography variant="h6" color="primary">
-                        {typeof value === 'number' ? `${value}%` : value}
-                      </Typography>
-                    </Box>
-                  ))}
+                <Box sx={{ minWidth: 150 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+                    Duplicate Percentage
+                  </Typography>
+                  <Typography variant="h6" color="primary">
+                    {report.quality_metrics.duplicate_percentage}%
+                  </Typography>
+                </Box>
+                <Box sx={{ minWidth: 150 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+                    Null Percentage
+                  </Typography>
+                  <Typography variant="h6" color="primary">
+                    {report.quality_metrics.null_percentage}%
+                  </Typography>
+                </Box>
+                <Box sx={{ minWidth: 150 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+                    Data Types Optimized
+                  </Typography>
+                  <Typography variant="h6" color={report.quality_metrics.data_types_optimized ? 'success.main' : 'error.main'}>
+                    {report.quality_metrics.data_types_optimized ? '✅' : '❌'}
+                  </Typography>
+                </Box>
+                <Box sx={{ minWidth: 150 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+                    Overall Quality Score
+                  </Typography>
+                  <Typography variant="h6" color="primary">
+                    {report.data_quality_score}%
+                  </Typography>
+                </Box>
               </Box>
             </Box>
           </Paper>
@@ -324,14 +344,11 @@ function ReportPage() {
             size="large"
             startIcon={<CleaningServices />}
             onClick={handleProceedToCleaning}
+            color={hasIssues ? 'secondary' : 'primary'}
             sx={{ 
               px: 4, 
               py: 1.5,
               fontSize: '1.1rem',
-              backgroundColor: hasIssues ? '#e91e63' : '#009688',
-              '&:hover': {
-                backgroundColor: hasIssues ? '#c2185b' : '#00796b'
-              }
             }}
           >
             {hasIssues ? 'Proceed to Data Cleaning' : 'Review Data Quality'}
