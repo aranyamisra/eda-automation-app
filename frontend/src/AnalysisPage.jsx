@@ -592,11 +592,6 @@ const AnalysisPage = () => {
         });
       }
       
-      // Apply top filter for scatter plots
-      if (filterTop && filterTop !== '') {
-        const topCount = parseInt(filterTop);
-        arr = arr.slice(0, topCount);
-      }
       
       return {
         datasets: [{
@@ -1193,24 +1188,26 @@ const AnalysisPage = () => {
                       </FormControl>
                     </Grid>
                   )}
-                  {/* Filter and Sort controls */}
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth sx={{ minWidth: '200px' }}>
-                      <InputLabel>Filter by Top N Items</InputLabel>
-                      <Select
-                        value={filterTop}
-                        label="Filter by Top N Items"
-                        onChange={(e) => setFilterTop(e.target.value)}
-                      >
-                        <MenuItem value="">No Filter</MenuItem>
-                        <MenuItem value="5">Top 5</MenuItem>
-                        <MenuItem value="10">Top 10</MenuItem>
-                        <MenuItem value="15">Top 15</MenuItem>
-                        <MenuItem value="20">Top 20</MenuItem>
-                        <MenuItem value="25">Top 25</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
+                  {/* Filter controls - exclude scatter plots */}
+                  {!['scatter'].includes(selectedChart) && (
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth sx={{ minWidth: '200px' }}>
+                        <InputLabel>Filter by Top N Items</InputLabel>
+                        <Select
+                          value={filterTop}
+                          label="Filter by Top N Items"
+                          onChange={(e) => setFilterTop(e.target.value)}
+                        >
+                          <MenuItem value="">No Filter</MenuItem>
+                          <MenuItem value="5">Top 5</MenuItem>
+                          <MenuItem value="10">Top 10</MenuItem>
+                          <MenuItem value="15">Top 15</MenuItem>
+                          <MenuItem value="20">Top 20</MenuItem>
+                          <MenuItem value="25">Top 25</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  )}
                   {/* Only show Sort Order for chart types where it makes sense (not line) */}
                   {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut', 'histogram'].includes(selectedChart) && (
                     <Grid item xs={12} sm={6}>
@@ -1352,23 +1349,26 @@ const AnalysisPage = () => {
                       </FormControl>
                     </Grid>
                   )}
-                              <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth sx={{ minWidth: '200px' }}>
-                      <InputLabel>Filter by Top N Items</InputLabel>
-                      <Select
-                        value={filterTop}
-                        label="Filter by Top N Items"
-                        onChange={(e) => setFilterTop(e.target.value)}
-                      >
-                        <MenuItem value="">No Filter</MenuItem>
-                        <MenuItem value="5">Top 5</MenuItem>
-                        <MenuItem value="10">Top 10</MenuItem>
-                        <MenuItem value="15">Top 15</MenuItem>
-                        <MenuItem value="20">Top 20</MenuItem>
-                        <MenuItem value="25">Top 25</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
+                              {/* Filter controls - exclude scatter plots */}
+                  {!['scatter'].includes(chartType) && (
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth sx={{ minWidth: '200px' }}>
+                        <InputLabel>Filter by Top N Items</InputLabel>
+                        <Select
+                          value={filterTop}
+                          label="Filter by Top N Items"
+                          onChange={(e) => setFilterTop(e.target.value)}
+                        >
+                          <MenuItem value="">No Filter</MenuItem>
+                          <MenuItem value="5">Top 5</MenuItem>
+                          <MenuItem value="10">Top 10</MenuItem>
+                          <MenuItem value="15">Top 15</MenuItem>
+                          <MenuItem value="20">Top 20</MenuItem>
+                          <MenuItem value="25">Top 25</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  )}
                   {/* Only show Sort Order for chart types where it makes sense (not line) */}
                   {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut', 'histogram'].includes(chartType) && (
                     <Grid item xs={12} sm={6}>
