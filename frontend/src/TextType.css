@@ -1,0 +1,29 @@
+/* frontend/src/TextType.css */
+.text-type {
+  display: inline-block;
+  font-family: inherit;
+  font-size: 2.5rem;
+  font-weight: 700;
+}
+
+.text-type__content {
+  display: inline;
+}
+
+.text-type__cursor {
+  display: inline-block;
+  margin-left: 2px;
+  color: inherit;
+  font-weight: bold;
+  animation: blink 1s steps(1) infinite;
+  font-size: 2.5rem;
+}
+
+.text-type__cursor--hidden {
+  opacity: 0;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+} 
