@@ -1,125 +1,691 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title }}</title>
   <style>
+    /* Using system fonts for better compatibility */
     @page {
       size: A4;
-      margin: 2cm;
+      margin: 1.5cm;
+      @top-center {
+        content: "{{ title }}";
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        font-size: 10px;
+        color: #6b7280;
+        border-bottom: 1px solid #e5e7eb;
+        padding-bottom: 5px;
+      }
+      @bottom-center {
+        content: "Page " counter(page) " of " counter(pages);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        font-size: 9px;
+        color: #9ca3af;
+      }
     }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body { 
-      font-family: Arial, sans-serif; 
-      color: #222; 
-      background: #fff;
+      font-family: 'Inter', sans-serif; 
+      color: #1f2937; 
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
       margin: 0;
+      padding: 0;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .report-container {
+      max-width: 100%;
+      margin: 0 auto;
+      background: white;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    .report-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 40px 30px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .report-header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+      background-size: 20px 20px;
+      animation: float 20s infinite linear;
+    }
+
+    @keyframes float {
+      0% { transform: translate(-50%, -50%) rotate(0deg); }
+      100% { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    .report-header h1 {
+      font-size: 2.5em;
+      font-weight: 700;
+      margin: 0;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: relative;
+      z-index: 1;
+    }
+
+    .report-subtitle {
+      font-size: 1.1em;
+      margin-top: 10px;
+      opacity: 0.9;
+      font-weight: 300;
+      position: relative;
+      z-index: 1;
+    }
+
+    .report-content {
+      padding: 30px;
+    }
+
+    .section {
+      margin-bottom: 3em;
+      page-break-inside: avoid;
+      position: relative;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 3px solid transparent;
+      background: linear-gradient(90deg, #f8fafc, #f8fafc) padding-box,
+                  linear-gradient(90deg, #667eea, #764ba2) border-box;
+      border-bottom: 3px solid;
+      border-image: linear-gradient(90deg, #667eea, #764ba2) 1;
+    }
+
+    .section-icon {
+      width: 28px;
+      height: 28px;
+      margin-right: 12px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    h2 {
+      font-size: 1.5em;
+      font-weight: 600;
+      color: #1f2937;
+      margin: 0;
+    }
+
+    h3 {
+      font-size: 1.2em;
+      font-weight: 500;
+      color: #374151;
+      margin: 0 0 16px 0;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin: 24px 0;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
       padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-    h1, h2 { 
-      color: #009688;
-      break-after: avoid;
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.1);
     }
+
+    .stat-label {
+      font-size: 0.9em;
+      font-weight: 500;
+      color: #6b7280;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 1.8em;
+      font-weight: 700;
+      color: #1f2937;
+      line-height: 1;
+    }
+
+    .stat-unit {
+      font-size: 0.9em;
+      font-weight: 400;
+      color: #9ca3af;
+      margin-left: 4px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      font-weight: 500;
+      color: #374151;
+    }
+
+    .info-value {
+      font-weight: 600;
+      color: #1f2937;
+      font-family: 'SF Mono', Monaco, Inconsolata, 'Roboto Mono', Consolas, monospace;
+    }
+
+    .data-types-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .data-type-item {
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .data-type-label {
+      font-size: 0.8em;
+      font-weight: 500;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+
+    .data-type-count {
+      font-size: 1.4em;
+      font-weight: 700;
+      color: #1f2937;
+    }
+
+    .quality-indicator {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8em;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .quality-excellent {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .quality-good {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .quality-warning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .quality-poor {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .issues-list {
+      background: #fef9f6;
+      border: 1px solid #fed7aa;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 16px 0;
+    }
+
+    .issues-list ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .issues-list li {
+      margin-bottom: 8px;
+      color: #9a3412;
+    }
+
+    .action-list {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 16px 0;
+    }
+
+    .action-list ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .action-list li {
+      margin-bottom: 8px;
+      color: #0c4a6e;
+      position: relative;
+    }
+
+    .action-list li::before {
+      content: "✓";
+      color: #10b981;
+      font-weight: bold;
+      position: absolute;
+      left: -20px;
+    }
+
     table { 
-      border-collapse: collapse; 
-      width: 100%; 
-      margin-bottom: 1.5em;
-      page-break-inside: avoid;
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     }
-    th, td { 
-      border: 1px solid #ccc; 
-      padding: 6px 10px; 
+
+    th {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      font-weight: 600;
+      text-align: left;
+      padding: 16px;
+      font-size: 0.9em;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
-    th { 
-      background: #f0f0f0; 
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f3f4f6;
+      color: #374151;
     }
-    .section { 
-      margin-bottom: 2em;
-      page-break-inside: avoid;
+
+    tbody tr:hover {
+      background: #f8fafc;
     }
+
     .chart-container {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 24px;
+      margin: 24px 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
       page-break-inside: avoid;
-      margin-bottom: 2em;
     }
+
+    .chart-header {
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .chart-title {
+      font-size: 1.2em;
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 8px;
+    }
+
+    .chart-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 0.8em;
+      color: #6b7280;
+    }
+
+    .chart-meta-item {
+      background: #f3f4f6;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-family: 'SF Mono', Monaco, Inconsolata, 'Roboto Mono', Consolas, monospace;
+    }
+
+    .chart-insight {
+      background: #f8fafc;
+      border-left: 4px solid #667eea;
+      padding: 16px;
+      margin: 16px 0;
+      font-style: italic;
+      color: #374151;
+    }
+
     img {
       max-width: 100% !important;
       height: auto !important;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .no-data {
+      text-align: center;
+      padding: 40px;
+      color: #9ca3af;
+      font-style: italic;
+    }
+
+    .timestamp {
+      font-size: 0.8em;
+      color: #9ca3af;
+      font-family: 'SF Mono', Monaco, Inconsolata, 'Roboto Mono', Consolas, monospace;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.7em;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-primary {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .badge-success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .badge-warning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .badge-danger {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+      color: #9ca3af;
+      font-size: 0.8em;
+    }
+
+    @media print {
+      .report-header::before {
+        animation: none;
+      }
+      
+      .stat-card:hover {
+        transform: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      }
     }
   </style>
 </head>
 <body>
-  <h1>{{ title }}</h1>
-  {% if included_sections.overview %}
-  <div class="section">
-    <h2>Overview</h2>
-    <p><b>Date & Time:</b> {{ export_datetime }}</p>
-    <p><b>Total Rows:</b> {{ total_rows }} | <b>Total Columns:</b> {{ total_columns }}</p>
-    <p><b>File Size:</b> {{ file_size }}</p>
-    <p><b>Column Data Types:</b></p>
-    <ul>
-      <li>Numerical: {{ num_numerical }}</li>
-      <li>Boolean: {{ num_boolean }}</li>
-      <li>Categorical: {{ num_categorical }}</li>
-      <li>DateTime: {{ num_datetime }}</li>
-    </ul>
-  </div>
-  {% endif %}
-  {% if included_sections.dataQuality %}
-  <div class="section">
-    <h2>Data Quality Summary</h2>
-    <p><b>Missing Values:</b> {{ missing_values }}</p>
-    {% if nulls %}
-      <ul>
-        {% for col, count in nulls.items() %}
-          <li>{{ col }}: {{ count }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-    <p><b>Duplicates:</b> {{ duplicates }}</p>
-    {% if dtype_fixes %}
-      <p><b>Suggested Data Type Fixes:</b></p>
-      <ul>
-        {% for fix in dtype_fixes %}
-          <li>{{ fix }}</li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p><b>Suggested Data Type Fixes:</b> None</p>
-    {% endif %}
-  </div>
-  {% endif %}
-  {% if included_sections.cleaning %}
-  <div class="section">
-    <h2>Cleaning Summary</h2>
-    <p><b>Actions Taken:</b></p>
-    <ul>
-      {% for action in cleaning_actions %}
-        <li>{{ action }}</li>
-      {% endfor %}
-    </ul>
-  </div>
-  {% endif %}
-  {% if included_sections.visualisations %}
-  <div class="section">
-    <h2>Visualisations</h2>
-    {% for chart in charts %}
-      <div class="chart-container">
-        <h3>{{ chart.title }}</h3>
-        <p>
-          Type: {{ chart.type }} | Columns: {{ chart.columns }}
-          {% if chart.filter %}| Filter: {{ chart.filter }}{% endif %}
-          {% if chart.sort and chart.sort != 'none' %}| Sort: {{ chart.sort }}{% endif %}
-          {% if chart.aggregationType %}| Aggregation: {{ chart.aggregationType }}{% endif %}
-        </p>
-        <p>{{ chart.insight }}</p>
-        <img src="data:image/png;base64,{{ chart.image_base64 }}" alt="{{ chart.title }}"/>
+  <div class="report-container">
+    <header class="report-header">
+      <h1>{{ title }}</h1>
+      <div class="report-subtitle">
+        Exploratory Data Analysis Report
+        <div class="timestamp">Generated on {{ export_datetime }}</div>
       </div>
-    {% endfor %}
+    </header>
+
+    <div class="report-content">
+      {% if included_sections.overview %}
+      <section class="section">
+        <div class="section-header">
+          <div class="section-icon">📊</div>
+          <h2>Dataset Overview</h2>
+        </div>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total Rows</div>
+            <div class="stat-value">{{ total_rows }}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Columns</div>
+            <div class="stat-value">{{ total_columns }}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">File Size</div>
+            <div class="stat-value">{{ file_size }}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Data Quality</div>
+            <div class="stat-value">
+              <span class="quality-indicator quality-good">Good</span>
+            </div>
+          </div>
+        </div>
+
+        <h3>Column Data Types Distribution</h3>
+        <div class="data-types-list">
+          <div class="data-type-item">
+            <div class="data-type-label">Numerical</div>
+            <div class="data-type-count">{{ num_numerical }}</div>
+          </div>
+          <div class="data-type-item">
+            <div class="data-type-label">Categorical</div>
+            <div class="data-type-count">{{ num_categorical }}</div>
+          </div>
+          <div class="data-type-item">
+            <div class="data-type-label">Boolean</div>
+            <div class="data-type-count">{{ num_boolean }}</div>
+          </div>
+          <div class="data-type-item">
+            <div class="data-type-label">DateTime</div>
+            <div class="data-type-count">{{ num_datetime }}</div>
+          </div>
+        </div>
+      </section>
+      {% endif %}
+
+      {% if included_sections.dataQuality %}
+      <section class="section">
+        <div class="section-header">
+          <div class="section-icon">🔍</div>
+          <h2>Data Quality Assessment</h2>
+        </div>
+
+        <div class="info-row">
+          <span class="info-label">Missing Values</span>
+          <span class="info-value">{{ missing_values }}</span>
+        </div>
+        
+        {% if nulls %}
+        <div class="issues-list">
+          <h4>📋 Missing Values by Column:</h4>
+          <ul>
+            {% for col, count in nulls.items() %}
+              <li><strong>{{ col }}:</strong> {{ count }} missing values</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        <div class="info-row">
+          <span class="info-label">Duplicate Rows</span>
+          <span class="info-value">{{ duplicates }}</span>
+        </div>
+
+        {% if dtype_fixes %}
+        <div class="issues-list">
+          <h4>💡 Suggested Data Type Optimizations:</h4>
+          <ul>
+            {% for fix in dtype_fixes %}
+              <li>{{ fix }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% else %}
+        <div class="no-data">
+          ✅ All data types are properly optimized
+        </div>
+        {% endif %}
+      </section>
+      {% endif %}
+
+      {% if included_sections.cleaning %}
+      <section class="section">
+        <div class="section-header">
+          <div class="section-icon">🧹</div>
+          <h2>Data Cleaning Summary</h2>
+        </div>
+
+        {% if cleaning_actions %}
+        <div class="action-list">
+          <h4>✅ Applied Cleaning Actions:</h4>
+          <ul>
+            {% for action in cleaning_actions %}
+              <li>{{ action }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% else %}
+        <div class="no-data">
+          ℹ️ No cleaning actions were applied to this dataset
+        </div>
+        {% endif %}
+
+        {% if cleaning_table %}
+        <h3>Before vs After Comparison</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Before Cleaning</th>
+              <th>After Cleaning</th>
+              <th>Change</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in cleaning_table %}
+            <tr>
+              <td>{{ row.metric }}</td>
+              <td>{{ row.before }}</td>
+              <td>{{ row.after }}</td>
+              <td>
+                {% if row.before != row.after %}
+                  <span class="badge badge-success">Improved</span>
+                {% else %}
+                  <span class="badge badge-primary">No Change</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      </section>
+      {% endif %}
+
+      {% if included_sections.visualisations %}
+      <section class="section">
+        <div class="section-header">
+          <div class="section-icon">📈</div>
+          <h2>Data Visualizations</h2>
+        </div>
+
+        {% if charts %}
+          {% for chart in charts %}
+          <div class="chart-container">
+            <div class="chart-header">
+              <div class="chart-title">{{ chart.title }}</div>
+              <div class="chart-meta">
+                <span class="chart-meta-item">Type: {{ chart.type }}</span>
+                <span class="chart-meta-item">Columns: {{ chart.columns }}</span>
+                {% if chart.filter %}
+                  <span class="chart-meta-item">Filter: {{ chart.filter }}</span>
+                {% endif %}
+                {% if chart.sort and chart.sort != 'none' %}
+                  <span class="chart-meta-item">Sort: {{ chart.sort }}</span>
+                {% endif %}
+                {% if chart.aggregationType %}
+                  <span class="chart-meta-item">Aggregation: {{ chart.aggregationType }}</span>
+                {% endif %}
+              </div>
+            </div>
+            
+            {% if chart.insight %}
+            <div class="chart-insight">
+              <strong>💡 Insight:</strong> {{ chart.insight }}
+            </div>
+            {% endif %}
+            
+            <img src="data:image/png;base64,{{ chart.image_base64 }}" alt="{{ chart.title }}"/>
+          </div>
+          {% endfor %}
+        {% else %}
+        <div class="no-data">
+          📊 No visualizations were included in this report
+        </div>
+        {% endif %}
+      </section>
+      {% endif %}
+
+      {% if included_sections.insights %}
+      <section class="section">
+        <div class="section-header">
+          <div class="section-icon">💡</div>
+          <h2>Key Insights & Recommendations</h2>
+        </div>
+
+        {% if final_insights %}
+        <div class="chart-insight">
+          {{ final_insights }}
+        </div>
+        {% else %}
+        <div class="no-data">
+          📝 No additional insights were provided for this analysis
+        </div>
+        {% endif %}
+      </section>
+      {% endif %}
+
+      <footer class="footer">
+      </footer>
+    </div>
   </div>
-  {% endif %}
-  {% if included_sections.insights %}
-  <div class="section">
-    <h2>Final Insights</h2>
-    <p>{{ final_insights }}</p>
-  </div>
-  {% endif %}
 </body>
 </html>

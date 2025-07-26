@@ -5,6 +5,7 @@ import { Chart, CategoryScale, LinearScale, BarElement, PointElement, LineElemen
 import { MatrixController, MatrixElement } from 'chartjs-chart-matrix';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Checkbox } from '@mui/material';
+import { Analytics, BarChart, Settings, FilterList, ShowChart, TableChart } from '@mui/icons-material';
 import { useChartsToReport } from './ChartsToReportContext';
 import { Link } from 'react-router-dom';
 import {
@@ -30,6 +31,10 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Card,
+  CardContent,
+  useTheme,
+  LinearProgress
 } from '@mui/material';
 import axios from 'axios';
 import 'chartjs-chart-box-and-violin-plot';
@@ -174,6 +179,7 @@ function getCompatibleColumnsForChart(chartType, columns) {
 const groupOrder = ['Numerical', 'Boolean', 'Categorical', 'Date/Time'];
 
 const AnalysisPage = () => {
+  const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [columns, setColumns] = useState([]);
@@ -1014,15 +1020,50 @@ const AnalysisPage = () => {
   if (loading) return <Box mt={4}><CircularProgress /></Box>;
   if (error) {
     return (
-      <Box sx={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 5 }}>
-        <Paper sx={{ p: 4, borderRadius: 2, textAlign: 'center', maxWidth: 400 }} elevation={3}>
+      <Box sx={{ 
+        minHeight: '100vh', 
+        bgcolor: theme.palette.mode === 'dark' 
+          ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
+          : 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        p: 5 
+      }}>
+        <Paper sx={{ 
+          p: 4, 
+          borderRadius: 3, 
+          textAlign: 'center', 
+          maxWidth: 400,
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 8px 32px rgba(0,0,0,0.4)'
+            : '0 8px 32px rgba(0,0,0,0.1)',
+          border: theme.palette.mode === 'dark'
+            ? '1px solid rgba(255,255,255,0.1)'
+            : '1px solid rgba(255,255,255,0.2)',
+          background: theme.palette.mode === 'dark'
+            ? 'rgba(30, 30, 30, 0.95)'
+            : 'rgba(255,255,255,0.95)'
+        }} elevation={0}>
           <Typography variant="h5" color="error" sx={{ mb: 2 }}>
             No dataset uploaded
           </Typography>
           <Typography variant="body1" sx={{ mb: 3 }}>
             Please upload a dataset before analyzing your data.
           </Typography>
-          <Button variant="contained" color="primary" href="/upload" sx={{ fontWeight: 700, fontSize: 16, borderRadius: 2 }}>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            href="/upload" 
+            sx={{ 
+              fontWeight: 600, 
+              fontSize: 16, 
+              borderRadius: 2,
+              py: 1.5,
+              px: 3
+            }}
+          >
             Go to Upload Page
           </Button>
         </Paper>
@@ -1104,17 +1145,69 @@ const AnalysisPage = () => {
   const shouldShowChart = showChart || chartCapturing;
 
   return (
-    <Box p={5}>
-        <Typography variant="h4" gutterBottom>
+    <Box sx={{ 
+      minHeight: '100vh', 
+      bgcolor: theme.palette.mode === 'dark' 
+        ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
+        : 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', 
+      color: theme.palette.text.primary, 
+      p: { xs: 2, sm: 3, md: 5 }
+    }}>
+      {/* Hero Section */}
+      <Box sx={{ 
+        textAlign: 'center', 
+        mb: 4, 
+        py: 2.5,
+        background: theme.palette.mode === 'dark'
+          ? 'linear-gradient(135deg, #2d1b69 0%, #11998e 100%)'
+          : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderRadius: 3,
+        color: 'white',
+        boxShadow: theme.palette.mode === 'dark'
+          ? '0 8px 25px rgba(45, 27, 105, 0.3)'
+          : '0 8px 25px rgba(102, 126, 234, 0.25)'
+      }}>
+        <Analytics sx={{ fontSize: 36, mb: 1, opacity: 0.9 }} />
+        <Typography variant="h5" sx={{ 
+          mb: 1, 
+          fontWeight: 600,
+          textShadow: '0 1px 3px rgba(0,0,0,0.3)'
+        }}>
           Data Analysis
-          </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-          Explore, visualize, and analyze your cleaned dataset using interactive charts and statistical tools. Uncover patterns, relationships, and trends to gain deeper insights from your data.
         </Typography>
+        <Typography variant="body1" sx={{ 
+          mb: 0, 
+          opacity: 0.85,
+          maxWidth: 500,
+          mx: 'auto',
+          fontSize: '0.95rem'
+        }}>
+          Explore, visualize, and analyze your dataset with interactive charts and statistical tools
+        </Typography>
+      </Box>
         
         {/* Remove always-visible filter/sort controls here */}
 
-        <Paper sx={{ p: 2, mb: 3 }}>
+      <Card sx={{ 
+        mb: 4,
+        borderRadius: 3, 
+        boxShadow: theme.palette.mode === 'dark'
+          ? '0 8px 32px rgba(0,0,0,0.4)'
+          : '0 8px 32px rgba(0,0,0,0.1)',
+        border: theme.palette.mode === 'dark'
+          ? '1px solid rgba(255,255,255,0.1)'
+          : '1px solid rgba(255,255,255,0.2)',
+        background: theme.palette.mode === 'dark'
+          ? 'rgba(30, 30, 30, 0.95)'
+          : 'rgba(255,255,255,0.95)'
+      }}>
+        <CardContent sx={{ p: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <Settings sx={{ mr: 2, color: 'primary.main' }} />
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Analysis Mode
+            </Typography>
+          </Box>
           <RadioGroup
             row
             value={mode}
@@ -1125,46 +1218,143 @@ const AnalysisPage = () => {
               setChartType('');
               setChartColumns([]);
             }}
+            sx={{ gap: 2 }}
           >
-            <FormControlLabel value="byColumn" control={<Radio />} label="Analysis by Column" />
-            <FormControlLabel value="byChart" control={<Radio />} label="Analysis by Chart Type" />
+            <FormControlLabel 
+              value="byColumn" 
+              control={<Radio />} 
+              label="Analysis by Column"
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                border: mode === 'byColumn' ? '2px solid' : '1px solid',
+                borderColor: mode === 'byColumn' ? 'primary.main' : 'divider',
+                backgroundColor: mode === 'byColumn' 
+                  ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
+                  : 'transparent',
+                '&:hover': { 
+                  backgroundColor: theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.08)'
+                    : 'rgba(0,0,0,0.04)' 
+                }
+              }}
+            />
+            <FormControlLabel 
+              value="byChart" 
+              control={<Radio />} 
+              label="Analysis by Chart Type"
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                border: mode === 'byChart' ? '2px solid' : '1px solid',
+                borderColor: mode === 'byChart' ? 'primary.main' : 'divider',
+                backgroundColor: mode === 'byChart' 
+                  ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
+                  : 'transparent',
+                '&:hover': { 
+                  backgroundColor: theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.08)'
+                    : 'rgba(0,0,0,0.04)' 
+                }
+              }}
+            />
           </RadioGroup>
-        </Paper>
+        </CardContent>
+      </Card>
 
-        {mode === 'byColumn' && (
-          <Paper sx={{ p: 2, mb: 3 }}>
-            <Typography variant="h6">Select Columns</Typography>
-            <Grid container spacing={2}>
+      {mode === 'byColumn' && (
+        <Card sx={{ 
+          mb: 4,
+          borderRadius: 3, 
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 8px 32px rgba(0,0,0,0.4)'
+            : '0 8px 32px rgba(0,0,0,0.1)',
+          border: theme.palette.mode === 'dark'
+            ? '1px solid rgba(255,255,255,0.1)'
+            : '1px solid rgba(255,255,255,0.2)',
+          background: theme.palette.mode === 'dark'
+            ? 'rgba(30, 30, 30, 0.95)'
+            : 'rgba(255,255,255,0.95)'
+        }}>
+          <CardContent sx={{ p: 4 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+              <FilterList sx={{ mr: 2, color: 'primary.main' }} />
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Select Columns
+              </Typography>
+              {selectedColumns.length > 0 && (
+                <Chip 
+                  label={`${selectedColumns.length} selected`} 
+                  size="small" 
+                  color="primary" 
+                  sx={{ ml: 'auto' }}
+                />
+              )}
+            </Box>
+            <Grid container spacing={3}>
               {groupedColumns.map(g => (
-                <Grid item xs={12} sm={4} key={g.group}>
-                  <Typography variant="subtitle1">{g.group}</Typography>
-                  {g.cols.map(col => (
-                    <Chip
-                      key={col.name}
-                      label={`${col.name} (${col.dtype})`}
-                      color={selectedColumns.includes(col.name) ? 'primary' : 'default'}
-                      onClick={() => {
-                        setSelectedColumns(selectedColumns.includes(col.name)
-                          ? selectedColumns.filter(c => c !== col.name)
-                          : [...selectedColumns, col.name]);
-                      }}
-                      sx={{ m: 0.5, cursor: 'pointer' }}
-                    />
-                  ))}
+                <Grid item xs={12} sm={6} md={3} key={g.group}>
+                  <Typography variant="subtitle1" sx={{ 
+                    fontWeight: 600, 
+                    mb: 2,
+                    color: 'text.secondary'
+                  }}>
+                    {g.group}
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {g.cols.map(col => (
+                      <Chip
+                        key={col.name}
+                        label={`${col.name} (${col.dtype})`}
+                        color={selectedColumns.includes(col.name) ? 'primary' : 'default'}
+                        variant={selectedColumns.includes(col.name) ? 'filled' : 'outlined'}
+                        onClick={() => {
+                          setSelectedColumns(selectedColumns.includes(col.name)
+                            ? selectedColumns.filter(c => c !== col.name)
+                            : [...selectedColumns, col.name]);
+                        }}
+                        sx={{ 
+                          cursor: 'pointer',
+                          '&:hover': {
+                            transform: 'scale(1.05)',
+                            boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+                          },
+                          transition: 'all 0.2s ease'
+                        }}
+                      />
+                    ))}
+                  </Box>
                 </Grid>
               ))}
             </Grid>
-            <Divider sx={{ my: 2 }} />
-            <Typography variant="subtitle1">Suggested Chart Types</Typography>
-            <Box>
-              {suggestedCharts.length === 0 && <Typography color="text.secondary">Select columns to see chart suggestions.</Typography>}
+            <Divider sx={{ my: 3 }} />
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <ShowChart sx={{ mr: 2, color: 'primary.main' }} />
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                Suggested Chart Types
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {suggestedCharts.length === 0 && (
+                <Alert severity="info" sx={{ borderRadius: 2, width: '100%' }}>
+                  Select columns to see chart suggestions.
+                </Alert>
+              )}
               {suggestedCharts.map(chart => (
                 <Chip
                   key={chart}
                   label={chartTypeOptions.find(opt => opt.value === chart)?.label || chart}
                   color={selectedChart === chart ? 'primary' : 'default'}
+                  variant={selectedChart === chart ? 'filled' : 'outlined'}
                   onClick={() => setSelectedChart(chart)}
-                  sx={{ m: 0.5, cursor: 'pointer' }}
+                  sx={{ 
+                    cursor: 'pointer',
+                    '&:hover': {
+                      transform: 'scale(1.05)',
+                      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
                 />
               ))}
             </Box>
@@ -1274,12 +1464,31 @@ const AnalysisPage = () => {
                 />
               </Box>
             )}
-          </Paper>
-        )}
+          </CardContent>
+        </Card>
+      )}
 
-        {mode === 'byChart' && (
-          <Paper sx={{ p: 2, mb: 3 }}>
-            <Typography variant="h6">Select Chart Type</Typography>
+      {mode === 'byChart' && (
+        <Card sx={{ 
+          mb: 4,
+          borderRadius: 3, 
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 8px 32px rgba(0,0,0,0.4)'
+            : '0 8px 32px rgba(0,0,0,0.1)',
+          border: theme.palette.mode === 'dark'
+            ? '1px solid rgba(255,255,255,0.1)'
+            : '1px solid rgba(255,255,255,0.2)',
+          background: theme.palette.mode === 'dark'
+            ? 'rgba(30, 30, 30, 0.95)'
+            : 'rgba(255,255,255,0.95)'
+        }}>
+          <CardContent sx={{ p: 4 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+              <BarChart sx={{ mr: 2, color: 'primary.main' }} />
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Select Chart Type
+              </Typography>
+            </Box>
             <FormControl fullWidth sx={{ mb: 2 }}>
               <InputLabel>Chart Type</InputLabel>
               <Select
@@ -1442,11 +1651,30 @@ const AnalysisPage = () => {
             )}
           </>
         )}
-        </Paper>
+        </CardContent>
+      </Card>
       )}
 
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6">Data Preview</Typography>
+      <Card sx={{ 
+        mb: 4,
+        borderRadius: 3, 
+        boxShadow: theme.palette.mode === 'dark'
+          ? '0 8px 32px rgba(0,0,0,0.4)'
+          : '0 8px 32px rgba(0,0,0,0.1)',
+        border: theme.palette.mode === 'dark'
+          ? '1px solid rgba(255,255,255,0.1)'
+          : '1px solid rgba(255,255,255,0.2)',
+        background: theme.palette.mode === 'dark'
+          ? 'rgba(30, 30, 30, 0.95)'
+          : 'rgba(255,255,255,0.95)'
+      }}>
+        <CardContent sx={{ p: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <TableChart sx={{ mr: 2, color: 'primary.main' }} />
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Data Preview
+            </Typography>
+          </Box>
         <Box sx={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -1469,43 +1697,107 @@ const AnalysisPage = () => {
             </tbody>
           </table>
         </Box>
-      </Paper>
-      <Box mt={4}>
-        <Typography variant="h6">Charts Added to Report</Typography>
-        {Object.keys(chartsToReport).filter(key => chartsToReport[key]?.selected).length === 0 ? (
-          <Typography color="text.secondary">No charts added yet.</Typography>
-        ) : (
-          <ul>
-            {Object.keys(chartsToReport).filter(key => chartsToReport[key]?.selected).map(key => {
-              // Parse chart ID to display readable information
-              const parts = key.split(':');
-              const chartType = parts[0];
-              const columns = parts[1]?.split(',') || [];
-              const filter = parts[2]?.replace('filter=','') || '';
-              const sort = parts[3]?.replace('sort=','') || '';
-              const agg = parts[4]?.replace('agg=','') || '';
-              
-              let displayText = `${chartType}: ${columns.join(', ')}`;
-              if (filter) displayText += ` (filter: ${filter})`;
-              if (sort) displayText += ` (sort: ${sort})`;
-              if (agg) displayText += ` (${agg})`;
-              
-              return <li key={key}>{displayText}</li>;
-            })}
-          </ul>
-        )}
-      </Box>
+        </CardContent>
+      </Card>
+      <Card sx={{ 
+        mb: 4,
+        borderRadius: 3, 
+        boxShadow: theme.palette.mode === 'dark'
+          ? '0 8px 32px rgba(0,0,0,0.4)'
+          : '0 8px 32px rgba(0,0,0,0.1)',
+        border: theme.palette.mode === 'dark'
+          ? '1px solid rgba(255,255,255,0.1)'
+          : '1px solid rgba(255,255,255,0.2)',
+        background: theme.palette.mode === 'dark'
+          ? 'rgba(30, 30, 30, 0.95)'
+          : 'rgba(255,255,255,0.95)'
+      }}>
+        <CardContent sx={{ p: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <BarChart sx={{ mr: 2, color: 'primary.main' }} />
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Charts Added to Report
+            </Typography>
+            <Chip 
+              label={Object.keys(chartsToReport).filter(key => chartsToReport[key]?.selected).length} 
+              size="small" 
+              color="primary" 
+              sx={{ ml: 'auto' }}
+            />
+          </Box>
+          {Object.keys(chartsToReport).filter(key => chartsToReport[key]?.selected).length === 0 ? (
+            <Alert severity="info" sx={{ borderRadius: 2 }}>
+              No charts added yet. Create charts above and select "Add to Report" to include them.
+            </Alert>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {Object.keys(chartsToReport).filter(key => chartsToReport[key]?.selected).map(key => {
+                // Parse chart ID to display readable information
+                const parts = key.split(':');
+                const chartType = parts[0];
+                const columns = parts[1]?.split(',') || [];
+                const filter = parts[2]?.replace('filter=','') || '';
+                const sort = parts[3]?.replace('sort=','') || '';
+                const agg = parts[4]?.replace('agg=','') || '';
+                
+                let displayText = `${chartType}: ${columns.join(', ')}`;
+                if (filter) displayText += ` (filter: ${filter})`;
+                if (sort) displayText += ` (sort: ${sort})`;
+                if (agg) displayText += ` (${agg})`;
+                
+                return (
+                  <Box key={key} sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    backgroundColor: theme.palette.mode === 'dark'
+                      ? 'rgba(255,255,255,0.05)'
+                      : 'rgba(0,0,0,0.02)',
+                    border: '1px solid',
+                    borderColor: 'divider'
+                  }}>
+                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                      {displayText}
+                    </Typography>
+                  </Box>
+                );
+              })}
+            </Box>
+          )}
+        </CardContent>
+      </Card>
       {/* Button to move to Export Page */}
-      <Box mt={6} textAlign="center">
+      <Box sx={{ mt: 6, mb: 4, textAlign: 'center' }}>
         <Button
           component={Link}
           to="/export"
           variant="contained"
-          color="secondary"
           size="large"
-          sx={{ px: 4, py: 1.5 }}
+          startIcon={<ShowChart />}
+          sx={{ 
+            px: 6,
+            py: 2,
+            borderRadius: 3,
+            fontWeight: 600,
+            fontSize: '1.1rem',
+            textTransform: 'none',
+            background: theme.palette.mode === 'dark'
+              ? 'linear-gradient(135deg, #2d1b69 0%, #11998e 100%)'
+              : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 8px 32px rgba(45, 27, 105, 0.4)'
+              : '0 8px 32px rgba(102, 126, 234, 0.4)',
+            '&:hover': {
+              background: theme.palette.mode === 'dark'
+                ? 'linear-gradient(135deg, #3d2b79 0%, #21a89e 100%)'
+                : 'linear-gradient(135deg, #7c92ff 0%, #8a5fb7 100%)',
+              transform: 'translateY(-2px)',
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 12px 40px rgba(45, 27, 105, 0.6)'
+                : '0 12px 40px rgba(102, 126, 234, 0.6)',
+            }
+          }}
         >
-          Go to Export
+          Go to Export Page
         </Button>
       </Box>
     </Box>
