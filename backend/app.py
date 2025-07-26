@@ -163,11 +163,15 @@ def clean_data():
         # --- AFTER REPORT ---
         after_report = data_quality_report(df_cleaned, cleaned_filename)
         after_dtypes = df_cleaned.dtypes.apply(lambda x: x.name).to_dict()
+        print('DEBUG: df_cleaned.dtypes after cleaning:', df_cleaned.dtypes)
+        print('DEBUG: after_report["suggested_dtypes"]:', after_report.get('suggested_dtypes'))
 
         # --- DATA TYPE CHANGES ---
         dtype_changes = {}
+        data_types_config = config.get('dataTypes', {})
         for col in before_dtypes:
-            if col in after_dtypes and before_dtypes[col] != after_dtypes[col]:
+            # Only log if user requested conversion and dtype actually changed
+            if col in after_dtypes and before_dtypes[col] != after_dtypes[col] and data_types_config.get(col) == 'convert':
                 dtype_changes[col] = {'before': before_dtypes[col], 'after': after_dtypes[col]}
 
         # --- WARNINGS/SUGGESTIONS ---
@@ -321,7 +325,6 @@ def apply_cleaning_operations(df, config):
     return df
 
 def get_suggested_dtype(series):
-    # Get suggested data type for a column
     # 1. Check for boolean dtype
     if series.dtype == 'bool':
         return None  # Already boolean, no suggestion needed
@@ -329,7 +332,6 @@ def get_suggested_dtype(series):
         # 2. Check for only two unique values (excluding NaN)
         unique_vals = series.dropna().unique()
         if len(unique_vals) == 2:
-            # Check for common boolean representations
             bool_sets = [
                 {True, False},
                 {1, 0},
@@ -345,15 +347,16 @@ def get_suggested_dtype(series):
                 if unique_set == bset:
                     return 'boolean'
     # 3. Check for numeric
+    if pd.api.types.is_numeric_dtype(series):
+        return None  # Already numeric, no suggestion needed
     try:
         pd.to_numeric(series)
-        if series.dtype not in ['float64', 'int64']:
-            return 'numeric'
+        return 'numeric'
     except:
         # 4. Check for datetime
         try:
             pd.to_datetime(series)
-            if series.dtype != 'datetime64[ns]':
+            if not pd.api.types.is_datetime64_any_dtype(series):
                 return 'datetime'
         except:
             return None
@@ -460,8 +463,6 @@ def data_quality_report(df, filename):
         report['quality_metrics'] = {
             'null_percentage': round(null_percentage, 2),
             'duplicate_percentage': round(duplicate_percentage, 2),
-            'completeness_score': round(100 - null_percentage, 2),
-            'uniqueness_score': round(100 - duplicate_percentage, 2),
             'data_types_optimized': len(suggested_dtypes) == 0
         }
 
@@ -509,16 +510,29 @@ def analysis_metadata():
         upload_folder = app.config['UPLOAD_FOLDER']
         uploaded_filename = session.get('filename')
         cleaned_filename = session.get('cleaned_filename')
+        print('DEBUG /analysis: session[filename]=', uploaded_filename)
+        print('DEBUG /analysis: session[cleaned_filename]=', cleaned_filename)
+        expected_cleaned_filename = f"cleaned_{uploaded_filename}"
+        use_cleaned = cleaned_filename == expected_cleaned_filename
+        print('DEBUG /analysis: expected_cleaned_filename=', expected_cleaned_filename)
+        print('DEBUG /analysis: use_cleaned=', use_cleaned)
         if not uploaded_filename:
             return jsonify({'error': 'No uploaded file found. Please upload a dataset first.'}), 400
 
-        # Prefer cleaned file if available and matches
-        expected_cleaned_filename = f"cleaned_{uploaded_filename}"
-        use_cleaned = cleaned_filename == expected_cleaned_filename
-        if use_cleaned:
-            analysis_filepath = os.path.join(upload_folder, cleaned_filename)
+        # Prefer the latest cleaned file if available
+        cleaned_files = [
+            f for f in os.listdir(upload_folder)
+            if f.startswith('cleaned_') and f.endswith(uploaded_filename)
+        ]
+        if cleaned_files:
+            # Pick the one with the most 'cleaned_' prefixes (i.e., the longest name)
+            cleaned_files.sort(key=lambda x: x.count('cleaned_'), reverse=True)
+            analysis_filepath = os.path.join(upload_folder, cleaned_files[0])
+            print('DEBUG /analysis: using latest cleaned file:', cleaned_files[0])
         else:
             analysis_filepath = os.path.join(upload_folder, uploaded_filename)
+            print('DEBUG /analysis: using original file:', uploaded_filename)
+        print('DEBUG /analysis: analysis_filepath=', analysis_filepath)
 
         if not os.path.exists(analysis_filepath):
             return jsonify({'error': 'Analysis file not found. Please upload a dataset first.'}), 400

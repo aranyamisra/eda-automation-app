@@ -24,7 +24,7 @@ dist-ssr
 *.sw?
 
 backend/venv/
-node_modules/
+frontend/node_modules/
 uploads/
 *.pyc
 __pycache__/

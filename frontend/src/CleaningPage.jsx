@@ -321,40 +321,11 @@ function CleaningPage() {
           }));
         }
         
-        // Update the report with the cleaning result, but preserve null info for 'remain' columns
-        if (result.after?.nulls) {
-          const updatedReport = { ...report };
-          // Keep null counts for columns where we chose to 'remain'
-          Object.entries(cleaningActions.nulls || {}).forEach(([col, action]) => {
-            if (action?.action === 'remain' && report.nulls?.[col]) {
-              if (!result.after.nulls) result.after.nulls = {};
-              result.after.nulls[col] = report.nulls[col];
-            }
+        // Update the report with the cleaning result, always use the latest backend response
+        if (result.after) {
+          setReport({
+            ...result.after,
           });
-          setReport(prev => ({
-            ...prev,
-            dataset_info: result.after.shape,
-            nulls: result.after.nulls,
-            duplicates: result.after.duplicates,
-            data_quality_score: result.after.data_quality_score,
-            quality_metrics: result.after.quality_metrics,
-            statistical_summary: result.after.statistical_summary,
-            outliers: result.after.outliers,
-            suggested_dtypes: result.after.suggested_dtypes || prev.suggested_dtypes
-          }));
-        } else {
-          // Update the report with the new dataset information
-          setReport(prev => ({
-            ...prev,
-            dataset_info: result.after.shape,
-            nulls: result.after.nulls || {},
-            duplicates: result.after.duplicates || 0,
-            data_quality_score: result.after.data_quality_score || 0,
-            quality_metrics: result.after.quality_metrics || {},
-            statistical_summary: result.after.statistical_summary || {},
-            outliers: result.after.outliers || {},
-            suggested_dtypes: result.after.suggested_dtypes || prev.suggested_dtypes
-          }));
         }
         
         // Store outlier actions for export

@@ -350,6 +350,8 @@ const AnalysisPage = () => {
         };
       } else {
         let catCol, numCol;
+        console.log('DEBUG: selectedCols', selectedCols);
+        console.log('DEBUG: columns', columns);
         if (columns.find(c => c.name === selectedCols[0])?.group === 'Categorical' && columns.find(c => c.name === selectedCols[1])?.group === 'Numerical') {
           catCol = selectedCols[0];
           numCol = selectedCols[1];
@@ -360,6 +362,7 @@ const AnalysisPage = () => {
           catCol = selectedCols[0];
           numCol = selectedCols[1];
         }
+        console.log('DEBUG: Using catCol:', catCol, 'numCol:', numCol);
         const { labels, data } = aggregateByCategory(catCol, numCol);
         const { labels: filteredLabels, data: filteredData } = applyFilterAndSort(labels, data);
         
@@ -1558,7 +1561,7 @@ const AnalysisPage = () => {
                       </FormControl>
                     </Grid>
                   )}
-                              {/* Filter controls - exclude scatter plots */}
+                  {/* Filter controls - exclude scatter plots */}
                   {!['scatter'].includes(chartType) && (
                     <Grid item xs={12} sm={6}>
                       <FormControl fullWidth sx={{ minWidth: '200px' }}>
@@ -1630,7 +1633,11 @@ const AnalysisPage = () => {
               variant="contained"
               sx={{ mt: 2 }}
               disabled={chartType === 'correlation' ? chartColumns.length < 2 : !isValidSelection}
-              onClick={() => setShowChart(true)}
+              onClick={() => {
+                // Before generating the chart, add debug print
+                console.log('DEBUG: chartType', chartType, 'chartColumns', chartColumns);
+                setShowChart(true);
+              }}
             >
               Generate Chart
             </Button>
