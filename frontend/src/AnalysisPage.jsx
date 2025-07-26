@@ -520,7 +520,7 @@ const AnalysisPage = () => {
       // Calculate bins
       const min = Math.min(...arr);
       const max = Math.max(...arr);
-      const binCount = Math.min(20, Math.max(5, Math.ceil(Math.sqrt(arr.length))));
+      const binCount = 10; // Simple, predictable bin count
       const binSize = (max - min) / binCount || 1;
       const bins = Array(binCount).fill(0);
       arr.forEach(v => {
@@ -531,19 +531,17 @@ const AnalysisPage = () => {
       const labels = bins.map((_, i) => {
         const from = min + i * binSize;
         const to = from + binSize;
-        // Show as [from, to)
         return `${from.toFixed(1)} - ${to.toFixed(1)}`;
       });
       
-      // For histogram, we can sort by bin values
-      const { labels: filteredLabels, data: filteredData } = applyFilterAndSort(labels, bins);
+      // No filtering or sorting for histogram - preserve natural distribution
       
       return {
-        labels: filteredLabels,
+        labels: labels,
         datasets: [{
           label: numCol,
-          data: filteredData,
-          backgroundColor: 'rgba(255, 206, 86, 0.5)'
+          data: bins,
+          backgroundColor: 'rgba(54, 162, 235, 0.5)'
         }]
       };
     }
@@ -622,11 +620,7 @@ const AnalysisPage = () => {
         arr.sort((a, b) => (a[xCol] - b[xCol]) * sortBy);
       }
       
-      // Apply top filter for line charts
-      if (filterTop && filterTop !== '') {
-        const topCount = parseInt(filterTop);
-        arr = arr.slice(0, topCount);
-      }
+      // No filtering for line charts - preserve data continuity
       
       const labels = arr.map(row => row[xCol]);
       const dataArr = arr.map(row => row[yCol]);
@@ -724,6 +718,66 @@ const AnalysisPage = () => {
     return null;
   }
 
+  // Helper to determine if legend should be displayed
+  function shouldShowLegend(type, selectedCols) {
+    switch (type) {
+      case 'bar':
+      case 'horizontalBar':
+      case 'histogram':
+        return false; // Single color charts don't need legend
+      case 'scatter':
+      case 'line':
+        return false; // Single series charts don't need legend
+      case 'box':
+        return false; // Box plots don't need legend
+      case 'groupedBar':
+      case 'stackedBar':
+        return true; // Multiple series need legend
+      case 'pie':
+      case 'donut':
+        return true; // Pie charts need legend for categories
+      case 'correlation':
+        return false; // Heatmap doesn't need legend
+      default:
+        return true;
+    }
+  }
+
+  // Helper to get axis labels for charts
+  function getAxisLabels(type, selectedCols) {
+    if (!selectedCols || selectedCols.length === 0) return { x: '', y: '' };
+
+    switch (type) {
+      case 'bar':
+      case 'horizontalBar':
+        if (selectedCols.length === 1) {
+          const col = selectedCols[0];
+          return type === 'horizontalBar' 
+            ? { x: 'Count', y: col }
+            : { x: col, y: 'Count' };
+        } else {
+          const catCol = columns.find(c => c.name === selectedCols[0])?.group === 'Categorical' ? selectedCols[0] : selectedCols[1];
+          const numCol = columns.find(c => c.name === selectedCols[0])?.group === 'Numerical' ? selectedCols[0] : selectedCols[1];
+          return type === 'horizontalBar'
+            ? { x: `${numCol} (${aggregationType === 'average' ? 'Average' : 'Sum'})`, y: catCol }
+            : { x: catCol, y: `${numCol} (${aggregationType === 'average' ? 'Average' : 'Sum'})` };
+        }
+      case 'groupedBar':
+      case 'stackedBar':
+        const catCol1 = selectedCols[0];
+        const numCol = selectedCols[2] || selectedCols[1];
+        return { x: catCol1, y: `${numCol} (${aggregationType === 'average' ? 'Average' : 'Sum'})` };
+      case 'scatter':
+        return { x: selectedCols[0], y: selectedCols[1] };
+      case 'line':
+        return { x: selectedCols[0], y: selectedCols[1] };
+      case 'histogram':
+        return { x: `${selectedCols[0]} (Value)`, y: 'Frequency' };
+      default:
+        return { x: selectedCols[0] || '', y: selectedCols[1] || 'Value' };
+    }
+  }
+
   // Helper to get chartId for current chart
   function getChartId(type, cols, filterTop, sortOrder) {
     const baseId = `${type}:${cols.join(',')}:filter=${filterTop}:sort=${sortOrder}`;
@@ -735,11 +789,16 @@ const AnalysisPage = () => {
   }
 
   // Helper to get Chart.js options with black text/grid for export
-  function getExportChartOptions() {
+  function getExportChartOptions(type, selectedCols) {
+    const axisLabels = getAxisLabels(type, selectedCols);
+    const showLegend = shouldShowLegend(type, selectedCols);
     return {
       responsive: true,
       plugins: {
-        legend: { labels: { color: '#111' } },
+        legend: { 
+          display: showLegend,
+          labels: { color: '#111' } 
+        },
         title: { color: '#111' },
         datalabels: { color: '#111', font: { weight: 'bold', size: 16 } }
       },
@@ -747,12 +806,22 @@ const AnalysisPage = () => {
         x: {
           grid: { color: '#333' },
           ticks: { color: '#111' },
-          title: { color: '#111' }
+          title: {
+            display: true,
+            text: axisLabels.x,
+            color: '#111',
+            font: { size: 14, weight: 'bold' }
+          }
         },
         y: {
           grid: { color: '#333' },
           ticks: { color: '#111' },
-          title: { color: '#111' }
+          title: {
+            display: true,
+            text: axisLabels.y,
+            color: '#111',
+            font: { size: 14, weight: 'bold' }
+          }
         }
       }
     };
@@ -763,6 +832,8 @@ const AnalysisPage = () => {
     if (!data) return null;
     
     const chartId = getChartId(type, selectedCols, filterTop, sortOrder);
+    const axisLabels = getAxisLabels(type, selectedCols);
+    const showLegend = shouldShowLegend(type, selectedCols);
     
     // Ensure chart ref exists
     if (!chartRefs.current[chartId]) {
@@ -774,22 +845,35 @@ const AnalysisPage = () => {
       ref: chartRefs.current[chartId],
       'data-chartid': chartId,
       data: data,
-      options: forExport ? getExportChartOptions() : {
+      options: forExport ? getExportChartOptions(type, selectedCols) : {
         responsive: true,
         plugins: {
-          legend: { labels: { color: '#fff' } },
+          legend: { 
+            display: showLegend,
+            labels: { color: '#fff' } 
+          },
           title: { color: '#fff' }
         },
         scales: {
           x: {
             grid: { color: '#fff' },
             ticks: { color: '#fff' },
-            title: { color: '#fff' }
+            title: {
+              display: true,
+              text: axisLabels.x,
+              color: '#fff',
+              font: { size: 14, weight: 'bold' }
+            }
           },
           y: {
             grid: { color: '#fff' },
             ticks: { color: '#fff' },
-            title: { color: '#fff' }
+            title: {
+              display: true,
+              text: axisLabels.y,
+              color: '#fff',
+              font: { size: 14, weight: 'bold' }
+            }
           }
         }
       }
@@ -806,15 +890,56 @@ const AnalysisPage = () => {
             },
             scales: {
               ...chartProps.options.scales,
-              x: { ...chartProps.options.scales.x, stacked: true },
-              y: { ...chartProps.options.scales.y, stacked: true }
+              x: { 
+                ...chartProps.options.scales.x, 
+                stacked: true,
+                title: {
+                  display: true,
+                  text: axisLabels.x,
+                  color: forExport ? '#111' : '#fff',
+                  font: { size: 14, weight: 'bold' }
+                }
+              },
+              y: { 
+                ...chartProps.options.scales.y, 
+                stacked: true,
+                title: {
+                  display: true,
+                  text: axisLabels.y,
+                  color: forExport ? '#111' : '#fff',
+                  font: { size: 14, weight: 'bold' }
+                }
+              }
             }
           }}
         />
       );
     }
     if (type === 'groupedBar') {
-      return <Bar {...chartProps} />;
+      return <Bar {...chartProps} options={{
+        ...chartProps.options,
+        scales: {
+          ...chartProps.options.scales,
+          x: {
+            ...chartProps.options.scales.x,
+            title: {
+              display: true,
+              text: axisLabels.x,
+              color: forExport ? '#111' : '#fff',
+              font: { size: 14, weight: 'bold' }
+            }
+          },
+          y: {
+            ...chartProps.options.scales.y,
+            title: {
+              display: true,
+              text: axisLabels.y,
+              color: forExport ? '#111' : '#fff',
+              font: { size: 14, weight: 'bold' }
+            }
+          }
+        }
+      }} />;
     }
     if (type === 'correlation') {
       if (!data || !data.datasets || !data.datasets[0].data.length) return null;
@@ -889,7 +1014,31 @@ const AnalysisPage = () => {
       case 'bar':
         return <Bar {...chartProps} />;
       case 'horizontalBar':
-        return <Bar {...chartProps} options={{ ...chartProps.options, indexAxis: 'y' }} />;
+        return <Bar {...chartProps} options={{ 
+          ...chartProps.options, 
+          indexAxis: 'y',
+          scales: {
+            ...chartProps.options.scales,
+            x: {
+              ...chartProps.options.scales.x,
+              title: {
+                display: true,
+                text: axisLabels.x,
+                color: forExport ? '#111' : '#fff',
+                font: { size: 14, weight: 'bold' }
+              }
+            },
+            y: {
+              ...chartProps.options.scales.y,
+              title: {
+                display: true,
+                text: axisLabels.y,
+                color: forExport ? '#111' : '#fff',
+                font: { size: 14, weight: 'bold' }
+              }
+            }
+          }
+        }} />;
       case 'pie':
         return <Pie {...chartProps} options={{
           ...chartProps.options,
@@ -907,7 +1056,30 @@ const AnalysisPage = () => {
           }
         }} plugins={[ChartDataLabels]} />;
       case 'histogram':
-        return <Bar {...chartProps} options={chartProps.options} />;
+        return <Bar {...chartProps} options={{
+          ...chartProps.options,
+          scales: {
+            ...chartProps.options.scales,
+            x: {
+              ...chartProps.options.scales.x,
+              title: {
+                display: true,
+                text: `${selectedCols[0]} (Value)`,
+                color: forExport ? '#111' : '#fff',
+                font: { size: 14, weight: 'bold' }
+              }
+            },
+            y: {
+              ...chartProps.options.scales.y,
+              title: {
+                display: true,
+                text: 'Frequency',
+                color: forExport ? '#111' : '#fff',
+                font: { size: 14, weight: 'bold' }
+              }
+            }
+          }
+        }} />;
       case 'box':
         return <Plot
           data={[ 
@@ -921,7 +1093,8 @@ const AnalysisPage = () => {
           ]}
           layout={{
             title: `Box Plot of ${data.labels[0]}`,
-            yaxis: { title: data.labels[0] },
+            xaxis: { title: 'Distribution' },
+            yaxis: { title: `${data.labels[0]} (Value)` },
             paper_bgcolor: 'transparent',
             plot_bgcolor: 'transparent',
             font: { color: '#fff' }
@@ -930,9 +1103,55 @@ const AnalysisPage = () => {
           config={{ displayModeBar: false }}
         />;
       case 'scatter':
-        return <Scatter {...chartProps} options={chartProps.options} />;
+        return <Scatter {...chartProps} options={{
+          ...chartProps.options,
+          scales: {
+            ...chartProps.options.scales,
+            x: {
+              ...chartProps.options.scales.x,
+              title: {
+                display: true,
+                text: axisLabels.x,
+                color: forExport ? '#111' : '#fff',
+                font: { size: 14, weight: 'bold' }
+              }
+            },
+            y: {
+              ...chartProps.options.scales.y,
+              title: {
+                display: true,
+                text: axisLabels.y,
+                color: forExport ? '#111' : '#fff',
+                font: { size: 14, weight: 'bold' }
+              }
+            }
+          }
+        }} />;
       case 'line':
-        return <Line {...chartProps} options={chartProps.options} />;
+        return <Line {...chartProps} options={{
+          ...chartProps.options,
+          scales: {
+            ...chartProps.options.scales,
+            x: {
+              ...chartProps.options.scales.x,
+              title: {
+                display: true,
+                text: axisLabels.x,
+                color: forExport ? '#111' : '#fff',
+                font: { size: 14, weight: 'bold' }
+              }
+            },
+            y: {
+              ...chartProps.options.scales.y,
+              title: {
+                display: true,
+                text: axisLabels.y,
+                color: forExport ? '#111' : '#fff',
+                font: { size: 14, weight: 'bold' }
+              }
+            }
+          }
+        }} />;
       default:
         return null;
     }
@@ -1362,7 +1581,7 @@ const AnalysisPage = () => {
               ))}
             </Box>
             {/* Show filter/sort controls only if a chart is selected and columns are selected */}
-            {selectedChart && selectedColumns.length > 0 && selectedChart !== 'box' && (
+            {selectedChart && selectedColumns.length > 0 && !['box', 'histogram'].includes(selectedChart) && (
               <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
                 <Grid container spacing={3} alignItems="center">
                   {/* Aggregation toggle for relevant chart types */}
@@ -1381,8 +1600,8 @@ const AnalysisPage = () => {
                       </FormControl>
                     </Grid>
                   )}
-                  {/* Filter controls - exclude scatter plots */}
-                  {!['scatter'].includes(selectedChart) && (
+                  {/* Filter controls - exclude scatter plots and line charts */}
+                  {!['scatter', 'line'].includes(selectedChart) && (
                     <Grid item xs={12} sm={6}>
                       <FormControl fullWidth sx={{ minWidth: '200px' }}>
                         <InputLabel>Filter by Top N Items</InputLabel>
@@ -1402,7 +1621,7 @@ const AnalysisPage = () => {
                     </Grid>
                   )}
                   {/* Only show Sort Order for chart types where it makes sense (not line) */}
-                  {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut', 'histogram'].includes(selectedChart) && (
+                  {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(selectedChart) && (
                     <Grid item xs={12} sm={6}>
                       <FormControl fullWidth sx={{ minWidth: '200px' }}>
                         <InputLabel>Sort Order</InputLabel>
@@ -1542,7 +1761,7 @@ const AnalysisPage = () => {
               />
             )}
             {/* Show filter/sort controls only if chartType and columns are selected and valid */}
-            {((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection && chartType !== 'box')) && (
+            {((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection && !['box', 'histogram'].includes(chartType))) && (
               <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
                 <Grid container spacing={3} alignItems="center">
                   {/* Aggregation toggle for relevant chart types */}
@@ -1561,8 +1780,8 @@ const AnalysisPage = () => {
                       </FormControl>
                     </Grid>
                   )}
-                  {/* Filter controls - exclude scatter plots */}
-                  {!['scatter'].includes(chartType) && (
+                  {/* Filter controls - exclude scatter plots and line charts */}
+                  {!['scatter', 'line'].includes(chartType) && (
                     <Grid item xs={12} sm={6}>
                       <FormControl fullWidth sx={{ minWidth: '200px' }}>
                         <InputLabel>Filter by Top N Items</InputLabel>
@@ -1582,7 +1801,7 @@ const AnalysisPage = () => {
                     </Grid>
                   )}
                   {/* Only show Sort Order for chart types where it makes sense (not line) */}
-                  {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut', 'histogram'].includes(chartType) && (
+                  {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(chartType) && (
                     <Grid item xs={12} sm={6}>
                       <FormControl fullWidth sx={{ minWidth: '200px' }}>
                         <InputLabel>Sort Order</InputLabel>
