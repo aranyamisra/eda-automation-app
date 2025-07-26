@@ -19,6 +19,11 @@
     "chartjs-chart-box-and-violin-plot": "^4.0.0",
     "chartjs-chart-matrix": "^3.0.0",
     "chartjs-plugin-datalabels": "^2.2.0",
+
+    "google-auth-library": "^10.2.0",
+    "googleapis": "^154.0.0",
+
+
     "gsap": "^3.13.0",
     "plotly.js": "^3.0.2",
     "react": "^19.1.0",
