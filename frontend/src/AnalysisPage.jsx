@@ -198,6 +198,10 @@ const AnalysisPage = () => {
   const [proceedUncleaned, setProceedUncleaned] = useState(false);
   const [isCleaned, setIsCleaned] = useState(true); // Assume cleaned by default
 
+  // KPI mode state variables
+  const [selectedKPIColumn, setSelectedKPIColumn] = useState('');
+  const [selectedKPIMetric, setSelectedKPIMetric] = useState('');
+  const [kpiResult, setKpiResult] = useState(null);
   
   // New state variables for filtering and sorting
   const [filterTop, setFilterTop] = useState('');
@@ -520,7 +524,7 @@ const AnalysisPage = () => {
       // Calculate bins
       const min = Math.min(...arr);
       const max = Math.max(...arr);
-      const binCount = Math.min(20, Math.max(5, Math.ceil(Math.sqrt(arr.length))));
+      const binCount = 10; // Simple, predictable bin count
       const binSize = (max - min) / binCount || 1;
       const bins = Array(binCount).fill(0);
       arr.forEach(v => {
@@ -531,19 +535,17 @@ const AnalysisPage = () => {
       const labels = bins.map((_, i) => {
         const from = min + i * binSize;
         const to = from + binSize;
-        // Show as [from, to)
         return `${from.toFixed(1)} - ${to.toFixed(1)}`;
       });
       
-      // For histogram, we can sort by bin values
-      const { labels: filteredLabels, data: filteredData } = applyFilterAndSort(labels, bins);
+      // No filtering or sorting for histogram - preserve natural distribution
       
       return {
-        labels: filteredLabels,
+        labels: labels,
         datasets: [{
           label: numCol,
-          data: filteredData,
-          backgroundColor: 'rgba(255, 206, 86, 0.5)'
+          data: bins,
+          backgroundColor: 'rgba(54, 162, 235, 0.5)'
         }]
       };
     }
@@ -622,11 +624,7 @@ const AnalysisPage = () => {
         arr.sort((a, b) => (a[xCol] - b[xCol]) * sortBy);
       }
       
-      // Apply top filter for line charts
-      if (filterTop && filterTop !== '') {
-        const topCount = parseInt(filterTop);
-        arr = arr.slice(0, topCount);
-      }
+      // No filtering for line charts - preserve data continuity
       
       const labels = arr.map(row => row[xCol]);
       const dataArr = arr.map(row => row[yCol]);
@@ -724,6 +722,120 @@ const AnalysisPage = () => {
     return null;
   }
 
+  // Helper to calculate KPI metrics
+  function calculateKPI(column, metric) {
+    if (!column || !metric || !data.length) return null;
+    
+    const values = data.map(row => row[column]).filter(val => val != null);
+    const numericValues = values.filter(val => !isNaN(val) && val !== '').map(val => Number(val));
+    
+    switch (metric) {
+      case 'count':
+        return values.length;
+      case 'uniquecount':
+        return new Set(values).size;
+      case 'sum':
+        return numericValues.length > 0 ? numericValues.reduce((a, b) => a + b, 0) : 0;
+      case 'average':
+        return numericValues.length > 0 ? numericValues.reduce((a, b) => a + b, 0) / numericValues.length : 0;
+      case 'max':
+        return numericValues.length > 0 ? Math.max(...numericValues) : 0;
+      case 'min':
+        return numericValues.length > 0 ? Math.min(...numericValues) : 0;
+      case 'median':
+        if (numericValues.length === 0) return 0;
+        const sorted = [...numericValues].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+      default:
+        return 0;
+    }
+  }
+
+  // Helper to get available KPI metrics based on column type
+  function getAvailableKPIMetrics(column) {
+    if (!column) return [];
+    
+    const colObj = columns.find(c => c.name === column);
+    const isNumerical = colObj?.group === 'Numerical';
+    
+    const baseMetrics = ['count', 'uniquecount'];
+    const numericalMetrics = ['sum', 'average', 'max', 'min', 'median'];
+    
+    return isNumerical ? [...baseMetrics, ...numericalMetrics] : baseMetrics;
+  }
+
+  // Helper to format KPI result
+  function formatKPIResult(value, metric) {
+    if (value == null) return 'N/A';
+    
+    if (['sum', 'average', 'max', 'min', 'median'].includes(metric)) {
+      return Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+    
+    return Number(value).toLocaleString();
+  }
+
+  // Helper to determine if legend should be displayed
+  function shouldShowLegend(type, selectedCols) {
+    switch (type) {
+      case 'bar':
+      case 'horizontalBar':
+      case 'histogram':
+        return false; // Single color charts don't need legend
+      case 'scatter':
+      case 'line':
+        return false; // Single series charts don't need legend
+      case 'box':
+        return false; // Box plots don't need legend
+      case 'groupedBar':
+      case 'stackedBar':
+        return true; // Multiple series need legend
+      case 'pie':
+      case 'donut':
+        return true; // Pie charts need legend for categories
+      case 'correlation':
+        return false; // Heatmap doesn't need legend
+      default:
+        return true;
+    }
+  }
+
+  // Helper to get axis labels for charts
+  function getAxisLabels(type, selectedCols) {
+    if (!selectedCols || selectedCols.length === 0) return { x: '', y: '' };
+
+    switch (type) {
+      case 'bar':
+      case 'horizontalBar':
+        if (selectedCols.length === 1) {
+          const col = selectedCols[0];
+          return type === 'horizontalBar' 
+            ? { x: 'Count', y: col }
+            : { x: col, y: 'Count' };
+        } else {
+          const catCol = columns.find(c => c.name === selectedCols[0])?.group === 'Categorical' ? selectedCols[0] : selectedCols[1];
+          const numCol = columns.find(c => c.name === selectedCols[0])?.group === 'Numerical' ? selectedCols[0] : selectedCols[1];
+          return type === 'horizontalBar'
+            ? { x: `${numCol} (${aggregationType === 'average' ? 'Average' : 'Sum'})`, y: catCol }
+            : { x: catCol, y: `${numCol} (${aggregationType === 'average' ? 'Average' : 'Sum'})` };
+        }
+      case 'groupedBar':
+      case 'stackedBar':
+        const catCol1 = selectedCols[0];
+        const numCol = selectedCols[2] || selectedCols[1];
+        return { x: catCol1, y: `${numCol} (${aggregationType === 'average' ? 'Average' : 'Sum'})` };
+      case 'scatter':
+        return { x: selectedCols[0], y: selectedCols[1] };
+      case 'line':
+        return { x: selectedCols[0], y: selectedCols[1] };
+      case 'histogram':
+        return { x: `${selectedCols[0]} (Value)`, y: 'Frequency' };
+      default:
+        return { x: selectedCols[0] || '', y: selectedCols[1] || 'Value' };
+    }
+  }
+
   // Helper to get chartId for current chart
   function getChartId(type, cols, filterTop, sortOrder) {
     const baseId = `${type}:${cols.join(',')}:filter=${filterTop}:sort=${sortOrder}`;
@@ -735,11 +847,16 @@ const AnalysisPage = () => {
   }
 
   // Helper to get Chart.js options with black text/grid for export
-  function getExportChartOptions() {
+  function getExportChartOptions(type, selectedCols) {
+    const axisLabels = getAxisLabels(type, selectedCols);
+    const showLegend = shouldShowLegend(type, selectedCols);
     return {
       responsive: true,
       plugins: {
-        legend: { labels: { color: '#111' } },
+        legend: { 
+          display: showLegend,
+          labels: { color: '#111' } 
+        },
         title: { color: '#111' },
         datalabels: { color: '#111', font: { weight: 'bold', size: 16 } }
       },
@@ -747,12 +864,22 @@ const AnalysisPage = () => {
         x: {
           grid: { color: '#333' },
           ticks: { color: '#111' },
-          title: { color: '#111' }
+          title: {
+            display: true,
+            text: axisLabels.x,
+            color: '#111',
+            font: { size: 14, weight: 'bold' }
+          }
         },
         y: {
           grid: { color: '#333' },
           ticks: { color: '#111' },
-          title: { color: '#111' }
+          title: {
+            display: true,
+            text: axisLabels.y,
+            color: '#111',
+            font: { size: 14, weight: 'bold' }
+          }
         }
       }
     };
@@ -763,6 +890,8 @@ const AnalysisPage = () => {
     if (!data) return null;
     
     const chartId = getChartId(type, selectedCols, filterTop, sortOrder);
+    const axisLabels = getAxisLabels(type, selectedCols);
+    const showLegend = shouldShowLegend(type, selectedCols);
     
     // Ensure chart ref exists
     if (!chartRefs.current[chartId]) {
@@ -774,22 +903,35 @@ const AnalysisPage = () => {
       ref: chartRefs.current[chartId],
       'data-chartid': chartId,
       data: data,
-      options: forExport ? getExportChartOptions() : {
+      options: forExport ? getExportChartOptions(type, selectedCols) : {
         responsive: true,
         plugins: {
-          legend: { labels: { color: '#fff' } },
+          legend: { 
+            display: showLegend,
+            labels: { color: '#fff' } 
+          },
           title: { color: '#fff' }
         },
         scales: {
           x: {
             grid: { color: '#fff' },
             ticks: { color: '#fff' },
-            title: { color: '#fff' }
+            title: {
+              display: true,
+              text: axisLabels.x,
+              color: '#fff',
+              font: { size: 14, weight: 'bold' }
+            }
           },
           y: {
             grid: { color: '#fff' },
             ticks: { color: '#fff' },
-            title: { color: '#fff' }
+            title: {
+              display: true,
+              text: axisLabels.y,
+              color: '#fff',
+              font: { size: 14, weight: 'bold' }
+            }
           }
         }
       }
@@ -806,15 +948,56 @@ const AnalysisPage = () => {
             },
             scales: {
               ...chartProps.options.scales,
-              x: { ...chartProps.options.scales.x, stacked: true },
-              y: { ...chartProps.options.scales.y, stacked: true }
+              x: { 
+                ...chartProps.options.scales.x, 
+                stacked: true,
+                title: {
+                  display: true,
+                  text: axisLabels.x,
+                  color: forExport ? '#111' : '#fff',
+                  font: { size: 14, weight: 'bold' }
+                }
+              },
+              y: { 
+                ...chartProps.options.scales.y, 
+                stacked: true,
+                title: {
+                  display: true,
+                  text: axisLabels.y,
+                  color: forExport ? '#111' : '#fff',
+                  font: { size: 14, weight: 'bold' }
+                }
+              }
             }
           }}
         />
       );
     }
     if (type === 'groupedBar') {
-      return <Bar {...chartProps} />;
+      return <Bar {...chartProps} options={{
+        ...chartProps.options,
+        scales: {
+          ...chartProps.options.scales,
+          x: {
+            ...chartProps.options.scales.x,
+            title: {
+              display: true,
+              text: axisLabels.x,
+              color: forExport ? '#111' : '#fff',
+              font: { size: 14, weight: 'bold' }
+            }
+          },
+          y: {
+            ...chartProps.options.scales.y,
+            title: {
+              display: true,
+              text: axisLabels.y,
+              color: forExport ? '#111' : '#fff',
+              font: { size: 14, weight: 'bold' }
+            }
+          }
+        }
+      }} />;
     }
     if (type === 'correlation') {
       if (!data || !data.datasets || !data.datasets[0].data.length) return null;
@@ -889,7 +1072,31 @@ const AnalysisPage = () => {
       case 'bar':
         return <Bar {...chartProps} />;
       case 'horizontalBar':
-        return <Bar {...chartProps} options={{ ...chartProps.options, indexAxis: 'y' }} />;
+        return <Bar {...chartProps} options={{ 
+          ...chartProps.options, 
+          indexAxis: 'y',
+          scales: {
+            ...chartProps.options.scales,
+            x: {
+              ...chartProps.options.scales.x,
+              title: {
+                display: true,
+                text: axisLabels.x,
+                color: forExport ? '#111' : '#fff',
+                font: { size: 14, weight: 'bold' }
+              }
+            },
+            y: {
+              ...chartProps.options.scales.y,
+              title: {
+                display: true,
+                text: axisLabels.y,
+                color: forExport ? '#111' : '#fff',
+                font: { size: 14, weight: 'bold' }
+              }
+            }
+          }
+        }} />;
       case 'pie':
         return <Pie {...chartProps} options={{
           ...chartProps.options,
@@ -907,7 +1114,30 @@ const AnalysisPage = () => {
           }
         }} plugins={[ChartDataLabels]} />;
       case 'histogram':
-        return <Bar {...chartProps} options={chartProps.options} />;
+        return <Bar {...chartProps} options={{
+          ...chartProps.options,
+          scales: {
+            ...chartProps.options.scales,
+            x: {
+              ...chartProps.options.scales.x,
+              title: {
+                display: true,
+                text: `${selectedCols[0]} (Value)`,
+                color: forExport ? '#111' : '#fff',
+                font: { size: 14, weight: 'bold' }
+              }
+            },
+            y: {
+              ...chartProps.options.scales.y,
+              title: {
+                display: true,
+                text: 'Frequency',
+                color: forExport ? '#111' : '#fff',
+                font: { size: 14, weight: 'bold' }
+              }
+            }
+          }
+        }} />;
       case 'box':
         return <Plot
           data={[ 
@@ -921,7 +1151,8 @@ const AnalysisPage = () => {
           ]}
           layout={{
             title: `Box Plot of ${data.labels[0]}`,
-            yaxis: { title: data.labels[0] },
+            xaxis: { title: 'Distribution' },
+            yaxis: { title: `${data.labels[0]} (Value)` },
             paper_bgcolor: 'transparent',
             plot_bgcolor: 'transparent',
             font: { color: '#fff' }
@@ -930,11 +1161,84 @@ const AnalysisPage = () => {
           config={{ displayModeBar: false }}
         />;
       case 'scatter':
-        return <Scatter {...chartProps} options={chartProps.options} />;
+        return <Scatter {...chartProps} options={{
+          ...chartProps.options,
+          scales: {
+            ...chartProps.options.scales,
+            x: {
+              ...chartProps.options.scales.x,
+              title: {
+                display: true,
+                text: axisLabels.x,
+                color: forExport ? '#111' : '#fff',
+                font: { size: 14, weight: 'bold' }
+              }
+            },
+            y: {
+              ...chartProps.options.scales.y,
+              title: {
+                display: true,
+                text: axisLabels.y,
+                color: forExport ? '#111' : '#fff',
+                font: { size: 14, weight: 'bold' }
+              }
+            }
+          }
+        }} />;
       case 'line':
-        return <Line {...chartProps} options={chartProps.options} />;
+        return <Line {...chartProps} options={{
+          ...chartProps.options,
+          scales: {
+            ...chartProps.options.scales,
+            x: {
+              ...chartProps.options.scales.x,
+              title: {
+                display: true,
+                text: axisLabels.x,
+                color: forExport ? '#111' : '#fff',
+                font: { size: 14, weight: 'bold' }
+              }
+            },
+            y: {
+              ...chartProps.options.scales.y,
+              title: {
+                display: true,
+                text: axisLabels.y,
+                color: forExport ? '#111' : '#fff',
+                font: { size: 14, weight: 'bold' }
+              }
+            }
+          }
+        }} />;
       default:
         return null;
+    }
+  }
+
+  // Add KPI to Report handler
+  function handleAddKPIToReport(column, metric, result, checked) {
+    const kpiId = `kpi:${column}:${metric}`;
+    
+    if (checked) {
+      setChartsToReport({
+        ...chartsToReport,
+        [kpiId]: {
+          selected: true,
+          type: 'kpi',
+          column: column,
+          metric: metric,
+          result: result,
+          formattedResult: formatKPIResult(result, metric),
+          recordCount: data.length
+        }
+      });
+    } else {
+      setChartsToReport({
+        ...chartsToReport,
+        [kpiId]: {
+          selected: false
+        }
+      });
     }
   }
 
@@ -1220,6 +1524,9 @@ const AnalysisPage = () => {
               setSelectedChart('');
               setChartType('');
               setChartColumns([]);
+              setSelectedKPIColumn('');
+              setSelectedKPIMetric('');
+              setKpiResult(null);
             }}
             sx={{ gap: 2 }}
           >
@@ -1252,6 +1559,25 @@ const AnalysisPage = () => {
                 border: mode === 'byChart' ? '2px solid' : '1px solid',
                 borderColor: mode === 'byChart' ? 'primary.main' : 'divider',
                 backgroundColor: mode === 'byChart' 
+                  ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
+                  : 'transparent',
+                '&:hover': { 
+                  backgroundColor: theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.08)'
+                    : 'rgba(0,0,0,0.04)' 
+                }
+              }}
+            />
+            <FormControlLabel 
+              value="kpi" 
+              control={<Radio />} 
+              label="KPI Analysis"
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                border: mode === 'kpi' ? '2px solid' : '1px solid',
+                borderColor: mode === 'kpi' ? 'primary.main' : 'divider',
+                backgroundColor: mode === 'kpi' 
                   ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
                   : 'transparent',
                 '&:hover': { 
@@ -1362,7 +1688,7 @@ const AnalysisPage = () => {
               ))}
             </Box>
             {/* Show filter/sort controls only if a chart is selected and columns are selected */}
-            {selectedChart && selectedColumns.length > 0 && selectedChart !== 'box' && (
+            {selectedChart && selectedColumns.length > 0 && !['box', 'histogram'].includes(selectedChart) && (
               <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
                 <Grid container spacing={3} alignItems="center">
                   {/* Aggregation toggle for relevant chart types */}
@@ -1381,8 +1707,8 @@ const AnalysisPage = () => {
                       </FormControl>
                     </Grid>
                   )}
-                  {/* Filter controls - exclude scatter plots */}
-                  {!['scatter'].includes(selectedChart) && (
+                  {/* Filter controls - exclude scatter plots and line charts */}
+                  {!['scatter', 'line'].includes(selectedChart) && (
                     <Grid item xs={12} sm={6}>
                       <FormControl fullWidth sx={{ minWidth: '200px' }}>
                         <InputLabel>Filter by Top N Items</InputLabel>
@@ -1402,7 +1728,7 @@ const AnalysisPage = () => {
                     </Grid>
                   )}
                   {/* Only show Sort Order for chart types where it makes sense (not line) */}
-                  {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut', 'histogram'].includes(selectedChart) && (
+                  {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(selectedChart) && (
                     <Grid item xs={12} sm={6}>
                       <FormControl fullWidth sx={{ minWidth: '200px' }}>
                         <InputLabel>Sort Order</InputLabel>
@@ -1460,10 +1786,19 @@ const AnalysisPage = () => {
                     <Checkbox
                       checked={!!chartsToReport[getChartId(selectedChart, selectedColumns, filterTop, sortOrder)]?.selected}
                       onChange={e => handleAddToReport(selectedChart, selectedColumns, e.target.checked)}
+                      sx={{ 
+                        color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
+                        '&.Mui-checked': { 
+                          color: theme.palette.mode === 'dark' ? '#1976d2' : '#1976d2'
+                        }
+                      }}
                     />
                   }
                   label="Add to Report"
-                  sx={{ mt: 2 }}
+                  sx={{ 
+                    mt: 2,
+                    color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.7)'
+                  }}
                 />
               </Box>
             )}
@@ -1542,7 +1877,7 @@ const AnalysisPage = () => {
               />
             )}
             {/* Show filter/sort controls only if chartType and columns are selected and valid */}
-            {((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection && chartType !== 'box')) && (
+            {((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection && !['box', 'histogram'].includes(chartType))) && (
               <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
                 <Grid container spacing={3} alignItems="center">
                   {/* Aggregation toggle for relevant chart types */}
@@ -1561,8 +1896,8 @@ const AnalysisPage = () => {
                       </FormControl>
                     </Grid>
                   )}
-                  {/* Filter controls - exclude scatter plots */}
-                  {!['scatter'].includes(chartType) && (
+                  {/* Filter controls - exclude scatter plots and line charts */}
+                  {!['scatter', 'line'].includes(chartType) && (
                     <Grid item xs={12} sm={6}>
                       <FormControl fullWidth sx={{ minWidth: '200px' }}>
                         <InputLabel>Filter by Top N Items</InputLabel>
@@ -1582,7 +1917,7 @@ const AnalysisPage = () => {
                     </Grid>
                   )}
                   {/* Only show Sort Order for chart types where it makes sense (not line) */}
-                  {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut', 'histogram'].includes(chartType) && (
+                  {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(chartType) && (
                     <Grid item xs={12} sm={6}>
                       <FormControl fullWidth sx={{ minWidth: '200px' }}>
                         <InputLabel>Sort Order</InputLabel>
@@ -1649,10 +1984,19 @@ const AnalysisPage = () => {
                     <Checkbox
                       checked={!!chartsToReport[getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder)]?.selected}
                       onChange={e => handleAddToReport(chartType, chartColumns.filter(Boolean), e.target.checked)}
+                      sx={{ 
+                        color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
+                        '&.Mui-checked': { 
+                          color: theme.palette.mode === 'dark' ? '#1976d2' : '#1976d2'
+                        }
+                      }}
                     />
                   }
                   label="Add to Report"
-                  sx={{ mt: 2 }}
+                  sx={{ 
+                    mt: 2,
+                    color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.7)'
+                  }}
                 />
               </Box>
             )}
@@ -1660,6 +2004,137 @@ const AnalysisPage = () => {
         )}
         </CardContent>
       </Card>
+      )}
+
+      {mode === 'kpi' && (
+        <Card sx={{ 
+          mb: 4,
+          borderRadius: 3, 
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 8px 32px rgba(0,0,0,0.4)'
+            : '0 8px 32px rgba(0,0,0,0.1)',
+          border: theme.palette.mode === 'dark'
+            ? '1px solid rgba(255,255,255,0.1)'
+            : '1px solid rgba(255,255,255,0.2)',
+          background: theme.palette.mode === 'dark'
+            ? 'rgba(30, 30, 30, 0.95)'
+            : 'rgba(255,255,255,0.95)'
+        }}>
+          <CardContent sx={{ p: 4 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+              <Analytics sx={{ mr: 2, color: 'primary.main' }} />
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Key Performance Indicators
+              </Typography>
+            </Box>
+
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth sx={{ minWidth: 250 }}>
+                  <InputLabel>Select Column</InputLabel>
+                  <Select
+                    value={selectedKPIColumn}
+                    label="Select Column"
+                    sx={{ minHeight: 56 }}
+                    onChange={e => {
+                      setSelectedKPIColumn(e.target.value);
+                      setSelectedKPIMetric('');
+                      setKpiResult(null);
+                    }}
+                    slotProps={{
+                      paper: {
+                        sx: {
+                          minWidth: 400,
+                          maxWidth: 600
+                        }
+                      }
+                    }}
+                  >
+                    {columns.map(col => (
+                      <MenuItem key={col.name} value={col.name}>
+                        {col.name} ({col.group})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth disabled={!selectedKPIColumn} sx={{ minWidth: 250 }}>
+                  <InputLabel>Performance Indicator</InputLabel>
+                  <Select
+                    value={selectedKPIMetric}
+                    label="Performance Indicator"
+                    sx={{ minHeight: 56 }}
+                    onChange={e => {
+                      setSelectedKPIMetric(e.target.value);
+                      const result = calculateKPI(selectedKPIColumn, e.target.value);
+                      setKpiResult(result);
+                    }}
+                    slotProps={{
+                      paper: {
+                        sx: {
+                          minWidth: 300,
+                          maxWidth: 500
+                        }
+                      }
+                    }}
+                  >
+                    {getAvailableKPIMetrics(selectedKPIColumn).map(metric => (
+                      <MenuItem key={metric} value={metric}>
+                        {metric.charAt(0).toUpperCase() + metric.slice(1).replace(/([A-Z])/g, ' $1')}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+
+            {kpiResult !== null && selectedKPIColumn && selectedKPIMetric && (
+              <Box sx={{ mt: 4 }}>
+                <Card sx={{
+                  p: 4,
+                  borderRadius: 3,
+                  background: theme.palette.mode === 'dark'
+                    ? 'linear-gradient(135deg, #2d1b69 0%, #11998e 100%)'
+                    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  textAlign: 'center',
+                  boxShadow: theme.palette.mode === 'dark'
+                    ? '0 8px 32px rgba(45, 27, 105, 0.4)'
+                    : '0 8px 32px rgba(102, 126, 234, 0.4)',
+                }}>
+                  <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
+                    {selectedKPIMetric.charAt(0).toUpperCase() + selectedKPIMetric.slice(1).replace(/([A-Z])/g, ' $1')} of {selectedKPIColumn}
+                  </Typography>
+                  <Typography variant="h2" sx={{ fontWeight: 700, mb: 1 }}>
+                    {formatKPIResult(kpiResult, selectedKPIMetric)}
+                  </Typography>
+                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                    Based on {data.length} records
+                  </Typography>
+                </Card>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={!!chartsToReport[`kpi:${selectedKPIColumn}:${selectedKPIMetric}`]?.selected}
+                      onChange={e => handleAddKPIToReport(selectedKPIColumn, selectedKPIMetric, kpiResult, e.target.checked)}
+                      sx={{ 
+                        color: 'rgba(255,255,255,0.7)',
+                        '&.Mui-checked': { color: 'white' }
+                      }}
+                    />
+                  }
+                  label="Add to Report"
+                  sx={{ 
+                    mt: 2,
+                    color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.7)'
+                  }}
+                />
+              </Box>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <Card sx={{ 
@@ -1723,7 +2198,7 @@ const AnalysisPage = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
             <BarChart sx={{ mr: 2, color: 'primary.main' }} />
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Charts Added to Report
+              Charts & KPIs Added to Report
             </Typography>
             <Chip 
               label={Object.keys(chartsToReport).filter(key => chartsToReport[key]?.selected).length} 
@@ -1734,23 +2209,33 @@ const AnalysisPage = () => {
           </Box>
           {Object.keys(chartsToReport).filter(key => chartsToReport[key]?.selected).length === 0 ? (
             <Alert severity="info" sx={{ borderRadius: 2 }}>
-              No charts added yet. Create charts above and select "Add to Report" to include them.
+              No charts or KPIs added yet. Create charts or calculate KPIs above and select "Add to Report" to include them.
             </Alert>
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {Object.keys(chartsToReport).filter(key => chartsToReport[key]?.selected).map(key => {
-                // Parse chart ID to display readable information
-                const parts = key.split(':');
-                const chartType = parts[0];
-                const columns = parts[1]?.split(',') || [];
-                const filter = parts[2]?.replace('filter=','') || '';
-                const sort = parts[3]?.replace('sort=','') || '';
-                const agg = parts[4]?.replace('agg=','') || '';
+                const item = chartsToReport[key];
+                let displayText = '';
+                let iconColor = 'primary.main';
                 
-                let displayText = `${chartType}: ${columns.join(', ')}`;
-                if (filter) displayText += ` (filter: ${filter})`;
-                if (sort) displayText += ` (sort: ${sort})`;
-                if (agg) displayText += ` (${agg})`;
+                if (item.type === 'kpi') {
+                  // Handle KPI display
+                  displayText = `KPI: ${item.metric.charAt(0).toUpperCase() + item.metric.slice(1).replace(/([A-Z])/g, ' $1')} of ${item.column} = ${item.formattedResult}`;
+                  iconColor = 'success.main';
+                } else {
+                  // Handle chart display (original logic)
+                  const parts = key.split(':');
+                  const chartType = parts[0];
+                  const columns = parts[1]?.split(',') || [];
+                  const filter = parts[2]?.replace('filter=','') || '';
+                  const sort = parts[3]?.replace('sort=','') || '';
+                  const agg = parts[4]?.replace('agg=','') || '';
+                  
+                  displayText = `Chart: ${chartType} - ${columns.join(', ')}`;
+                  if (filter) displayText += ` (filter: ${filter})`;
+                  if (sort) displayText += ` (sort: ${sort})`;
+                  if (agg) displayText += ` (${agg})`;
+                }
                 
                 return (
                   <Box key={key} sx={{
@@ -1760,8 +2245,17 @@ const AnalysisPage = () => {
                       ? 'rgba(255,255,255,0.05)'
                       : 'rgba(0,0,0,0.02)',
                     border: '1px solid',
-                    borderColor: 'divider'
+                    borderColor: 'divider',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
                   }}>
+                    <Box sx={{ 
+                      width: 8, 
+                      height: 8, 
+                      borderRadius: '50%', 
+                      backgroundColor: iconColor
+                    }} />
                     <Typography variant="body1" sx={{ fontWeight: 500 }}>
                       {displayText}
                     </Typography>
