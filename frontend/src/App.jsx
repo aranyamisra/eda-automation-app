@@ -20,7 +20,6 @@ import {
   Slide,
   Zoom,
   CircularProgress,
-  Stack,
 } from '@mui/material';
 import { Link } from 'react-router-dom';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
@@ -35,7 +34,6 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import KeyboardIcon from '@mui/icons-material/Keyboard';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import SpeedIcon from '@mui/icons-material/Speed';
 import AnalyticsIcon from '@mui/icons-material/Analytics';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
@@ -85,27 +83,16 @@ function App() {
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
   const [hoveredStep, setHoveredStep] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [sessionTime, setSessionTime] = useState(0);
   const isMobile = useMediaQuery('(max-width:900px)');
   
   const currentStep = getStepStatus(location.pathname);
   const progressValue = currentStep >= 0 ? ((currentStep + 1) / navItems.length) * 100 : 0;
   const completedSteps = navItems.filter((_, index) => index < currentStep).length;
 
-  // Session tracking
+  // Loading animation
   React.useEffect(() => {
     setIsLoaded(true);
-    const timer = setInterval(() => {
-      setSessionTime(prev => prev + 1);
-    }, 1000);
-    return () => clearInterval(timer);
   }, []);
-
-  const formatSessionTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const getProgressInsight = () => {
     if (currentStep === -1) return 'Welcome! Start your EDA journey';
@@ -227,36 +214,10 @@ function App() {
                 </Box>
               </Slide>
 
-              {/* Session Stats - Desktop Only */}
+              {/* Spacer to maintain tab positioning */}
               {!isMobile && (
-                <Fade in={isLoaded} timeout={1200}>
-                  <Stack 
-                    direction="row" 
-                    spacing={3} 
-                    sx={{ 
-                      mx: 'auto',
-                      display: 'flex',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Tooltip title="Session Time" arrow placement="bottom">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <SpeedIcon sx={{ fontSize: '1rem', color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)' }} />
-                        <Typography variant="caption" sx={{ 
-                          color: mode === 'dark' ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)',
-                          fontFamily: 'monospace',
-                          fontWeight: 600,
-                        }}>
-                          {formatSessionTime(sessionTime)}
-                        </Typography>
-                      </Box>
-                    </Tooltip>
-
-                  </Stack>
-                </Fade>
+                <Box sx={{ mx: 'auto' }} />
               )}
-
-
 
             {/* Desktop Navigation */}
             {!isMobile ? (
