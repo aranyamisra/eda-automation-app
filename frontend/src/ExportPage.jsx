@@ -290,6 +290,17 @@ const ExportPage = ({
       });
       const html = await response.text();
       setPreviewHtml(html);
+      
+      // Scroll to preview section after successful generation
+      setTimeout(() => {
+        const previewSection = document.querySelector('[data-preview-section]');
+        if (previewSection) {
+          previewSection.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+          });
+        }
+      }, 100);
     } catch (err) {
       alert('Preview failed.');
     } finally {
@@ -405,24 +416,20 @@ const ExportPage = ({
           Generate professional reports from your analysis
         </Typography>
       </Box>
-      <Grid container spacing={6}>
-        {/* Left: Export Options */}
-        <Grid item xs={12} lg={3} md={4}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            
-            {/* Report Configuration Card */}
-            <Card sx={{ 
-              borderRadius: 3, 
-              boxShadow: theme.palette.mode === 'dark'
-                ? '0 8px 32px rgba(0,0,0,0.4)'
-                : '0 8px 32px rgba(0,0,0,0.1)',
-              border: theme.palette.mode === 'dark'
-                ? '1px solid rgba(255,255,255,0.1)'
-                : '1px solid rgba(255,255,255,0.2)',
-              background: theme.palette.mode === 'dark'
-                ? 'rgba(30, 30, 30, 0.95)'
-                : 'rgba(255,255,255,0.95)'
-            }}>
+      <Box sx={{ width: '100%' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 4,
+            mb: 6,
+            width: '100%',
+            justifyContent: 'space-between',
+          }}
+        >
+          {/* Report Configuration Card */}
+          <Box sx={{ flex: '1 1 300px', minWidth: 300, maxWidth: 400, display: 'flex' }}>
+            <Card sx={{ borderRadius: 3, width: '100%', boxShadow: theme.palette.mode === 'dark' ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.1)', border: theme.palette.mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.2)', background: theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255,255,255,0.95)' }}>
               <CardContent sx={{ p: 4 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
                   <Settings sx={{ mr: 2, color: 'primary.main' }} />
@@ -522,19 +529,10 @@ const ExportPage = ({
                 </RadioGroup>
               </CardContent>
             </Card>
-            {/* Sections Card */}
-            <Card sx={{ 
-              borderRadius: 3, 
-              boxShadow: theme.palette.mode === 'dark'
-                ? '0 8px 32px rgba(0,0,0,0.4)'
-                : '0 8px 32px rgba(0,0,0,0.1)',
-              border: theme.palette.mode === 'dark'
-                ? '1px solid rgba(255,255,255,0.1)'
-                : '1px solid rgba(255,255,255,0.2)',
-              background: theme.palette.mode === 'dark'
-                ? 'rgba(30, 30, 30, 0.95)'
-                : 'rgba(255,255,255,0.95)'
-            }}>
+          </Box>
+          {/* Sections Card */}
+          <Box sx={{ flex: '1 1 300px', minWidth: 300, maxWidth: 400, display: 'flex' }}>
+            <Card sx={{ borderRadius: 3, width: '100%', boxShadow: theme.palette.mode === 'dark' ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.1)', border: theme.palette.mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.2)', background: theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255,255,255,0.95)' }}>
               <CardContent sx={{ p: 4 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
                   <Article sx={{ mr: 2, color: 'primary.main' }} />
@@ -586,19 +584,10 @@ const ExportPage = ({
                 </FormGroup>
               </CardContent>
             </Card>
-            {/* Visualizations Card */}
-            <Card sx={{ 
-              borderRadius: 3, 
-              boxShadow: theme.palette.mode === 'dark'
-                ? '0 8px 32px rgba(0,0,0,0.4)'
-                : '0 8px 32px rgba(0,0,0,0.1)',
-              border: theme.palette.mode === 'dark'
-                ? '1px solid rgba(255,255,255,0.1)'
-                : '1px solid rgba(255,255,255,0.2)',
-              background: theme.palette.mode === 'dark'
-                ? 'rgba(30, 30, 30, 0.95)'
-                : 'rgba(255,255,255,0.95)'
-            }}>
+          </Box>
+          {/* Visualizations Card */}
+          <Box sx={{ flex: '1 1 300px', minWidth: 300, maxWidth: 400, display: 'flex' }}>
+            <Card sx={{ borderRadius: 3, width: '100%', boxShadow: theme.palette.mode === 'dark' ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.1)', border: theme.palette.mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.2)', background: theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255,255,255,0.95)' }}>
               <CardContent sx={{ p: 4 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
                   <BarChart sx={{ mr: 2, color: 'primary.main' }} />
@@ -613,7 +602,7 @@ const ExportPage = ({
                   />
                 </Box>
                 
-                <Box sx={{ maxHeight: 350, overflow: 'auto', mb: 4 }}>
+                <Box sx={{ mb: 4 }}>
                   {visualisations.length === 0 && (
                     <Alert severity="info" sx={{ borderRadius: 2 }}>
                       No visualizations selected. Go to Analysis page to create charts.
@@ -634,6 +623,10 @@ const ExportPage = ({
                           : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'),
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
+                        minHeight: 80,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
                         '&:hover': { 
                           backgroundColor: theme.palette.mode === 'dark'
                             ? 'rgba(255,255,255,0.12)'
@@ -673,19 +666,10 @@ const ExportPage = ({
                 </Box>
               </CardContent>
             </Card>
-            {/* Action Buttons Card */}
-            <Card sx={{ 
-              borderRadius: 3, 
-              boxShadow: theme.palette.mode === 'dark'
-                ? '0 8px 32px rgba(0,0,0,0.4)'
-                : '0 8px 32px rgba(0,0,0,0.1)',
-              border: theme.palette.mode === 'dark'
-                ? '1px solid rgba(255,255,255,0.1)'
-                : '1px solid rgba(255,255,255,0.2)',
-              background: theme.palette.mode === 'dark'
-                ? 'rgba(30, 30, 30, 0.95)'
-                : 'rgba(255,255,255,0.95)'
-            }}>
+          </Box>
+          {/* Action Buttons Card */}
+          <Box sx={{ flex: '1 1 300px', minWidth: 300, maxWidth: 400, display: 'flex' }}>
+            <Card sx={{ borderRadius: 3, width: '100%', boxShadow: theme.palette.mode === 'dark' ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.1)', border: theme.palette.mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.2)', background: theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255,255,255,0.95)' }}>
               <CardContent sx={{ p: 4 }}>
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 4 }}>
                   Actions
@@ -804,88 +788,75 @@ const ExportPage = ({
               </CardContent>
             </Card>
           </Box>
-        </Grid>
-        
-        {/* Right: Report Preview */}
-        <Grid item xs={12} lg={9} md={8}>
-          <Card sx={{ 
-            borderRadius: 3, 
-            boxShadow: theme.palette.mode === 'dark'
-              ? '0 8px 32px rgba(0,0,0,0.4)'
-              : '0 8px 32px rgba(0,0,0,0.1)',
-            border: theme.palette.mode === 'dark'
-              ? '1px solid rgba(255,255,255,0.1)'
-              : '1px solid rgba(255,255,255,0.2)',
-            background: theme.palette.mode === 'dark'
-              ? 'rgba(30, 30, 30, 0.95)'
-              : 'rgba(255,255,255,0.95)',
-            minHeight: 600,
-            height: 'fit-content'
-          }}>
-            <CardContent sx={{ p: 5 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-                <Preview sx={{ mr: 2, color: 'primary.main' }} />
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Live Preview
-                </Typography>
-                {previewHtml && (
-                  <Chip 
-                    icon={<CheckCircle />}
-                    label="Ready" 
-                    size="small" 
-                    color="success" 
-                    sx={{ ml: 'auto' }}
-                  />
-                )}
-              </Box>
-              
-              <Box
-                sx={{
-                  borderRadius: 3,
-                  minHeight: 800,
-                  maxHeight: '85vh',
-                  border: '2px dashed',
-                  borderColor: previewHtml ? 'primary.main' : 'divider',
-                  backgroundColor: previewHtml 
-                    ? (theme.palette.mode === 'dark' ? 'rgba(40, 40, 40, 1)' : 'rgba(255,255,255,1)')
-                    : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'),
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  overflow: 'hidden',
-                  position: 'relative',
-                  transition: 'all 0.3s ease',
-                  minWidth: 600
-                }}
-              >
-                {previewHtml ? (
-                  <iframe
-                    title="Report Preview"
-                    srcDoc={previewHtml}
-                    style={{ 
-                      width: '100%', 
-                      height: '100%', 
-                      minHeight: '780px',
-                      border: 'none',
-                      borderRadius: '12px'
-                    }}
-                  />
-                ) : (
-                  <Box sx={{ textAlign: 'center', p: 6 }}>
-                    <Preview sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
-                    <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-                      Preview Not Generated
-                    </Typography>
-                    <Typography variant="body2" color="text.disabled">
-                      Click "Generate Preview" to see your report here
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+        </Box>
+        {/* Full width preview below */}
+        <Card 
+          data-preview-section
+          sx={{ width: '100%', borderRadius: 3, boxShadow: theme.palette.mode === 'dark' ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.1)', border: theme.palette.mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.2)', background: theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255,255,255,0.95)', minHeight: 600, height: 'fit-content' }}
+        >
+          <CardContent sx={{ p: 5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
+              <Preview sx={{ mr: 2, color: 'primary.main' }} />
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Live Preview
+              </Typography>
+              {previewHtml && (
+                <Chip 
+                  icon={<CheckCircle />}
+                  label="Ready" 
+                  size="small" 
+                  color="success" 
+                  sx={{ ml: 'auto' }}
+                />
+              )}
+            </Box>
+            
+            <Box
+              sx={{
+                borderRadius: 3,
+                minHeight: 800,
+                maxHeight: '85vh',
+                border: '2px dashed',
+                borderColor: previewHtml ? 'primary.main' : 'divider',
+                backgroundColor: previewHtml 
+                  ? (theme.palette.mode === 'dark' ? 'rgba(40, 40, 40, 1)' : 'rgba(255,255,255,1)')
+                  : (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                position: 'relative',
+                transition: 'all 0.3s ease',
+                minWidth: 600
+              }}
+            >
+              {previewHtml ? (
+                <iframe
+                  title="Report Preview"
+                  srcDoc={previewHtml}
+                  style={{ 
+                    width: '100%', 
+                    height: '100%', 
+                    minHeight: '780px',
+                    border: 'none',
+                    borderRadius: '12px'
+                  }}
+                />
+              ) : (
+                <Box sx={{ textAlign: 'center', p: 6 }}>
+                  <Preview sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
+                  <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                    Preview Not Generated
+                  </Typography>
+                  <Typography variant="body2" color="text.disabled">
+                    Click "Generate Preview" to see your report here
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          </CardContent>
+        </Card>
+      </Box>
     </Box>
   );
 };
