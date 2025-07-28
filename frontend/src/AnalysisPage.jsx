@@ -1160,7 +1160,13 @@ const AnalysisPage = () => {
                   type: 'box',
                   name: data.labels[0],
                   boxpoints: 'outliers',
-                  marker: { color: 'rgba(54, 162, 235, 0.5)' }
+                  marker: { color: 'rgba(54, 162, 235, 0.5)' },
+                  text: data.raw.map(() => ''),
+                  hoverinfo: 'y+name',
+                  hovertemplate: 
+                    '<b>%{fullData.name}</b><br>' +
+                    'Value: %{y}<br>' +
+                    '<extra></extra>'
                 }
               ]}
               layout={{
@@ -1169,7 +1175,24 @@ const AnalysisPage = () => {
                 yaxis: { title: `${data.labels[0]} (Value)` },
                 paper_bgcolor: 'transparent',
                 plot_bgcolor: 'transparent',
-                font: { color: theme.palette.text.primary }
+                font: { color: theme.palette.text.primary },
+                annotations: [
+                  {
+                    x: 0.5,
+                    y: 1.02,
+                    xref: 'paper',
+                    yref: 'paper',
+                    text: `Min: ${Math.min(...data.raw).toFixed(2)} | Q1: ${data.datasets[0].data[0].q1.toFixed(2)} | Median: ${data.datasets[0].data[0].median.toFixed(2)} | Q3: ${data.datasets[0].data[0].q3.toFixed(2)} | Max: ${Math.max(...data.raw).toFixed(2)}`,
+                    showarrow: false,
+                    font: { 
+                      size: 12, 
+                      color: theme.palette.text.primary 
+                    },
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)',
+                    bordercolor: theme.palette.divider,
+                    borderwidth: 1
+                  }
+                ]
               }}
               style={{ width: '100%', height: 400 }}
               config={{ displayModeBar: false }}
