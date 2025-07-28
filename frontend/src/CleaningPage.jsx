@@ -1324,7 +1324,7 @@ function CleaningPage() {
           startIcon={<Refresh />}
           sx={{
             px: 6,
-            py: 2,
+            py: 2.5,
             borderRadius: 3,
             fontWeight: 600,
             fontSize: '1.1rem',
@@ -1487,10 +1487,10 @@ function CleaningPage() {
           size="large"
           sx={{
             px: 6,
-            py: 2,
+            py: 2.5,
             borderRadius: 3,
             fontWeight: 600,
-            fontSize: '1rem',
+            fontSize: '1.1rem',
             textTransform: 'none',
             borderWidth: 2,
             '&:hover': {
@@ -1500,7 +1500,7 @@ function CleaningPage() {
             }
           }}
         >
-          Go to Analysis
+          Proceed to Analysis
         </Button>
       </Box>
     </Box>

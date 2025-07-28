@@ -852,7 +852,7 @@ const AnalysisPage = () => {
   function getChartId(type, cols, filterTop, sortOrder) {
     const baseId = `${type}:${cols.join(',')}:filter=${filterTop}:sort=${sortOrder}`;
     // Add aggregation type to chart ID if applicable
-    if (['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(type) && cols.length >= 2) {
+    if (['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(type) && cols.filter(Boolean).length >= 1) {
       return `${baseId}:agg=${aggregationType}`;
     }
     return baseId;
@@ -897,11 +897,11 @@ const AnalysisPage = () => {
     };
   }
 
-  function renderChart(type, selectedCols, forExport = false) {
+  function renderChart(type, selectedCols, forExport = false, passedChartId = '') {
     const data = getChartData(type, selectedCols);
     if (!data) return null;
     
-    const chartId = getChartId(type, selectedCols, filterTop, sortOrder);
+    const chartId = passedChartId || getChartId(type, selectedCols, filterTop, sortOrder);
     const axisLabels = getAxisLabels(type, selectedCols);
     const showLegend = shouldShowLegend(type, selectedCols);
     
@@ -1151,27 +1151,31 @@ const AnalysisPage = () => {
           }
         }} />;
       case 'box':
-        return <Plot
-          data={[ 
-            {
-              y: data.raw,
-              type: 'box',
-              name: data.labels[0],
-              boxpoints: 'outliers',
-              marker: { color: 'rgba(54, 162, 235, 0.5)' }
-            }
-          ]}
-          layout={{
-            title: `Box Plot of ${data.labels[0]}`,
-            xaxis: { title: 'Distribution' },
-            yaxis: { title: `${data.labels[0]} (Value)` },
-            paper_bgcolor: 'transparent',
-            plot_bgcolor: 'transparent',
-            font: { color: theme.palette.text.primary }
-          }}
-          style={{ width: '100%', height: 400 }}
-          config={{ displayModeBar: false }}
-        />;
+        return (
+          <div data-chart-type="box" data-chart-id={chartId}>
+            <Plot
+              data={[ 
+                {
+                  y: data.raw,
+                  type: 'box',
+                  name: data.labels[0],
+                  boxpoints: 'outliers',
+                  marker: { color: 'rgba(54, 162, 235, 0.5)' }
+                }
+              ]}
+              layout={{
+                title: `Box Plot of ${data.labels[0]}`,
+                xaxis: { title: 'Distribution' },
+                yaxis: { title: `${data.labels[0]} (Value)` },
+                paper_bgcolor: 'transparent',
+                plot_bgcolor: 'transparent',
+                font: { color: theme.palette.text.primary }
+              }}
+              style={{ width: '100%', height: 400 }}
+              config={{ displayModeBar: false }}
+            />
+          </div>
+        );
       case 'scatter':
         return <Scatter {...chartProps} options={{
           ...chartProps.options,
@@ -1293,33 +1297,60 @@ const AnalysisPage = () => {
       setChartCapturing(true);
       setExportingChartId(chartId);
       
-      setTimeout(() => {
+      setTimeout(async () => {
         try {
           let image_base64 = '';
           const ref = chartRefs.current[chartId];
           let chartInstance = ref?.current;
           
-          // Try multiple methods to get the canvas
-          let canvas = null;
-          if (chartInstance?.canvas) {
-            canvas = chartInstance.canvas;
-          } else if (chartInstance?.chartInstance?.canvas) {
-            canvas = chartInstance.chartInstance.canvas;
-          } else if (ref?.current?.canvas) {
-            canvas = ref.current.canvas;
-          } else {
-            // Try to find the canvas directly in the DOM
-            const canvasElement = document.querySelector(`canvas[data-chartid="${chartId}"]`);
-            if (canvasElement) {
-              canvas = canvasElement;
-            }
-          }
-
-          if (canvas) {
+          // Handle Plotly charts (like boxplot) differently
+          if (type === 'box') {
             try {
-              image_base64 = canvas.toDataURL('image/png');
+              // Find the specific Plotly chart container by chartId
+              const plotlyContainer = document.querySelector(`[data-chart-id="${chartId}"]`) || 
+                                    document.querySelector('[data-chart-type="box"]') ||
+                                    document.querySelector('.js-plotly-plot');
+              
+              if (plotlyContainer) {
+                console.log('Found Plotly container for chart:', chartId);
+                const canvas = await html2canvas(plotlyContainer, {
+                  backgroundColor: null,
+                  scale: 2,
+                  logging: false,
+                  useCORS: true,
+                  allowTaint: true
+                });
+                image_base64 = canvas.toDataURL('image/png');
+                console.log('Successfully captured Plotly chart');
+              } else {
+                console.error('Could not find Plotly container for chart:', chartId);
+              }
             } catch (e) {
-              console.error('Canvas capture error:', e);
+              console.error('Plotly capture error:', e);
+            }
+          } else {
+            // Try multiple methods to get the canvas for Chart.js charts
+            let canvas = null;
+            if (chartInstance?.canvas) {
+              canvas = chartInstance.canvas;
+            } else if (chartInstance?.chartInstance?.canvas) {
+              canvas = chartInstance.chartInstance.canvas;
+            } else if (ref?.current?.canvas) {
+              canvas = ref.current.canvas;
+            } else {
+              // Try to find the canvas directly in the DOM
+              const canvasElement = document.querySelector(`canvas[data-chartid="${chartId}"]`);
+              if (canvasElement) {
+                canvas = canvasElement;
+              }
+            }
+
+            if (canvas) {
+              try {
+                image_base64 = canvas.toDataURL('image/png');
+              } catch (e) {
+                console.error('Canvas capture error:', e);
+              }
             }
           }
 
@@ -1344,7 +1375,7 @@ const AnalysisPage = () => {
                 image_base64: clean_base64,
                 type,
                 columns: selectedCols,
-                aggregationType: ['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(type) && selectedCols.length >= 2 ? aggregationType : undefined
+                aggregationType: ['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(type) && selectedCols.filter(Boolean).length >= 1 ? aggregationType : undefined
               }
             });
           }
@@ -1736,14 +1767,18 @@ const AnalysisPage = () => {
               <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
                 <Grid container spacing={3} alignItems="center">
                   {/* Aggregation toggle for relevant chart types */}
-                {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(selectedChart) && selectedColumns.length >= 2 && (
-                    <Grid item xs={12} sm={6}>
-                      <FormControl fullWidth>
+                {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(selectedChart) && selectedColumns.length >= 1 && (
+                    <Grid item xs={12} sm={4}>
+                      <FormControl fullWidth sx={{ minWidth: 200 }}>
                         <InputLabel>Aggregation</InputLabel>
                         <Select
                           value={aggregationType}
                           label="Aggregation"
                           onChange={e => setAggregationType(e.target.value)}
+                          sx={{ 
+                            height: 56,
+                            fontSize: '1rem'
+                          }}
                         >
                           <MenuItem value="sum">Sum</MenuItem>
                           <MenuItem value="average">Average</MenuItem>
@@ -1824,7 +1859,7 @@ const AnalysisPage = () => {
             )}
             {shouldShowChart && selectedChart && selectedColumns.length > 0 && (
               <Box mt={4}>
-                {renderChart(selectedChart, selectedColumns, exportingChartId === getChartId(selectedChart, selectedColumns, filterTop, sortOrder))}
+                {renderChart(selectedChart, selectedColumns, exportingChartId === getChartId(selectedChart, selectedColumns, filterTop, sortOrder), getChartId(selectedChart, selectedColumns, filterTop, sortOrder))}
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -1925,14 +1960,18 @@ const AnalysisPage = () => {
               <Paper sx={{ p: 2, mt: 3, mb: 0, background: 'rgba(0,0,0,0.05)' }} elevation={0}>
                 <Grid container spacing={3} alignItems="center">
                   {/* Aggregation toggle for relevant chart types */}
-                  {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(chartType) && chartColumns.length >= 2 && (
-                    <Grid item xs={12} sm={6}>
-                      <FormControl fullWidth>
+                  {['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(chartType) && chartColumns.filter(Boolean).length >= 1 && (
+                    <Grid item xs={12} sm={4}>
+                      <FormControl fullWidth sx={{ minWidth: 200 }}>
                         <InputLabel>Aggregation</InputLabel>
                         <Select
                           value={aggregationType}
                           label="Aggregation"
                           onChange={e => setAggregationType(e.target.value)}
+                          sx={{ 
+                            height: 56,
+                            fontSize: '1rem'
+                          }}
                         >
                           <MenuItem value="sum">Sum</MenuItem>
                           <MenuItem value="average">Average</MenuItem>
@@ -2022,7 +2061,7 @@ const AnalysisPage = () => {
             </Button>
             {shouldShowChart && chartType && ((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
               <Box mt={4}>
-                {renderChart(chartType, chartColumns.filter(Boolean), exportingChartId === getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder))}
+                {renderChart(chartType, chartColumns.filter(Boolean), exportingChartId === getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder), getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder))}
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -2164,8 +2203,10 @@ const AnalysisPage = () => {
                       checked={!!chartsToReport[`kpi:${selectedKPIColumn}:${selectedKPIMetric}`]?.selected}
                       onChange={e => handleAddKPIToReport(selectedKPIColumn, selectedKPIMetric, kpiResult, e.target.checked)}
                       sx={{ 
-                        color: theme.palette.text.secondary,
-                        '&.Mui-checked': { color: theme.palette.primary.main }
+                        color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
+                        '&.Mui-checked': { 
+                          color: theme.palette.mode === 'dark' ? '#1976d2' : '#1976d2'
+                        }
                       }}
                     />
                   }

@@ -141,14 +141,15 @@ function ReportPage() {
         </Typography>
         <Button 
           variant="contained" 
+          size="large"
           color="primary" 
           href="/upload" 
           sx={{ 
             fontWeight: 600, 
-            fontSize: 16, 
-            borderRadius: 2,
-            py: 1.5,
-            px: 3
+            fontSize: '1.1rem', 
+            borderRadius: 3,
+            py: 2.5,
+            px: 6
           }}
         >
           Go to Upload Page
@@ -708,41 +709,25 @@ function ReportPage() {
           onClick={handleProceedToCleaning}
           sx={{ 
             px: 6,
-            py: 2,
+            py: 2.5,
             borderRadius: 3,
             fontWeight: 600,
             fontSize: '1.1rem',
             textTransform: 'none',
-            background: hasIssues 
-              ? (theme.palette.mode === 'dark'
-                  ? 'linear-gradient(135deg, #c2185b 0%, #e91e63 100%)'
-                  : 'linear-gradient(135deg, #e91e63 0%, #f06292 100%)')
-              : (theme.palette.mode === 'dark'
-                  ? 'linear-gradient(135deg, #00796b 0%, #009688 100%)'
-                  : 'linear-gradient(135deg, #009688 0%, #26a69a 100%)'),
-            boxShadow: hasIssues
-              ? (theme.palette.mode === 'dark'
-                  ? '0 8px 32px rgba(233, 30, 99, 0.4)'
-                  : '0 8px 32px rgba(233, 30, 99, 0.3)')
-              : (theme.palette.mode === 'dark'
-                  ? '0 8px 32px rgba(0, 150, 136, 0.4)'
-                  : '0 8px 32px rgba(0, 150, 136, 0.3)'),
+            background: theme.palette.mode === 'dark'
+              ? 'linear-gradient(135deg, #2d1b69 0%, #11998e 100%)'
+              : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 8px 32px rgba(45, 27, 105, 0.4)'
+              : '0 8px 32px rgba(102, 126, 234, 0.4)',
             '&:hover': {
-              background: hasIssues 
-                ? (theme.palette.mode === 'dark'
-                    ? 'linear-gradient(135deg, #ad1457 0%, #c2185b 100%)'
-                    : 'linear-gradient(135deg, #c2185b 0%, #e91e63 100%)')
-                : (theme.palette.mode === 'dark'
-                    ? 'linear-gradient(135deg, #00695c 0%, #00796b 100%)'
-                    : 'linear-gradient(135deg, #00796b 0%, #009688 100%)'),
+              background: theme.palette.mode === 'dark'
+                ? 'linear-gradient(135deg, #3d2b79 0%, #21a89e 100%)'
+                : 'linear-gradient(135deg, #7c92ff 0%, #8a5fb7 100%)',
               transform: 'translateY(-2px)',
-              boxShadow: hasIssues
-                ? (theme.palette.mode === 'dark'
-                    ? '0 12px 40px rgba(233, 30, 99, 0.6)'
-                    : '0 12px 40px rgba(233, 30, 99, 0.5)')
-                : (theme.palette.mode === 'dark'
-                    ? '0 12px 40px rgba(0, 150, 136, 0.6)'
-                    : '0 12px 40px rgba(0, 150, 136, 0.5)'),
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 12px 40px rgba(45, 27, 105, 0.6)'
+                : '0 12px 40px rgba(102, 126, 234, 0.6)',
             }
           }}
         >
