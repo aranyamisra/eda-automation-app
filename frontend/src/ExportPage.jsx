@@ -28,6 +28,15 @@ const SECTION_OPTIONS = [
 function parseChartKey(key) {
   const parts = key.split(':');
   const type = parts[0] || '';
+  
+  // Handle KPI keys (format: kpi:column:metric)
+  if (type === 'kpi') {
+    const column = parts[1] || '';
+    const metric = parts[2] || '';
+    return { type, columns: [column], filter: '', sort: '', metric };
+  }
+  
+  // Handle chart keys (existing logic)
   const columns = parts[1] ? parts[1].split(',') : [];
   let filter = '';
   let sort = '';
@@ -151,7 +160,26 @@ const ExportPage = ({
   const visualisations = Object.keys(chartsToReport || {})
     .filter(key => chartsToReport[key]?.selected)
     .map(key => {
-      const { type, columns, filter, sort } = parseChartKey(key);
+      const { type, columns, filter, sort, metric } = parseChartKey(key);
+      
+      // Handle KPI titles differently
+      if (type === 'kpi') {
+        const chartData = chartsToReport[key];
+        return {
+          id: key,
+          title: `KPI: ${metric.charAt(0).toUpperCase() + metric.slice(1).replace(/([A-Z])/g, ' $1')} of ${columns[0]}`,
+          type,
+          columns,
+          filter,
+          sort,
+          metric,
+          result: chartData?.result,
+          formattedResult: chartData?.formattedResult,
+          selected: true
+        };
+      }
+      
+      // Handle chart titles (existing logic)
       return {
         id: key,
         title: `${type.charAt(0).toUpperCase() + type.slice(1)}`,
@@ -207,16 +235,35 @@ const ExportPage = ({
   }
 
   // Build chart images for export (use base64 from chartsToReport)
-  const charts = visualisations.map(viz => ({
-    title: `${viz.type.charAt(0).toUpperCase() + viz.type.slice(1)}: ${viz.columns.join(', ')}`,
-    type: viz.type,
-    columns: viz.columns,
-    filter: viz.filter,
-    aggregationType: chartsToReport[viz.id]?.aggregationType || '',
-    sort: viz.sort,
-    insight: '',
-    image_base64: chartsToReport[viz.id]?.image_base64 || ''
-  }));
+  const charts = visualisations.map(viz => {
+    if (viz.type === 'kpi') {
+      return {
+        title: viz.title,
+        type: viz.type,
+        columns: viz.columns,
+        filter: viz.filter,
+        aggregationType: '',
+        sort: viz.sort,
+        insight: '',
+        image_base64: chartsToReport[viz.id]?.image_base64 || '',
+        // Add KPI-specific fields
+        metric: viz.metric,
+        result: viz.result,
+        formattedResult: viz.formattedResult
+      };
+    }
+    
+    return {
+      title: `${viz.type.charAt(0).toUpperCase() + viz.type.slice(1)}: ${viz.columns.join(', ')}`,
+      type: viz.type,
+      columns: viz.columns,
+      filter: viz.filter,
+      aggregationType: chartsToReport[viz.id]?.aggregationType || '',
+      sort: viz.sort,
+      insight: '',
+      image_base64: chartsToReport[viz.id]?.image_base64 || ''
+    };
+  });
 
   const safeReportTitle = localReportTitle && localReportTitle.trim() ? localReportTitle : 'EDA_Report';
 
@@ -608,8 +655,18 @@ const ExportPage = ({
                       </Box>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                         <Chip label={viz.type} size="small" variant="outlined" />
-                        <Chip label={viz.columns.join(', ')} size="small" variant="outlined" />
-                        {viz.filter && <Chip label={`Filter: ${viz.filter}`} size="small" variant="outlined" />}
+                        {viz.type === 'kpi' ? (
+                          <>
+                            <Chip label={viz.columns[0]} size="small" variant="outlined" />
+                            <Chip label={viz.metric} size="small" variant="outlined" color="primary" />
+                            {viz.formattedResult && <Chip label={viz.formattedResult} size="small" variant="outlined" color="success" />}
+                          </>
+                        ) : (
+                          <>
+                            <Chip label={viz.columns.join(', ')} size="small" variant="outlined" />
+                            {viz.filter && <Chip label={`Filter: ${viz.filter}`} size="small" variant="outlined" />}
+                          </>
+                        )}
                       </Box>
                     </Box>
                   ))}

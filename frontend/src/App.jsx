@@ -326,8 +326,8 @@ function App() {
                         onClick={toggleTheme}
                       >
                         {mode === 'dark' ? 
-                          <LightModeIcon sx={{ fontSize: '1.25rem' }} /> : 
-                          <DarkModeIcon sx={{ fontSize: '1.25rem' }} />
+                          <LightModeIcon sx={{ fontSize: '1.25rem', color: '#ffd700' }} /> : 
+                          <DarkModeIcon sx={{ fontSize: '1.25rem', color: '#424242' }} />
                         }
                       </IconButton>
                     </Tooltip>
@@ -351,7 +351,10 @@ function App() {
                   color="inherit" 
                   onClick={toggleTheme}
                 >
-                  {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+                  {mode === 'dark' ? 
+                    <LightModeIcon sx={{ color: '#ffd700' }} /> : 
+                    <DarkModeIcon sx={{ color: '#424242' }} />
+                  }
                 </IconButton>
                 <IconButton
                   color="inherit"
