@@ -283,9 +283,15 @@ function ReportPage() {
       </Card>
 
       {/* Quality Issues Section */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      <Box sx={{ 
+        display: 'flex', 
+        flexWrap: 'wrap', 
+        gap: 3, 
+        mb: 4, 
+        width: '100%' 
+      }}>
         {/* Null Values */}
-        <Grid item xs={12} md={4}>
+        <Box sx={{ flex: '1 1 0', minWidth: 300 }}>
           <Card sx={{ 
             height: '100%',
             borderRadius: 3, 
@@ -341,10 +347,10 @@ function ReportPage() {
               )}
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
 
         {/* Duplicate Rows */}
-        <Grid item xs={12} md={4}>
+        <Box sx={{ flex: '1 1 0', minWidth: 300 }}>
           <Card sx={{ 
             height: '100%',
             borderRadius: 3, 
@@ -364,30 +370,32 @@ function ReportPage() {
                 : '0 12px 40px rgba(0,0,0,0.15)',
             }
           }}>
-            <CardContent sx={{ p: 4, textAlign: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3 }}>
+            <CardContent sx={{ p: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                 <DataUsage sx={{ mr: 2, color: 'info.main' }} />
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
                   Duplicate Rows
                 </Typography>
               </Box>
-              <Typography variant="h2" color="primary" sx={{ fontWeight: 700, mb: 1 }}>
-                {report.duplicates || 0}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                duplicate rows found
-              </Typography>
-              {report.duplicates > 0 && (
-                <Alert severity="warning" sx={{ mt: 2, borderRadius: 2 }}>
-                  Consider removing duplicates
-                </Alert>
-              )}
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h2" color="primary" sx={{ fontWeight: 700, mb: 1 }}>
+                  {report.duplicates || 0}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  duplicate rows found
+                </Typography>
+                {report.duplicates > 0 && (
+                  <Alert severity="warning" sx={{ mt: 2, borderRadius: 2 }}>
+                    Consider removing duplicates
+                  </Alert>
+                )}
+              </Box>
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
 
         {/* Suggested Data Type Fixes */}
-        <Grid item xs={12} md={4}>
+        <Box sx={{ flex: '1 1 0', minWidth: 300 }}>
           <Card sx={{ 
             height: '100%',
             borderRadius: 3, 
@@ -446,8 +454,8 @@ function ReportPage() {
               )}
             </CardContent>
           </Card>
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
 
       {/* Statistical Summaries Section */}
       {report.statistical_summary && Object.keys(report.statistical_summary).length > 0 && (
@@ -660,11 +668,11 @@ function ReportPage() {
                 Quality Metrics
               </Typography>
             </Box>
-            <Grid container spacing={3}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
               {Object.entries(report.quality_metrics)
                 .filter(([metric]) => metric !== 'data_types_optimized')
                 .map(([metric, value]) => (
-                  <Grid item xs={12} sm={6} md={4} key={metric}>
+                  <Box key={metric} sx={{ flex: '1 1 0', minWidth: 200 }}>
                     <Card sx={{
                       p: 3,
                       textAlign: 'center',
@@ -674,6 +682,7 @@ function ReportPage() {
                         : 'rgba(0,0,0,0.02)',
                       border: '1px solid',
                       borderColor: 'divider',
+                      height: '100%',
                       '&:hover': {
                         backgroundColor: theme.palette.mode === 'dark'
                           ? 'rgba(255,255,255,0.08)'
@@ -693,9 +702,41 @@ function ReportPage() {
                         {typeof value === 'number' ? `${value}%` : value}
                       </Typography>
                     </Card>
-                  </Grid>
+                  </Box>
                 ))}
-            </Grid>
+              
+              {/* Total Quality Percentage */}
+              <Box sx={{ flex: '1 1 0', minWidth: 200 }}>
+                <Card sx={{
+                  p: 3,
+                  textAlign: 'center',
+                  borderRadius: 2,
+                  background: theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.05)'
+                    : 'rgba(0,0,0,0.02)',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  height: '100%',
+                  '&:hover': {
+                    backgroundColor: theme.palette.mode === 'dark'
+                      ? 'rgba(255,255,255,0.08)'
+                      : 'rgba(0,0,0,0.04)',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
+                  }
+                }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ 
+                    mb: 2,
+                    fontWeight: 500
+                  }}>
+                    Total Quality
+                  </Typography>
+                  <Typography variant="h4" color="success.main" sx={{ fontWeight: 700 }}>
+                    {report.data_quality_score ? `${report.data_quality_score.toFixed(1)}%` : 'N/A'}
+                  </Typography>
+                </Card>
+              </Box>
+            </Box>
           </CardContent>
         </Card>
       )}
