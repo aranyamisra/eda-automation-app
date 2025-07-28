@@ -253,13 +253,13 @@ function UploadPage() {
             {/* Upload Button */}
             <Button
               variant="contained"
-              color="primary"
+              size="large"
               onClick={handleUpload}
               disabled={!file || uploading}
               startIcon={<CloudUpload />}
               fullWidth
               sx={{ 
-                py: 2,
+                py: 2.5,
                 borderRadius: 3,
                 fontWeight: 600,
                 fontSize: '1.1rem',
@@ -292,16 +292,17 @@ function UploadPage() {
             {/* Reset Button */}
             <Button
               variant="outlined"
+              size="large"
               color="error"
               onClick={handleReset}
               fullWidth
               startIcon={<Refresh />}
               sx={{ 
                 mt: 3, 
-                py: 2, 
+                py: 2.5, 
                 borderRadius: 3,
                 fontWeight: 600,
-                fontSize: '1rem',
+                fontSize: '1.1rem',
                 textTransform: 'none',
                 borderWidth: 2,
                 '&:hover': {
@@ -322,13 +323,15 @@ function UploadPage() {
               <Grid item>
                 <Button
                   variant="outlined"
+                  size="large"
                   color="secondary"
                   startIcon={<InsertDriveFile />}
                   sx={{ 
                     px: 4, 
-                    py: 2,
-                    borderRadius: 2,
+                    py: 2.5,
+                    borderRadius: 3,
                     fontWeight: 600,
+                    fontSize: '1.1rem',
                     textTransform: 'none',
                     borderWidth: 2,
                     '&:hover': {
@@ -336,6 +339,8 @@ function UploadPage() {
                       backgroundColor: theme.palette.mode === 'dark'
                         ? 'rgba(255,255,255,0.08)'
                         : 'rgba(0,0,0,0.04)',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
                     }
                   }}
                   onClick={handleGoogleDriveOpen}
