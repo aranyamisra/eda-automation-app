@@ -688,336 +688,55 @@ function CleaningPage() {
               Cleaning Actions
             </Typography>
           </Box>
-          <Grid container spacing={3}>
-        {/* Duplicate Handling */}
-        <Grid item xs={12} md={6}>
-          <Card sx={{ 
-            borderRadius: 3, 
-            boxShadow: theme.palette.mode === 'dark'
-              ? '0 8px 32px rgba(0,0,0,0.4)'
-              : '0 8px 32px rgba(0,0,0,0.1)',
-            border: theme.palette.mode === 'dark'
-              ? '1px solid rgba(255,255,255,0.1)'
-              : '1px solid rgba(255,255,255,0.2)',
-            background: theme.palette.mode === 'dark'
-              ? 'rgba(30, 30, 30, 0.95)'
-              : 'rgba(255,255,255,0.95)'
-          }}>
-            <CardContent sx={{ p: 4 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <ContentCopy sx={{ mr: 2, color: 'info.main' }} />
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Duplicate Values ({report.duplicates || 0} found)
-                </Typography>
-              </Box>
-              {report.duplicates > 0 ? (
-                <div>
-                  <FormControl component="fieldset">
-                    <FormLabel component="legend" sx={{ fontWeight: 600, mb: 2 }}>Action:</FormLabel>
-                    <RadioGroup
-                      value={cleaningActions.duplicates || 'remain'}
-                      onChange={(e) => handleCleaningAction('duplicates', null, e.target.value)}
-                      sx={{ gap: 1 }}
-                    >
-                      <FormControlLabel 
-                        value="delete" 
-                        control={<Radio />} 
-                        label="Delete duplicates"
-                        sx={{
-                          m: 0,
-                          p: 2,
-                          borderRadius: 2,
-                          border: cleaningActions.duplicates === 'delete' ? '2px solid' : '1px solid',
-                          borderColor: cleaningActions.duplicates === 'delete' ? 'primary.main' : 'divider',
-                          backgroundColor: cleaningActions.duplicates === 'delete' 
-                            ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
-                            : 'transparent',
-                          '&:hover': { 
-                            backgroundColor: theme.palette.mode === 'dark'
-                              ? 'rgba(255,255,255,0.08)'
-                              : 'rgba(0,0,0,0.04)' 
-                          }
-                        }}
-                      />
-                      <FormControlLabel 
-                        value="remain" 
-                        control={<Radio />} 
-                        label="Keep duplicates"
-                        sx={{
-                          m: 0,
-                          p: 2,
-                          borderRadius: 2,
-                          border: cleaningActions.duplicates === 'remain' ? '2px solid' : '1px solid',
-                          borderColor: cleaningActions.duplicates === 'remain' ? 'primary.main' : 'divider',
-                          backgroundColor: cleaningActions.duplicates === 'remain' 
-                            ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
-                            : 'transparent',
-                          '&:hover': { 
-                            backgroundColor: theme.palette.mode === 'dark'
-                              ? 'rgba(255,255,255,0.08)'
-                              : 'rgba(0,0,0,0.04)' 
-                          }
-                        }}
-                      />
-                    </RadioGroup>
-                  </FormControl>
-                </div>
-              ) : (
-                <Alert severity="success" sx={{ borderRadius: 2 }}>
-                  No duplicate values found
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Null Value Handling */}
-        <Grid item xs={12}>
-          <Card sx={{ 
-            borderRadius: 3, 
-            boxShadow: theme.palette.mode === 'dark'
-              ? '0 8px 32px rgba(0,0,0,0.4)'
-              : '0 8px 32px rgba(0,0,0,0.1)',
-            border: theme.palette.mode === 'dark'
-              ? '1px solid rgba(255,255,255,0.1)'
-              : '1px solid rgba(255,255,255,0.2)',
-            background: theme.palette.mode === 'dark'
-              ? 'rgba(30, 30, 30, 0.95)'
-              : 'rgba(255,255,255,0.95)'
-          }}>
-            <CardContent sx={{ p: 4 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <Warning sx={{ mr: 2, color: 'warning.main' }} />
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Handle Missing Values
-                </Typography>
-              </Box>
-              {Object.keys(report.nulls || {}).length > 0 ? (
-                <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
-                  {Object.entries(report.nulls).map(([col, count]) => (
-                    <Card key={col} sx={{ 
-                      mb: 3, 
-                      p: 3, 
-                      minHeight: 180,
-                      background: theme.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.05)'
-                        : 'rgba(0,0,0,0.02)',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 2
-                    }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-                        {col} <Chip label={`${count} nulls`} size="small" color="warning" />
-                      </Typography>
-                      <FormControl component="fieldset" sx={{ mt: 1 }}>
-                        <FormLabel component="legend" sx={{ fontSize: 14, fontWeight: 600, mb: 1 }}>Action</FormLabel>
-                        <RadioGroup
-                          value={cleaningActions.nulls?.[col]?.action || 'remain'}
-                          onChange={e => handleNullAction(col, e.target.value)}
-                          sx={{ gap: 1 }}
-                        >
-                          <FormControlLabel 
-                            value="remain" 
-                            control={<Radio />} 
-                            label="Keep nulls"
-                            sx={{
-                              m: 0,
-                              p: 1.5,
-                              borderRadius: 2,
-                              border: cleaningActions.nulls?.[col]?.action === 'remain' ? '2px solid' : '1px solid',
-                              borderColor: cleaningActions.nulls?.[col]?.action === 'remain' ? 'primary.main' : 'divider',
-                              backgroundColor: cleaningActions.nulls?.[col]?.action === 'remain' 
-                                ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
-                                : 'transparent',
-                              '&:hover': { 
-                                backgroundColor: theme.palette.mode === 'dark'
-                                  ? 'rgba(255,255,255,0.08)'
-                                  : 'rgba(0,0,0,0.04)' 
-                              }
-                            }}
-                          />
-                          <FormControlLabel 
-                            value="delete_row" 
-                            control={<Radio />} 
-                            label="Delete rows"
-                            sx={{
-                              m: 0,
-                              p: 1.5,
-                              borderRadius: 2,
-                              border: cleaningActions.nulls?.[col]?.action === 'delete_row' ? '2px solid' : '1px solid',
-                              borderColor: cleaningActions.nulls?.[col]?.action === 'delete_row' ? 'primary.main' : 'divider',
-                              backgroundColor: cleaningActions.nulls?.[col]?.action === 'delete_row' 
-                                ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
-                                : 'transparent',
-                              '&:hover': { 
-                                backgroundColor: theme.palette.mode === 'dark'
-                                  ? 'rgba(255,255,255,0.08)'
-                                  : 'rgba(0,0,0,0.04)' 
-                              }
-                            }}
-                          />
-                          <FormControlLabel 
-                            value="delete_column" 
-                            control={<Radio />} 
-                            label="Delete column"
-                            sx={{
-                              m: 0,
-                              p: 1.5,
-                              borderRadius: 2,
-                              border: cleaningActions.nulls?.[col]?.action === 'delete_column' ? '2px solid' : '1px solid',
-                              borderColor: cleaningActions.nulls?.[col]?.action === 'delete_column' ? 'primary.main' : 'divider',
-                              backgroundColor: cleaningActions.nulls?.[col]?.action === 'delete_column' 
-                                ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
-                                : 'transparent',
-                              '&:hover': { 
-                                backgroundColor: theme.palette.mode === 'dark'
-                                  ? 'rgba(255,255,255,0.08)'
-                                  : 'rgba(0,0,0,0.04)' 
-                              }
-                            }}
-                          />
-                          <FormControlLabel 
-                            value="fill" 
-                            control={<Radio />} 
-                            label="Fill with value"
-                            sx={{
-                              m: 0,
-                              p: 1.5,
-                              borderRadius: 2,
-                              border: cleaningActions.nulls?.[col]?.action === 'fill' ? '2px solid' : '1px solid',
-                              borderColor: cleaningActions.nulls?.[col]?.action === 'fill' ? 'primary.main' : 'divider',
-                              backgroundColor: cleaningActions.nulls?.[col]?.action === 'fill' 
-                                ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
-                                : 'transparent',
-                              '&:hover': { 
-                                backgroundColor: theme.palette.mode === 'dark'
-                                  ? 'rgba(255,255,255,0.08)'
-                                  : 'rgba(0,0,0,0.04)' 
-                              }
-                            }}
-                          />
-                        </RadioGroup>
-                      </FormControl>
-                      {cleaningActions.nulls?.[col]?.action === 'fill' && (
-                        <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                          <FormControl size="small" sx={{ minWidth: 160 }}>
-                            <InputLabel id={`fill-method-label-${col}`}>Fill method</InputLabel>
-                            <Select
-                              labelId={`fill-method-label-${col}`}
-                              id={`fill-method-select-${col}`}
-                              value={cleaningActions.nulls?.[col]?.fillMethod || 'specific'}
-                              label="Fill method"
-                              onChange={e => handleFillMethodChange(col, e.target.value)}
-                              sx={{
-                                backgroundColor: theme.palette.mode === 'dark'
-                                  ? 'rgba(255,255,255,0.05)'
-                                  : 'rgba(0,0,0,0.02)',
-                                '& .MuiOutlinedInput-root': {
-                                  borderRadius: 2,
-                                }
-                              }}
-                            >
-                              <MenuItem value="specific">Specific value</MenuItem>
-                              <MenuItem value="mean">Mean</MenuItem>
-                              <MenuItem value="median">Median</MenuItem>
-                              <MenuItem value="mode">Mode</MenuItem>
-                              <MenuItem value="forward">Forward fill</MenuItem>
-                              <MenuItem value="backward">Backward fill</MenuItem>
-                            </Select>
-                          </FormControl>
-                          {cleaningActions.nulls?.[col]?.fillMethod === 'specific' && (
-                            <TextField
-                              label={`Fill value for "${col}"`}
-                              value={cleaningActions.nulls?.[col]?.fillValue || ''}
-                              onChange={e => handleFillValueChange(col, e.target.value)}
-                              size="small"
-                              sx={{ 
-                                width: 180,
-                                '& .MuiOutlinedInput-root': {
-                                  borderRadius: 2,
-                                  backgroundColor: theme.palette.mode === 'dark'
-                                    ? 'rgba(255,255,255,0.05)'
-                                    : 'rgba(0,0,0,0.02)',
-                                }
-                              }}
-                              variant="outlined"
-                            />
-                          )}
-                        </Box>
-                      )}
-                    </Card>
-                  ))}
-                </Box>
-              ) : (
-                <Alert severity="success" sx={{ borderRadius: 2 }}>
-                  No missing values to handle
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Data Type Conversions */}
-        <Grid item xs={12}>
-          <Card sx={{ 
-            borderRadius: 3, 
-            boxShadow: theme.palette.mode === 'dark'
-              ? '0 8px 32px rgba(0,0,0,0.4)'
-              : '0 8px 32px rgba(0,0,0,0.1)',
-            border: theme.palette.mode === 'dark'
-              ? '1px solid rgba(255,255,255,0.1)'
-              : '1px solid rgba(255,255,255,0.2)',
-            background: theme.palette.mode === 'dark'
-              ? 'rgba(30, 30, 30, 0.95)'
-              : 'rgba(255,255,255,0.95)'
-          }}>
-            <CardContent sx={{ p: 4 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <Settings sx={{ mr: 2, color: 'primary.main' }} />
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Data Type Optimizations
-                </Typography>
-              </Box>
-              {report.suggested_dtypes && Object.keys(report.suggested_dtypes).length > 0 ? (
-                <Grid container spacing={2}>
-                  {Object.entries(report.suggested_dtypes).map(([col, dtype]) => (
-                    <Grid item xs={12} md={6} key={col}>
-                      <Card sx={{
-                        borderRadius: 2,
-                        background: theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.05)'
-                          : 'rgba(0,0,0,0.02)',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        '&:hover': {
-                          backgroundColor: theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.08)'
-                            : 'rgba(0,0,0,0.04)',
-                          transform: 'translateY(-2px)',
-                          boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
-                        }
-                      }}>
-                        <CardContent sx={{ p: 3 }}>
-                          <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600 }}>
-                            {col} → <Chip label={dtype} size="small" color="primary" />
-                          </Typography>
+          <Grid container spacing={3} direction="column">
+            {/* First row: Duplicates and Data Types side by side */}
+            <Grid item>
+              <Grid container spacing={3} alignItems="stretch" sx={{ maxWidth: 1440, margin: '0 auto' }}>
+                {/* Duplicate Handling */}
+                <Grid item xs={6}>
+                  <Card sx={{ 
+                    borderRadius: 3, 
+                    minWidth: 670,
+                    maxWidth: 670,
+                    width: '100%',
+                    height: '100%',
+                    boxShadow: theme.palette.mode === 'dark'
+                      ? '0 8px 32px rgba(0,0,0,0.4)'
+                      : '0 8px 32px rgba(0,0,0,0.1)',
+                    border: theme.palette.mode === 'dark'
+                      ? '1px solid rgba(255,255,255,0.1)'
+                      : '1px solid rgba(255,255,255,0.2)',
+                    background: theme.palette.mode === 'dark'
+                      ? 'rgba(30, 30, 30, 0.95)'
+                      : 'rgba(255,255,255,0.95)'
+                  }}>
+                    <CardContent sx={{ p: 4 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                        <ContentCopy sx={{ mr: 2, color: 'info.main' }} />
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                          Duplicate Values ({report.duplicates || 0} found)
+                        </Typography>
+                      </Box>
+                      {report.duplicates > 0 ? (
+                        <div>
                           <FormControl component="fieldset">
+                            <FormLabel component="legend" sx={{ fontWeight: 600, mb: 2 }}>Action:</FormLabel>
                             <RadioGroup
-                              value={cleaningActions.dataTypes[col] || 'convert'}
-                              onChange={(e) => handleCleaningAction('dataTypes', col, e.target.value)}
+                              value={cleaningActions.duplicates || 'remain'}
+                              onChange={(e) => handleCleaningAction('duplicates', null, e.target.value)}
                               sx={{ gap: 1 }}
                             >
                               <FormControlLabel 
-                                value="convert" 
+                                value="delete" 
                                 control={<Radio />} 
-                                label="Convert to suggested type"
+                                label="Delete duplicates"
                                 sx={{
                                   m: 0,
-                                  p: 1.5,
+                                  p: 2,
                                   borderRadius: 2,
-                                  border: cleaningActions.dataTypes[col] === 'convert' ? '2px solid' : '1px solid',
-                                  borderColor: cleaningActions.dataTypes[col] === 'convert' ? 'primary.main' : 'divider',
-                                  backgroundColor: cleaningActions.dataTypes[col] === 'convert' 
+                                  border: cleaningActions.duplicates === 'delete' ? '2px solid' : '1px solid',
+                                  borderColor: cleaningActions.duplicates === 'delete' ? 'primary.main' : 'divider',
+                                  backgroundColor: cleaningActions.duplicates === 'delete' 
                                     ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
                                     : 'transparent',
                                   '&:hover': { 
@@ -1028,16 +747,16 @@ function CleaningPage() {
                                 }}
                               />
                               <FormControlLabel 
-                                value="keep" 
+                                value="remain" 
                                 control={<Radio />} 
-                                label="Keep current type"
+                                label="Keep duplicates"
                                 sx={{
                                   m: 0,
-                                  p: 1.5,
+                                  p: 2,
                                   borderRadius: 2,
-                                  border: cleaningActions.dataTypes[col] === 'keep' ? '2px solid' : '1px solid',
-                                  borderColor: cleaningActions.dataTypes[col] === 'keep' ? 'primary.main' : 'divider',
-                                  backgroundColor: cleaningActions.dataTypes[col] === 'keep' 
+                                  border: cleaningActions.duplicates === 'remain' ? '2px solid' : '1px solid',
+                                  borderColor: cleaningActions.duplicates === 'remain' ? 'primary.main' : 'divider',
+                                  backgroundColor: cleaningActions.duplicates === 'remain' 
                                     ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
                                     : 'transparent',
                                   '&:hover': { 
@@ -1049,26 +768,134 @@ function CleaningPage() {
                               />
                             </RadioGroup>
                           </FormControl>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                  ))}
+                        </div>
+                      ) : (
+                        <Alert severity="success" sx={{ borderRadius: 2 }}>
+                          No duplicate values found
+                        </Alert>
+                      )}
+                    </CardContent>
+                  </Card>
                 </Grid>
-              ) : (
-                <Alert severity="success" sx={{ borderRadius: 2 }}>
-                  All data types are optimized
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
 
-        {/* Outlier Cleaning Options */}
-        {report.outliers && Object.keys(report.outliers).length > 0 && (
-          <>
-            <Grid item xs={12}>
+                {/* Data Type Conversions */}
+                <Grid item xs={6}>
+                  <Card sx={{ 
+                    borderRadius: 3, 
+                    minWidth: 670,
+                    maxWidth: 670,
+                    width: '100%',
+                    height: '100%',
+                    boxShadow: theme.palette.mode === 'dark'
+                      ? '0 8px 32px rgba(0,0,0,0.4)'
+                      : '0 8px 32px rgba(0,0,0,0.1)',
+                    border: theme.palette.mode === 'dark'
+                      ? '1px solid rgba(255,255,255,0.1)'
+                      : '1px solid rgba(255,255,255,0.2)',
+                    background: theme.palette.mode === 'dark'
+                      ? 'rgba(30, 30, 30, 0.95)'
+                      : 'rgba(255,255,255,0.95)'
+                  }}>
+                    <CardContent sx={{ p: 4 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                        <Settings sx={{ mr: 2, color: 'primary.main' }} />
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                          Data Type Optimizations
+                        </Typography>
+                      </Box>
+                      {report.suggested_dtypes && Object.keys(report.suggested_dtypes).length > 0 ? (
+                        <Grid container spacing={2}>
+                          {Object.entries(report.suggested_dtypes).map(([col, dtype]) => (
+                            <Grid item xs={12} md={6} key={col}>
+                              <Card sx={{
+                                borderRadius: 2,
+                                background: theme.palette.mode === 'dark'
+                                  ? 'rgba(255,255,255,0.05)'
+                                  : 'rgba(0,0,0,0.02)',
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                '&:hover': {
+                                  backgroundColor: theme.palette.mode === 'dark'
+                                    ? 'rgba(255,255,255,0.08)'
+                                    : 'rgba(0,0,0,0.04)',
+                                  transform: 'translateY(-2px)',
+                                  boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
+                                }
+                              }}>
+                                <CardContent sx={{ p: 3 }}>
+                                  <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600 }}>
+                                    {col} → <Chip label={dtype} size="small" color="primary" />
+                                  </Typography>
+                                  <FormControl component="fieldset">
+                                    <RadioGroup
+                                      value={cleaningActions.dataTypes[col] || 'convert'}
+                                      onChange={(e) => handleCleaningAction('dataTypes', col, e.target.value)}
+                                      sx={{ gap: 1 }}
+                                    >
+                                      <FormControlLabel 
+                                        value="convert" 
+                                        control={<Radio />} 
+                                        label="Convert to suggested type"
+                                        sx={{
+                                          m: 0,
+                                          p: 1.5,
+                                          borderRadius: 2,
+                                          border: cleaningActions.dataTypes[col] === 'convert' ? '2px solid' : '1px solid',
+                                          borderColor: cleaningActions.dataTypes[col] === 'convert' ? 'primary.main' : 'divider',
+                                          backgroundColor: cleaningActions.dataTypes[col] === 'convert' 
+                                            ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
+                                            : 'transparent',
+                                          '&:hover': { 
+                                            backgroundColor: theme.palette.mode === 'dark'
+                                              ? 'rgba(255,255,255,0.08)'
+                                              : 'rgba(0,0,0,0.04)' 
+                                          }
+                                        }}
+                                      />
+                                      <FormControlLabel 
+                                        value="keep" 
+                                        control={<Radio />} 
+                                        label="Keep current type"
+                                        sx={{
+                                          m: 0,
+                                          p: 1.5,
+                                          borderRadius: 2,
+                                          border: cleaningActions.dataTypes[col] === 'keep' ? '2px solid' : '1px solid',
+                                          borderColor: cleaningActions.dataTypes[col] === 'keep' ? 'primary.main' : 'divider',
+                                          backgroundColor: cleaningActions.dataTypes[col] === 'keep' 
+                                            ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
+                                            : 'transparent',
+                                          '&:hover': { 
+                                            backgroundColor: theme.palette.mode === 'dark'
+                                              ? 'rgba(255,255,255,0.08)'
+                                              : 'rgba(0,0,0,0.04)' 
+                                          }
+                                        }}
+                                      />
+                                    </RadioGroup>
+                                  </FormControl>
+                                </CardContent>
+                              </Card>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      ) : (
+                        <Alert severity="success" sx={{ borderRadius: 2 }}>
+                          All data types are optimized
+                        </Alert>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+            </Grid>
+            {/* Second row: Nulls full width */}
+            <Grid item>
               <Card sx={{ 
                 borderRadius: 3, 
+                maxWidth: 1440,
+                width: '100%',
+                margin: '0 auto',
                 boxShadow: theme.palette.mode === 'dark'
                   ? '0 8px 32px rgba(0,0,0,0.4)'
                   : '0 8px 32px rgba(0,0,0,0.1)',
@@ -1081,43 +908,252 @@ function CleaningPage() {
               }}>
                 <CardContent sx={{ p: 4 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                    <Assessment sx={{ mr: 2, color: 'error.main' }} />
+                    <Warning sx={{ mr: 2, color: 'warning.main' }} />
                     <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      Outlier Cleaning
+                      Handle Missing Values
                     </Typography>
                   </Box>
-                  <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-                    Choose a method and action for each numeric column with detected outliers.<br/>
-                    <strong>Winsorizing:</strong> Limits extreme values by capping them at the 5th and 95th percentiles.<br/>
-                    <strong>IQR:</strong> Detects outliers as values outside 1.5×IQR below Q1 or above Q3.<br/>
-                    <strong>Z-Score:</strong> Identifies outliers as values with a Z-score above 3 or below -3.
-                  </Alert>
-                  <Grid container spacing={2} alignItems="stretch">
-                    {Object.entries(report.outliers).map(([col, out]) => {
-                      const win = out.winsorizing?.count || 0;
-                      const iqr = out.iqr?.count || 0;
-                      const z = out.zscore?.count || 0;
-                      if (win === 0 && iqr === 0 && z === 0) return null;
-                      return (
-                        <Grid item xs={12} md={4} key={col} style={{ display: 'flex' }}>
-                          <Card sx={{ 
-                            p: 3, 
-                            height: '100%', 
-                            width: '100%',
-                            borderRadius: 2,
-                            background: theme.palette.mode === 'dark'
-                              ? 'rgba(255,255,255,0.05)'
-                              : 'rgba(0,0,0,0.02)',
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            '&:hover': {
-                              backgroundColor: theme.palette.mode === 'dark'
-                                ? 'rgba(255,255,255,0.08)'
-                                : 'rgba(0,0,0,0.04)',
-                              transform: 'translateY(-2px)',
-                              boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
-                            }
-                          }}>
+                  {Object.keys(report.nulls || {}).length > 0 ? (
+                    <Box sx={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                      gap: 3,
+                      width: '100%',
+                    }}>
+                      {Object.entries(report.nulls).map(([col, count]) => (
+                        <Card key={col} sx={{ 
+                          p: 3, 
+                          width: '100%',
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          background: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.05)'
+                            : 'rgba(0,0,0,0.02)',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: 2
+                        }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                            {col} <Chip label={`${count} nulls`} size="small" color="warning" />
+                          </Typography>
+                          <FormControl component="fieldset" sx={{ mt: 1 }}>
+                            <FormLabel component="legend" sx={{ fontSize: 14, fontWeight: 600, mb: 1 }}>Action</FormLabel>
+                            <RadioGroup
+                              value={cleaningActions.nulls?.[col]?.action || 'remain'}
+                              onChange={e => handleNullAction(col, e.target.value)}
+                              sx={{ gap: 1 }}
+                            >
+                              <FormControlLabel 
+                                value="remain" 
+                                control={<Radio />} 
+                                label="Keep nulls"
+                                sx={{
+                                  m: 0,
+                                  p: 1.5,
+                                  borderRadius: 2,
+                                  border: cleaningActions.nulls?.[col]?.action === 'remain' ? '2px solid' : '1px solid',
+                                  borderColor: cleaningActions.nulls?.[col]?.action === 'remain' ? 'primary.main' : 'divider',
+                                  backgroundColor: cleaningActions.nulls?.[col]?.action === 'remain' 
+                                    ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
+                                    : 'transparent',
+                                  '&:hover': { 
+                                    backgroundColor: theme.palette.mode === 'dark'
+                                      ? 'rgba(255,255,255,0.08)'
+                                      : 'rgba(0,0,0,0.04)' 
+                                  }
+                                }}
+                              />
+                              <FormControlLabel 
+                                value="delete_row" 
+                                control={<Radio />} 
+                                label="Delete rows"
+                                sx={{
+                                  m: 0,
+                                  p: 1.5,
+                                  borderRadius: 2,
+                                  border: cleaningActions.nulls?.[col]?.action === 'delete_row' ? '2px solid' : '1px solid',
+                                  borderColor: cleaningActions.nulls?.[col]?.action === 'delete_row' ? 'primary.main' : 'divider',
+                                  backgroundColor: cleaningActions.nulls?.[col]?.action === 'delete_row' 
+                                    ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
+                                    : 'transparent',
+                                  '&:hover': { 
+                                    backgroundColor: theme.palette.mode === 'dark'
+                                      ? 'rgba(255,255,255,0.08)'
+                                      : 'rgba(0,0,0,0.04)' 
+                                  }
+                                }}
+                              />
+                              <FormControlLabel 
+                                value="delete_column" 
+                                control={<Radio />} 
+                                label="Delete column"
+                                sx={{
+                                  m: 0,
+                                  p: 1.5,
+                                  borderRadius: 2,
+                                  border: cleaningActions.nulls?.[col]?.action === 'delete_column' ? '2px solid' : '1px solid',
+                                  borderColor: cleaningActions.nulls?.[col]?.action === 'delete_column' ? 'primary.main' : 'divider',
+                                  backgroundColor: cleaningActions.nulls?.[col]?.action === 'delete_column' 
+                                    ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
+                                    : 'transparent',
+                                  '&:hover': { 
+                                    backgroundColor: theme.palette.mode === 'dark'
+                                      ? 'rgba(255,255,255,0.08)'
+                                      : 'rgba(0,0,0,0.04)' 
+                                  }
+                                }}
+                              />
+                              <FormControlLabel 
+                                value="fill" 
+                                control={<Radio />} 
+                                label="Fill with value"
+                                sx={{
+                                  m: 0,
+                                  p: 1.5,
+                                  borderRadius: 2,
+                                  border: cleaningActions.nulls?.[col]?.action === 'fill' ? '2px solid' : '1px solid',
+                                  borderColor: cleaningActions.nulls?.[col]?.action === 'fill' ? 'primary.main' : 'divider',
+                                  backgroundColor: cleaningActions.nulls?.[col]?.action === 'fill' 
+                                    ? (theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.16)' : 'rgba(25, 118, 210, 0.08)')
+                                    : 'transparent',
+                                  '&:hover': { 
+                                    backgroundColor: theme.palette.mode === 'dark'
+                                      ? 'rgba(255,255,255,0.08)'
+                                      : 'rgba(0,0,0,0.04)' 
+                                  }
+                                }}
+                              />
+                            </RadioGroup>
+                          </FormControl>
+                          {cleaningActions.nulls?.[col]?.action === 'fill' && (
+                            <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                              <FormControl size="small" sx={{ minWidth: 160 }}>
+                                <InputLabel id={`fill-method-label-${col}`}>Fill method</InputLabel>
+                                <Select
+                                  labelId={`fill-method-label-${col}`}
+                                  id={`fill-method-select-${col}`}
+                                  value={cleaningActions.nulls?.[col]?.fillMethod || 'specific'}
+                                  label="Fill method"
+                                  onChange={e => handleFillMethodChange(col, e.target.value)}
+                                  sx={{
+                                    backgroundColor: theme.palette.mode === 'dark'
+                                      ? 'rgba(255,255,255,0.05)'
+                                      : 'rgba(0,0,0,0.02)',
+                                    '& .MuiOutlinedInput-root': {
+                                      borderRadius: 2,
+                                    }
+                                  }}
+                                >
+                                  <MenuItem value="specific">Specific value</MenuItem>
+                                  <MenuItem value="mean">Mean</MenuItem>
+                                  <MenuItem value="median">Median</MenuItem>
+                                  <MenuItem value="mode">Mode</MenuItem>
+                                  <MenuItem value="forward">Forward fill</MenuItem>
+                                  <MenuItem value="backward">Backward fill</MenuItem>
+                                </Select>
+                              </FormControl>
+                              {cleaningActions.nulls?.[col]?.fillMethod === 'specific' && (
+                                <TextField
+                                  label={`Fill value for "${col}"`}
+                                  value={cleaningActions.nulls?.[col]?.fillValue || ''}
+                                  onChange={e => handleFillValueChange(col, e.target.value)}
+                                  size="small"
+                                  sx={{ 
+                                    width: 180,
+                                    '& .MuiOutlinedInput-root': {
+                                      borderRadius: 2,
+                                      backgroundColor: theme.palette.mode === 'dark'
+                                        ? 'rgba(255,255,255,0.05)'
+                                        : 'rgba(0,0,0,0.02)',
+                                    }
+                                  }}
+                                  variant="outlined"
+                                />
+                              )}
+                            </Box>
+                          )}
+                        </Card>
+                      ))}
+                    </Box>
+                  ) : (
+                    <Alert severity="success" sx={{ borderRadius: 2 }}>
+                      No missing values to handle
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+            {/* Third row: Outliers full width (if present) */}
+            {report.outliers && Object.keys(report.outliers).length > 0 && (
+              <Grid item>
+                <Card sx={{ 
+                  borderRadius: 3, 
+                  maxWidth: 1440,
+                  width: '100%',
+                  margin: '0 auto',
+                  boxShadow: theme.palette.mode === 'dark'
+                    ? '0 8px 32px rgba(0,0,0,0.4)'
+                    : '0 8px 32px rgba(0,0,0,0.1)',
+                  border: theme.palette.mode === 'dark'
+                    ? '1px solid rgba(255,255,255,0.1)'
+                    : '1px solid rgba(255,255,255,0.2)',
+                  background: theme.palette.mode === 'dark'
+                    ? 'rgba(30, 30, 30, 0.95)'
+                    : 'rgba(255,255,255,0.95)'
+                }}>
+                  <CardContent sx={{ p: 4 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                      <Assessment sx={{ mr: 2, color: 'error.main' }} />
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        Outlier Cleaning
+                      </Typography>
+                    </Box>
+                    <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+                      Choose a method and action for each numeric column with detected outliers.<br/>
+                      <strong>Winsorizing:</strong> Limits extreme values by capping them at the 5th and 95th percentiles.<br/>
+                      <strong>IQR:</strong> Detects outliers as values outside 1.5×IQR below Q1 or above Q3.<br/>
+                      <strong>Z-Score:</strong> Identifies outliers as values with a Z-score above 3 or below -3.
+                    </Alert>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                        gap: 3,
+                        width: '100%',
+                      }}
+                    >
+                      {Object.entries(report.outliers).map(([col, out]) => {
+                        const win = out.winsorizing?.count || 0;
+                        const iqr = out.iqr?.count || 0;
+                        const z = out.zscore?.count || 0;
+                        if (win === 0 && iqr === 0 && z === 0) return null;
+                        return (
+                          <Card
+                            key={col}
+                            sx={{
+                              p: 3,
+                              minWidth: 250,
+                              maxWidth: 350,
+                              width: '100%',
+                              height: '100%',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              borderRadius: 2,
+                              background: theme.palette.mode === 'dark'
+                                ? 'rgba(255,255,255,0.05)'
+                                : 'rgba(0,0,0,0.02)',
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              '&:hover': {
+                                backgroundColor: theme.palette.mode === 'dark'
+                                  ? 'rgba(255,255,255,0.08)'
+                                  : 'rgba(0,0,0,0.04)',
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
+                              },
+                            }}
+                          >
                             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>{col}</Typography>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                               <FormControl size="small" fullWidth>
@@ -1132,7 +1168,7 @@ function CleaningPage() {
                                       : 'rgba(0,0,0,0.02)',
                                     '& .MuiOutlinedInput-root': {
                                       borderRadius: 2,
-                                    }
+                                    },
                                   }}
                                 >
                                   {OUTLIER_METHODS.map(m => (
@@ -1152,7 +1188,7 @@ function CleaningPage() {
                                       : 'rgba(0,0,0,0.02)',
                                     '& .MuiOutlinedInput-root': {
                                       borderRadius: 2,
-                                    }
+                                    },
                                   }}
                                 >
                                   {OUTLIER_ACTIONS.map(a => (
@@ -1167,18 +1203,21 @@ function CleaningPage() {
                               </Typography>
                             </Box>
                           </Card>
-                        </Grid>
-                      );
-                    })}
-                  </Grid>
-                </CardContent>
-              </Card>
-            </Grid>
+                        );
+                      })}
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            )}
+            {report.outliers && Object.keys(report.outliers).length > 0 && (
               <Grid item xs={12}>
                 <Alert severity="info" sx={{ mt: 2 }}>
                   <b>Note:</b> Removing outliers may not reduce the outlier count to zero, because outlier thresholds are recalculated on the cleaned data. You can repeat the process if you want to further reduce outliers.
                 </Alert>
               </Grid>
+            )}
+            {report.outliers && Object.keys(report.outliers).length > 0 && (
               <Grid item xs={12}>
                 <Alert severity="info" sx={{ mt: 2 }}>
                   <b>What do the actions mean?</b><br/>
@@ -1186,84 +1225,83 @@ function CleaningPage() {
                   <b>Cap</b>: Replaces outlier values with the nearest threshold (e.g., 5th/95th percentile for Winsorizing).
                 </Alert>
               </Grid>
-            </>
-          )}
-
-        {/* Fill Value Configuration */}
-        {Object.values(cleaningActions.nulls || {}).some(action => action === 'fill') && (
-          <Grid item xs={12}>
-            <Card sx={{ 
-              borderRadius: 3, 
-              boxShadow: theme.palette.mode === 'dark'
-                ? '0 8px 32px rgba(0,0,0,0.4)'
-                : '0 8px 32px rgba(0,0,0,0.1)',
-              border: theme.palette.mode === 'dark'
-                ? '1px solid rgba(255,255,255,0.1)'
-                : '1px solid rgba(255,255,255,0.2)',
-              background: theme.palette.mode === 'dark'
-                ? 'rgba(30, 30, 30, 0.95)'
-                : 'rgba(255,255,255,0.95)'
-            }}>
-              <CardContent sx={{ p: 4 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                  <Settings sx={{ mr: 2, color: 'primary.main' }} />
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    ⚙️ Fill Value Configuration
-                  </Typography>
-                </Box>
-                <Grid container spacing={2} alignItems="center">
-                  <Grid item xs={12} md={4}>
-                    <FormControl fullWidth>
-                      <InputLabel>Fill Method</InputLabel>
-                      <Select
-                        value={fillMethod}
-                        onChange={(e) => setFillMethod(e.target.value)}
-                        label="Fill Method"
-                        sx={{
-                          backgroundColor: theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.05)'
-                            : 'rgba(0,0,0,0.02)',
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 2,
-                          }
-                        }}
-                      >
-                        <MenuItem value="specific">Specific Value</MenuItem>
-                        <MenuItem value="mean">Mean</MenuItem>
-                        <MenuItem value="median">Median</MenuItem>
-                        <MenuItem value="mode">Mode</MenuItem>
-                        <MenuItem value="forward">Forward Fill</MenuItem>
-                        <MenuItem value="backward">Backward Fill</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  {fillMethod === 'specific' && (
-                    <Grid item xs={12} md={4}>
-                      <TextField
-                        fullWidth
-                        label="Fill Value"
-                        value={fillValue}
-                        onChange={(e) => setFillValue(e.target.value)}
-                        placeholder="Enter value (e.g., NA, 0, 'Unknown')"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 2,
-                            backgroundColor: theme.palette.mode === 'dark'
-                              ? 'rgba(255,255,255,0.05)'
-                              : 'rgba(0,0,0,0.02)',
-                          }
-                        }}
-                      />
-                    </Grid>
-                  )}
-                </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
-        )}
+            )}
           </Grid>
         </CardContent>
       </Card>
+
+      {/* Fill Value Configuration */}
+      {Object.values(cleaningActions.nulls || {}).some(action => action === 'fill') && (
+        <Grid item xs={12}>
+          <Card sx={{ 
+            borderRadius: 3, 
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 8px 32px rgba(0,0,0,0.4)'
+              : '0 8px 32px rgba(0,0,0,0.1)',
+            border: theme.palette.mode === 'dark'
+              ? '1px solid rgba(255,255,255,0.1)'
+              : '1px solid rgba(255,255,255,0.2)',
+            background: theme.palette.mode === 'dark'
+              ? 'rgba(30, 30, 30, 0.95)'
+              : 'rgba(255,255,255,0.95)'
+          }}>
+            <CardContent sx={{ p: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Settings sx={{ mr: 2, color: 'primary.main' }} />
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  ⚙️ Fill Value Configuration
+                </Typography>
+              </Box>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth>
+                    <InputLabel>Fill Method</InputLabel>
+                    <Select
+                      value={fillMethod}
+                      onChange={(e) => setFillMethod(e.target.value)}
+                      label="Fill Method"
+                      sx={{
+                        backgroundColor: theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.05)'
+                          : 'rgba(0,0,0,0.02)',
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2,
+                        }
+                      }}
+                    >
+                      <MenuItem value="specific">Specific Value</MenuItem>
+                      <MenuItem value="mean">Mean</MenuItem>
+                      <MenuItem value="median">Median</MenuItem>
+                      <MenuItem value="mode">Mode</MenuItem>
+                      <MenuItem value="forward">Forward Fill</MenuItem>
+                      <MenuItem value="backward">Backward Fill</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                {fillMethod === 'specific' && (
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      fullWidth
+                      label="Fill Value"
+                      value={fillValue}
+                      onChange={(e) => setFillValue(e.target.value)}
+                      placeholder="Enter value (e.g., NA, 0, 'Unknown')"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2,
+                          backgroundColor: theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.05)'
+                            : 'rgba(0,0,0,0.02)',
+                        }
+                      }}
+                    />
+                  </Grid>
+                )}
+              </Grid>
+            </CardContent>
+          </Card>
+        </Grid>
+      )}
 
       {/* Apply Button */}
       <Box sx={{ mt: 4, textAlign: 'center' }}>
