@@ -54,6 +54,9 @@ import {
 import { Link } from 'react-router-dom';
 
 function CleaningPage() {
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, []);
   const theme = useTheme();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);

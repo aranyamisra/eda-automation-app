@@ -28,7 +28,6 @@ body, #root {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
-  background: #181526 !important;
 }
 
 h1 {

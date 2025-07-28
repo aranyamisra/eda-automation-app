@@ -8,6 +8,7 @@ import { Checkbox } from '@mui/material';
 import { Analytics, BarChart, Settings, FilterList, ShowChart, TableChart } from '@mui/icons-material';
 import { useChartsToReport } from './ChartsToReportContext';
 import { Link } from 'react-router-dom';
+import html2canvas from 'html2canvas';
 import {
   Box,
   Typography,
@@ -209,6 +210,7 @@ const AnalysisPage = () => {
 
   // Chart refs for all chart types
   const chartRefs = useRef({});
+  const kpiRef = useRef(null);
   const [aggregationType, setAggregationType] = useState('sum'); // 'sum' or 'average'
   const [chartCapturing, setChartCapturing] = useState(false);
 
@@ -243,7 +245,17 @@ const AnalysisPage = () => {
         }
       })
       .catch(err => {
-        setError(err.response?.data?.error || 'Failed to load analysis metadata');
+        console.error('Analysis page error:', err);
+        console.error('Error response:', err.response);
+        const errorMessage = err.response?.data?.error || err.message || 'Failed to load analysis metadata';
+        
+        // If the error is about no uploaded file, show a specific message
+        if (err.response?.status === 400 && err.response?.data?.error?.includes('No uploaded file found')) {
+          setError('No dataset found. Please upload a dataset first.');
+        } else {
+          setError(`Error ${err.response?.status || 'Unknown'}: ${errorMessage}`);
+        }
+        
         // Clear any old data to prevent showing stale analysis
         setColumns([]);
         setPreview([]);
@@ -908,28 +920,28 @@ const AnalysisPage = () => {
         plugins: {
           legend: { 
             display: showLegend,
-            labels: { color: '#fff' } 
+            labels: { color: theme.palette.text.primary } 
           },
-          title: { color: '#fff' }
+          title: { color: theme.palette.text.primary }
         },
         scales: {
           x: {
-            grid: { color: '#fff' },
-            ticks: { color: '#fff' },
+            grid: { color: theme.palette.divider },
+            ticks: { color: theme.palette.text.primary },
             title: {
               display: true,
               text: axisLabels.x,
-              color: '#fff',
+              color: forExport ? '#111' : theme.palette.text.primary,
               font: { size: 14, weight: 'bold' }
             }
           },
           y: {
-            grid: { color: '#fff' },
-            ticks: { color: '#fff' },
+            grid: { color: theme.palette.divider },
+            ticks: { color: theme.palette.text.primary },
             title: {
               display: true,
               text: axisLabels.y,
-              color: '#fff',
+              color: forExport ? '#111' : theme.palette.text.primary,
               font: { size: 14, weight: 'bold' }
             }
           }
@@ -1020,7 +1032,7 @@ const AnalysisPage = () => {
           tooltip: { enabled: false },
           datalabels: {
             display: true,
-            color: 'white',
+            color: theme.palette.mode === 'dark' ? 'white' : 'black',
             font: { weight: 'bold', size: 16 },
             formatter: (value, ctx) => (ctx.raw && typeof ctx.raw.v === 'number' ? ctx.raw.v.toFixed(2) : ''),
           },
@@ -1031,16 +1043,16 @@ const AnalysisPage = () => {
             labels: data.labels,
             position: 'bottom', // ensures labels are below the chart
             offset: true,      // adds spacing if needed
-            title: { display: true, text: 'Features', font: { size: 16 }, color: '#fff' },
+            title: { display: true, text: 'Features', font: { size: 16 }, color: theme.palette.text.primary },
             grid: { display: false },
-            ticks: { font: { size: 14 }, color: '#fff', autoSkip: false, maxRotation: 45, minRotation: 45, padding: 20 }
+            ticks: { font: { size: 14 }, color: theme.palette.text.primary, autoSkip: false, maxRotation: 45, minRotation: 45, padding: 20 }
           },
           y: {
             type: 'category',
             labels: data.labels,
-            title: { display: true, text: 'Features', font: { size: 16 }, color: '#fff' },
+            title: { display: true, text: 'Features', font: { size: 16 }, color: theme.palette.text.primary },
             grid: { display: false },
-            ticks: { font: { size: 14 }, color: '#fff', autoSkip: false }
+            ticks: { font: { size: 14 }, color: theme.palette.text.primary, autoSkip: false }
           }
         }
       };
@@ -1060,9 +1072,9 @@ const AnalysisPage = () => {
               }}
             />
             <Box mt={0.5} width={300} display="flex" flexDirection="row" justifyContent="space-between">
-              <span style={{ color: '#fff', fontWeight: 'bold' }}>-1</span>
-              <span style={{ color: '#fff', fontWeight: 'bold' }}>0</span>
-              <span style={{ color: '#fff', fontWeight: 'bold' }}>+1</span>
+              <span style={{ color: theme.palette.text.primary, fontWeight: 'bold' }}>-1</span>
+              <span style={{ color: theme.palette.text.primary, fontWeight: 'bold' }}>0</span>
+              <span style={{ color: theme.palette.text.primary, fontWeight: 'bold' }}>+1</span>
             </Box>
           </Box>
         </Box>
@@ -1102,7 +1114,7 @@ const AnalysisPage = () => {
           ...chartProps.options,
           plugins: {
             ...chartProps.options.plugins,
-            datalabels: { color: forExport ? '#111' : '#fff', font: { weight: 'bold', size: 16 } }
+            datalabels: { color: forExport ? '#111' : theme.palette.text.primary, font: { weight: 'bold', size: 16 } }
           }
         }} plugins={[ChartDataLabels]} />;
       case 'donut':
@@ -1110,7 +1122,7 @@ const AnalysisPage = () => {
           ...chartProps.options,
           plugins: {
             ...chartProps.options.plugins,
-            datalabels: { color: forExport ? '#111' : '#fff', font: { weight: 'bold', size: 16 } }
+            datalabels: { color: forExport ? '#111' : theme.palette.text.primary, font: { weight: 'bold', size: 16 } }
           }
         }} plugins={[ChartDataLabels]} />;
       case 'histogram':
@@ -1155,7 +1167,7 @@ const AnalysisPage = () => {
             yaxis: { title: `${data.labels[0]} (Value)` },
             paper_bgcolor: 'transparent',
             plot_bgcolor: 'transparent',
-            font: { color: '#fff' }
+            font: { color: theme.palette.text.primary }
           }}
           style={{ width: '100%', height: 400 }}
           config={{ displayModeBar: false }}
@@ -1220,18 +1232,50 @@ const AnalysisPage = () => {
     const kpiId = `kpi:${column}:${metric}`;
     
     if (checked) {
-      setChartsToReport({
-        ...chartsToReport,
-        [kpiId]: {
-          selected: true,
-          type: 'kpi',
-          column: column,
-          metric: metric,
-          result: result,
-          formattedResult: formatKPIResult(result, metric),
-          recordCount: data.length
+      // Capture KPI card screenshot
+      setChartCapturing(true);
+      setExportingChartId(kpiId);
+      
+      setTimeout(() => {
+        if (kpiRef.current) {
+          html2canvas(kpiRef.current, {
+            backgroundColor: null,
+            scale: 2,
+            useCORS: true,
+            allowTaint: true
+          }).then(canvas => {
+            const image_base64 = canvas.toDataURL('image/png');
+            let clean_base64 = image_base64;
+            if (clean_base64.startsWith('data:image/png;base64,')) {
+              clean_base64 = clean_base64.replace('data:image/png;base64,', '');
+            }
+            
+            setChartsToReport({
+              ...chartsToReport,
+              [kpiId]: {
+                selected: true,
+                type: 'kpi',
+                column: column,
+                metric: metric,
+                result: result,
+                formattedResult: formatKPIResult(result, metric),
+                recordCount: data.length,
+                image_base64: clean_base64
+              }
+            });
+          }).catch(error => {
+            console.error('Error capturing KPI screenshot:', error);
+            alert('Failed to capture KPI image. Please try again.');
+          }).finally(() => {
+            setChartCapturing(false);
+            setExportingChartId(null);
+          });
+        } else {
+          setChartCapturing(false);
+          setExportingChartId(null);
+          alert('KPI card not found. Please make sure the KPI is visible.');
         }
-      });
+      }, 300); // Small delay to ensure the card is fully rendered
     } else {
       setChartsToReport({
         ...chartsToReport,
@@ -1354,10 +1398,10 @@ const AnalysisPage = () => {
             : 'rgba(255,255,255,0.95)'
         }} elevation={0}>
           <Typography variant="h5" color="error" sx={{ mb: 2 }}>
-            No dataset uploaded
+            Analysis Error
           </Typography>
           <Typography variant="body1" sx={{ mb: 3 }}>
-            Please upload a dataset before analyzing your data.
+            {error}
           </Typography>
           <Button 
             variant="contained" 
@@ -1371,7 +1415,7 @@ const AnalysisPage = () => {
               px: 3
             }}
           >
-            Go to Upload Page
+            Upload Dataset
           </Button>
         </Paper>
       </Box>
@@ -2092,7 +2136,7 @@ const AnalysisPage = () => {
 
             {kpiResult !== null && selectedKPIColumn && selectedKPIMetric && (
               <Box sx={{ mt: 4 }}>
-                <Card sx={{
+                <Card ref={kpiRef} sx={{
                   p: 4,
                   borderRadius: 3,
                   background: theme.palette.mode === 'dark'
@@ -2120,8 +2164,8 @@ const AnalysisPage = () => {
                       checked={!!chartsToReport[`kpi:${selectedKPIColumn}:${selectedKPIMetric}`]?.selected}
                       onChange={e => handleAddKPIToReport(selectedKPIColumn, selectedKPIMetric, kpiResult, e.target.checked)}
                       sx={{ 
-                        color: 'rgba(255,255,255,0.7)',
-                        '&.Mui-checked': { color: 'white' }
+                        color: theme.palette.text.secondary,
+                        '&.Mui-checked': { color: theme.palette.primary.main }
                       }}
                     />
                   }
