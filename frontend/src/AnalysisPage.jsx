@@ -35,7 +35,8 @@ import {
   Card,
   CardContent,
   useTheme,
-  LinearProgress
+  LinearProgress,
+  TextField
 } from '@mui/material';
 import axios from 'axios';
 import 'chartjs-chart-box-and-violin-plot';
@@ -917,6 +918,7 @@ const AnalysisPage = () => {
       data: data,
       options: forExport ? getExportChartOptions(type, selectedCols) : {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           legend: { 
             display: showLegend,
@@ -950,19 +952,52 @@ const AnalysisPage = () => {
     };
     if (type === 'stackedBar') {
       return (
-        <Bar
-          {...chartProps}
-          options={{
+        <Box sx={{ height: '400px', width: '100%' }}>
+          <Bar
+            {...chartProps}
+            options={{
+              ...chartProps.options,
+              plugins: {
+                ...chartProps.options.plugins,
+                title: { ...chartProps.options.plugins.title, display: true, text: data.datasets[0]?.label || '' }
+              },
+              scales: {
+                ...chartProps.options.scales,
+                x: { 
+                  ...chartProps.options.scales.x, 
+                  stacked: true,
+                  title: {
+                    display: true,
+                    text: axisLabels.x,
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
+                  }
+                },
+                y: { 
+                  ...chartProps.options.scales.y, 
+                  stacked: true,
+                  title: {
+                    display: true,
+                    text: axisLabels.y,
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
+                  }
+                }
+              }
+            }}
+          />
+        </Box>
+      );
+    }
+    if (type === 'groupedBar') {
+      return (
+        <Box sx={{ height: '400px', width: '100%' }}>
+          <Bar {...chartProps} options={{
             ...chartProps.options,
-            plugins: {
-              ...chartProps.options.plugins,
-              title: { ...chartProps.options.plugins.title, display: true, text: data.datasets[0]?.label || '' }
-            },
             scales: {
               ...chartProps.options.scales,
-              x: { 
-                ...chartProps.options.scales.x, 
-                stacked: true,
+              x: {
+                ...chartProps.options.scales.x,
                 title: {
                   display: true,
                   text: axisLabels.x,
@@ -970,9 +1005,8 @@ const AnalysisPage = () => {
                   font: { size: 14, weight: 'bold' }
                 }
               },
-              y: { 
-                ...chartProps.options.scales.y, 
-                stacked: true,
+              y: {
+                ...chartProps.options.scales.y,
                 title: {
                   display: true,
                   text: axisLabels.y,
@@ -981,35 +1015,9 @@ const AnalysisPage = () => {
                 }
               }
             }
-          }}
-        />
+          }} />
+        </Box>
       );
-    }
-    if (type === 'groupedBar') {
-      return <Bar {...chartProps} options={{
-        ...chartProps.options,
-        scales: {
-          ...chartProps.options.scales,
-          x: {
-            ...chartProps.options.scales.x,
-            title: {
-              display: true,
-              text: axisLabels.x,
-              color: forExport ? '#111' : '#fff',
-              font: { size: 14, weight: 'bold' }
-            }
-          },
-          y: {
-            ...chartProps.options.scales.y,
-            title: {
-              display: true,
-              text: axisLabels.y,
-              color: forExport ? '#111' : '#fff',
-              font: { size: 14, weight: 'bold' }
-            }
-          }
-        }
-      }} />;
     }
     if (type === 'correlation') {
       if (!data || !data.datasets || !data.datasets[0].data.length) return null;
@@ -1057,7 +1065,7 @@ const AnalysisPage = () => {
         }
       };
       return (
-        <Box>
+        <Box sx={{ height: '400px', width: '100%' }}>
           <ChartJS2 {...chartProps} type="matrix" options={matrixOptions} plugins={[ChartDataLabels]} />
           {/* Color legend for correlation heatmap */}
           <Box mt={2} display="flex" flexDirection="column" alignItems="center" justifyContent="center">
@@ -1082,173 +1090,203 @@ const AnalysisPage = () => {
     }
     switch (type) {
       case 'bar':
-        return <Bar {...chartProps} />;
+        return (
+          <Box sx={{ height: '400px', width: '100%' }}>
+            <Bar {...chartProps} />
+          </Box>
+        );
       case 'horizontalBar':
-        return <Bar {...chartProps} options={{ 
-          ...chartProps.options, 
-          indexAxis: 'y',
-          scales: {
-            ...chartProps.options.scales,
-            x: {
-              ...chartProps.options.scales.x,
-              title: {
-                display: true,
-                text: axisLabels.x,
-                color: forExport ? '#111' : '#fff',
-                font: { size: 14, weight: 'bold' }
+        return (
+          <Box sx={{ height: '400px', width: '100%' }}>
+            <Bar {...chartProps} options={{ 
+              ...chartProps.options, 
+              indexAxis: 'y',
+              scales: {
+                ...chartProps.options.scales,
+                x: {
+                  ...chartProps.options.scales.x,
+                  title: {
+                    display: true,
+                    text: axisLabels.x,
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
+                  }
+                },
+                y: {
+                  ...chartProps.options.scales.y,
+                  title: {
+                    display: true,
+                    text: axisLabels.y,
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
+                  }
+                }
               }
-            },
-            y: {
-              ...chartProps.options.scales.y,
-              title: {
-                display: true,
-                text: axisLabels.y,
-                color: forExport ? '#111' : '#fff',
-                font: { size: 14, weight: 'bold' }
-              }
-            }
-          }
-        }} />;
+            }} />
+          </Box>
+        );
       case 'pie':
-        return <Pie {...chartProps} options={{
-          ...chartProps.options,
-          plugins: {
-            ...chartProps.options.plugins,
-            datalabels: { color: forExport ? '#111' : theme.palette.text.primary, font: { weight: 'bold', size: 16 } }
-          }
-        }} plugins={[ChartDataLabels]} />;
+        return (
+          <Box sx={{ height: '400px', width: '100%' }}>
+            <Pie {...chartProps} options={{
+              ...chartProps.options,
+              plugins: {
+                ...chartProps.options.plugins,
+                datalabels: { color: forExport ? '#111' : theme.palette.text.primary, font: { weight: 'bold', size: 16 } }
+              }
+            }} plugins={[ChartDataLabels]} />
+          </Box>
+        );
       case 'donut':
-        return <Doughnut {...chartProps} options={{
-          ...chartProps.options,
-          plugins: {
-            ...chartProps.options.plugins,
-            datalabels: { color: forExport ? '#111' : theme.palette.text.primary, font: { weight: 'bold', size: 16 } }
-          }
-        }} plugins={[ChartDataLabels]} />;
+        return (
+          <Box sx={{ height: '400px', width: '100%' }}>
+            <Doughnut {...chartProps} options={{
+              ...chartProps.options,
+              plugins: {
+                ...chartProps.options.plugins,
+                datalabels: { color: forExport ? '#111' : theme.palette.text.primary, font: { weight: 'bold', size: 16 } }
+              }
+            }} plugins={[ChartDataLabels]} />
+          </Box>
+        );
       case 'histogram':
-        return <Bar {...chartProps} options={{
-          ...chartProps.options,
-          scales: {
-            ...chartProps.options.scales,
-            x: {
-              ...chartProps.options.scales.x,
-              title: {
-                display: true,
-                text: `${selectedCols[0]} (Value)`,
-                color: forExport ? '#111' : '#fff',
-                font: { size: 14, weight: 'bold' }
+        return (
+          <Box sx={{ height: '400px', width: '100%' }}>
+            <Bar {...chartProps} options={{
+              ...chartProps.options,
+              scales: {
+                ...chartProps.options.scales,
+                x: {
+                  ...chartProps.options.scales.x,
+                  title: {
+                    display: true,
+                    text: `${selectedCols[0]} (Value)`,
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
+                  }
+                },
+                y: {
+                  ...chartProps.options.scales.y,
+                  title: {
+                    display: true,
+                    text: 'Frequency',
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
+                  }
+                }
               }
-            },
-            y: {
-              ...chartProps.options.scales.y,
-              title: {
-                display: true,
-                text: 'Frequency',
-                color: forExport ? '#111' : '#fff',
-                font: { size: 14, weight: 'bold' }
-              }
-            }
-          }
-        }} />;
+            }} />
+          </Box>
+        );
       case 'box':
         return (
-          <div data-chart-type="box" data-chart-id={chartId}>
-            <Plot
-              data={[ 
-                {
-                  y: data.raw,
-                  type: 'box',
-                  name: data.labels[0],
-                  boxpoints: 'outliers',
-                  marker: { color: 'rgba(54, 162, 235, 0.5)' },
-                  text: data.raw.map(() => ''),
-                  hoverinfo: 'y+name',
-                  hovertemplate: 
-                    '<b>%{fullData.name}</b><br>' +
-                    'Value: %{y}<br>' +
-                    '<extra></extra>'
-                }
-              ]}
-              layout={{
-                title: `Box Plot of ${data.labels[0]}`,
-                xaxis: { title: 'Distribution' },
-                yaxis: { title: `${data.labels[0]} (Value)` },
-                paper_bgcolor: 'transparent',
-                plot_bgcolor: 'transparent',
-                font: { color: theme.palette.text.primary },
-                annotations: [
+          <Box sx={{ height: '400px', width: '100%' }}>
+            <div data-chart-type="box" data-chart-id={chartId}>
+              <Plot
+                data={[ 
                   {
-                    x: 0.5,
-                    y: 1.02,
-                    xref: 'paper',
-                    yref: 'paper',
-                    text: `Min: ${Math.min(...data.raw).toFixed(2)} | Q1: ${data.datasets[0].data[0].q1.toFixed(2)} | Median: ${data.datasets[0].data[0].median.toFixed(2)} | Q3: ${data.datasets[0].data[0].q3.toFixed(2)} | Max: ${Math.max(...data.raw).toFixed(2)}`,
-                    showarrow: false,
-                    font: { 
-                      size: 12, 
-                      color: theme.palette.text.primary 
-                    },
-                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)',
-                    bordercolor: theme.palette.divider,
-                    borderwidth: 1
+                    y: data.raw,
+                    type: 'box',
+                    name: data.labels[0],
+                    boxpoints: 'outliers',
+                    marker: { color: 'rgba(54, 162, 235, 0.5)' },
+                    text: data.raw.map(() => ''),
+                    hoverinfo: 'y+name',
+                    hovertemplate: 
+                      '<b>%{fullData.name}</b><br>' +
+                      'Value: %{y}<br>' +
+                      '<extra></extra>'
                   }
-                ]
-              }}
-              style={{ width: '100%', height: 400 }}
-              config={{ displayModeBar: false }}
-            />
-          </div>
+                ]}
+                layout={{
+                  title: `Box Plot of ${data.labels[0]}`,
+                  xaxis: { title: 'Distribution' },
+                  yaxis: { title: `${data.labels[0]} (Value)` },
+                  paper_bgcolor: 'transparent',
+                  plot_bgcolor: 'transparent',
+                  font: { color: theme.palette.text.primary },
+                  annotations: [
+                    {
+                      x: 0.5,
+                      y: 1.02,
+                      xref: 'paper',
+                      yref: 'paper',
+                      text: `Min: ${Math.min(...data.raw).toFixed(2)} | Q1: ${data.datasets[0].data[0].q1.toFixed(2)} | Median: ${data.datasets[0].data[0].median.toFixed(2)} | Q3: ${data.datasets[0].data[0].q3.toFixed(2)} | Max: ${Math.max(...data.raw).toFixed(2)}`,
+                      showarrow: false,
+                      font: { 
+                        size: 12, 
+                        color: theme.palette.text.primary 
+                      },
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)',
+                      bordercolor: theme.palette.divider,
+                      borderwidth: 1
+                    }
+                  ]
+                }}
+                style={{ width: '100%', height: 400 }}
+                config={{ displayModeBar: false }}
+              />
+            </div>
+          </Box>
         );
       case 'scatter':
-        return <Scatter {...chartProps} options={{
-          ...chartProps.options,
-          scales: {
-            ...chartProps.options.scales,
-            x: {
-              ...chartProps.options.scales.x,
-              title: {
-                display: true,
-                text: axisLabels.x,
-                color: forExport ? '#111' : '#fff',
-                font: { size: 14, weight: 'bold' }
+        return (
+          <Box sx={{ height: '400px', width: '100%' }}>
+            <Scatter {...chartProps} options={{
+              ...chartProps.options,
+              scales: {
+                ...chartProps.options.scales,
+                x: {
+                  ...chartProps.options.scales.x,
+                  title: {
+                    display: true,
+                    text: axisLabels.x,
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
+                  }
+                },
+                y: {
+                  ...chartProps.options.scales.y,
+                  title: {
+                    display: true,
+                    text: axisLabels.y,
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
+                  }
+                }
               }
-            },
-            y: {
-              ...chartProps.options.scales.y,
-              title: {
-                display: true,
-                text: axisLabels.y,
-                color: forExport ? '#111' : '#fff',
-                font: { size: 14, weight: 'bold' }
-              }
-            }
-          }
-        }} />;
+            }} />
+          </Box>
+        );
       case 'line':
-        return <Line {...chartProps} options={{
-          ...chartProps.options,
-          scales: {
-            ...chartProps.options.scales,
-            x: {
-              ...chartProps.options.scales.x,
-              title: {
-                display: true,
-                text: axisLabels.x,
-                color: forExport ? '#111' : '#fff',
-                font: { size: 14, weight: 'bold' }
+        return (
+          <Box sx={{ height: '400px', width: '100%' }}>
+            <Line {...chartProps} options={{
+              ...chartProps.options,
+              scales: {
+                ...chartProps.options.scales,
+                x: {
+                  ...chartProps.options.scales.x,
+                  title: {
+                    display: true,
+                    text: axisLabels.x,
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
+                  }
+                },
+                y: {
+                  ...chartProps.options.scales.y,
+                  title: {
+                    display: true,
+                    text: axisLabels.y,
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
+                  }
+                }
               }
-            },
-            y: {
-              ...chartProps.options.scales.y,
-              title: {
-                display: true,
-                text: axisLabels.y,
-                color: forExport ? '#111' : '#fff',
-                font: { size: 14, weight: 'bold' }
-              }
-            }
-          }
-        }} />;
+            }} />
+          </Box>
+        );
       default:
         return null;
     }
@@ -1739,6 +1777,7 @@ const AnalysisPage = () => {
                           setSelectedColumns(selectedColumns.includes(col.name)
                             ? selectedColumns.filter(c => c !== col.name)
                             : [...selectedColumns, col.name]);
+                          setShowChart(false); // Reset chart display when columns change
                         }}
                         sx={{ 
                           cursor: 'pointer',
@@ -1773,7 +1812,10 @@ const AnalysisPage = () => {
                   label={chartTypeOptions.find(opt => opt.value === chart)?.label || chart}
                   color={selectedChart === chart ? 'primary' : 'default'}
                   variant={selectedChart === chart ? 'filled' : 'outlined'}
-                  onClick={() => setSelectedChart(chart)}
+                  onClick={() => {
+                    setSelectedChart(chart);
+                    setShowChart(false); // Reset chart display when chart type changes
+                  }}
                   sx={{ 
                     cursor: 'pointer',
                     '&:hover': {
@@ -1797,7 +1839,10 @@ const AnalysisPage = () => {
                         <Select
                           value={aggregationType}
                           label="Aggregation"
-                          onChange={e => setAggregationType(e.target.value)}
+                          onChange={e => {
+                            setAggregationType(e.target.value);
+                            setShowChart(false); // Reset chart display when aggregation changes
+                          }}
                           sx={{ 
                             height: 56,
                             fontSize: '1rem'
@@ -1812,21 +1857,20 @@ const AnalysisPage = () => {
                   {/* Filter controls - exclude scatter plots and line charts */}
                   {!['scatter', 'line'].includes(selectedChart) && (
                     <Grid item xs={12} sm={6}>
-                      <FormControl fullWidth sx={{ minWidth: '200px' }}>
-                        <InputLabel>Filter by Top N Items</InputLabel>
-                        <Select
-                          value={filterTop}
-                          label="Filter by Top N Items"
-                          onChange={(e) => setFilterTop(e.target.value)}
-                        >
-                          <MenuItem value="">No Filter</MenuItem>
-                          <MenuItem value="5">Top 5</MenuItem>
-                          <MenuItem value="10">Top 10</MenuItem>
-                          <MenuItem value="15">Top 15</MenuItem>
-                          <MenuItem value="20">Top 20</MenuItem>
-                          <MenuItem value="25">Top 25</MenuItem>
-                        </Select>
-                      </FormControl>
+                      <TextField
+                        fullWidth
+                        label="Filter by Top N Items"
+                        type="number"
+                        value={filterTop}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFilterTop(value);
+                          setShowChart(false); // Reset chart display when filter changes
+                        }}
+                        inputProps={{ min: 1 }}
+                        sx={{ minWidth: '200px' }}
+                        placeholder="Number or empty for all"
+                      />
                     </Grid>
                   )}
                   {/* Only show Sort Order for chart types where it makes sense (not line) */}
@@ -1837,7 +1881,10 @@ const AnalysisPage = () => {
                         <Select
                           value={sortOrder}
                           label="Sort Order"
-                          onChange={(e) => setSortOrder(e.target.value)}
+                          onChange={(e) => {
+                            setSortOrder(e.target.value);
+                            setShowChart(false); // Reset chart display when sort changes
+                          }}
                         >
                           <MenuItem value="none">No Sort</MenuItem>
                           <MenuItem value="asc">Ascending</MenuItem>
@@ -1881,7 +1928,7 @@ const AnalysisPage = () => {
               <Button variant="contained" sx={{ mt: 2 }} onClick={() => setShowChart(true)}>Generate Chart</Button>
             )}
             {shouldShowChart && selectedChart && selectedColumns.length > 0 && (
-              <Box mt={4}>
+              <Box mt={4} sx={{ maxWidth: '800px', maxHeight: '500px', mx: 'auto' }}>
                 {renderChart(selectedChart, selectedColumns, exportingChartId === getChartId(selectedChart, selectedColumns, filterTop, sortOrder), getChartId(selectedChart, selectedColumns, filterTop, sortOrder))}
                 <FormControlLabel
                   control={
@@ -1990,7 +2037,10 @@ const AnalysisPage = () => {
                         <Select
                           value={aggregationType}
                           label="Aggregation"
-                          onChange={e => setAggregationType(e.target.value)}
+                          onChange={e => {
+                            setAggregationType(e.target.value);
+                            setShowChart(false); // Reset chart display when aggregation changes
+                          }}
                           sx={{ 
                             height: 56,
                             fontSize: '1rem'
@@ -2005,21 +2055,20 @@ const AnalysisPage = () => {
                   {/* Filter controls - exclude scatter plots and line charts */}
                   {!['scatter', 'line'].includes(chartType) && (
                     <Grid item xs={12} sm={6}>
-                      <FormControl fullWidth sx={{ minWidth: '200px' }}>
-                        <InputLabel>Filter by Top N Items</InputLabel>
-                        <Select
-                          value={filterTop}
-                          label="Filter by Top N Items"
-                          onChange={(e) => setFilterTop(e.target.value)}
-                        >
-                          <MenuItem value="">No Filter</MenuItem>
-                          <MenuItem value="5">Top 5</MenuItem>
-                          <MenuItem value="10">Top 10</MenuItem>
-                          <MenuItem value="15">Top 15</MenuItem>
-                          <MenuItem value="20">Top 20</MenuItem>
-                          <MenuItem value="25">Top 25</MenuItem>
-                        </Select>
-                      </FormControl>
+                      <TextField
+                        fullWidth
+                        label="Filter by Top N Items"
+                        type="number"
+                        value={filterTop}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFilterTop(value);
+                          setShowChart(false); // Reset chart display when filter changes
+                        }}
+                        inputProps={{ min: 1 }}
+                        sx={{ minWidth: '200px' }}
+                        placeholder="Number or empty for all"
+                      />
                     </Grid>
                   )}
                   {/* Only show Sort Order for chart types where it makes sense (not line) */}
@@ -2030,7 +2079,10 @@ const AnalysisPage = () => {
                         <Select
                           value={sortOrder}
                           label="Sort Order"
-                          onChange={(e) => setSortOrder(e.target.value)}
+                          onChange={(e) => {
+                            setSortOrder(e.target.value);
+                            setShowChart(false); // Reset chart display when sort changes
+                          }}
                         >
                           <MenuItem value="none">No Sort</MenuItem>
                           <MenuItem value="asc">Ascending</MenuItem>
@@ -2083,7 +2135,7 @@ const AnalysisPage = () => {
               Generate Chart
             </Button>
             {shouldShowChart && chartType && ((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
-              <Box mt={4}>
+              <Box mt={4} sx={{ maxWidth: '800px', maxHeight: '500px', mx: 'auto' }}>
                 {renderChart(chartType, chartColumns.filter(Boolean), exportingChartId === getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder), getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder))}
                 <FormControlLabel
                   control={
