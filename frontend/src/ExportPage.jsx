@@ -67,6 +67,8 @@ const ExportPage = ({
   const [cleanedData, setCleanedData] = useState(null);
   const [outlierActions, setOutlierActions] = useState({});
   const { chartsToReport, setChartsToReport } = useChartsToReport();
+  const [originalDatasetInfo, setOriginalDatasetInfo] = useState(null);
+  const [originalColumns, setOriginalColumns] = useState([]);
 
   // Local state for downloadCleaned, includedSections, reportTitle, and reportFormat
   const [localIncludedSections, setLocalIncludedSections] = useState({
@@ -81,6 +83,9 @@ const ExportPage = ({
   const [reportFormat, setReportFormat] = useState('');
 
   useEffect(() => {
+    // Scroll to top when component mounts
+    window.scrollTo(0, 0);
+    
     const stored = localStorage.getItem('cleaningSession');
     if (stored) {
       const session = JSON.parse(stored);
@@ -88,15 +93,23 @@ const ExportPage = ({
       setCleanedData(session.cleanedData || null);
       setCleaningSummary(session.cleaningSummary || []);
     } else {
-      // Fallback: check with backend if any dataset is present
-      fetch('http://localhost:5001/analysis', { credentials: 'include' })
-        .then(res => {
-          if (!res.ok) throw new Error('No dataset');
-          return res.json();
+      // If no cleaning session, fetch both original dataset info and column info for the report
+      Promise.all([
+        fetch('http://localhost:5001/cleaning', { credentials: 'include' }),
+        fetch('http://localhost:5001/analysis', { credentials: 'include' })
+      ])
+        .then(responses => {
+          if (!responses[0].ok || !responses[1].ok) throw new Error('No dataset');
+          return Promise.all([responses[0].json(), responses[1].json()]);
         })
-        .then(data => {
-          if (!data || !data.columns || data.columns.length === 0) {
+        .then(([cleaningData, analysisData]) => {
+          if (!cleaningData || !cleaningData.dataset_info || !analysisData || !analysisData.columns) {
             setNoDataset(true);
+          } else {
+            // Store original dataset info and columns for use in report
+            setOriginalDatasetInfo(cleaningData);
+            setOriginalColumns(analysisData.columns);
+            setHasCleaned(false);
           }
         })
         .catch(() => setNoDataset(true));
@@ -212,9 +225,10 @@ const ExportPage = ({
     cleaningActions = cleaningSummary;
   }
 
-  // Build cleaningTable from cleanedData before/after
+  // Build cleaningTable from cleanedData before/after or original dataset info
   let cleaningTable = [];
   if (cleanedData?.before && cleanedData?.after) {
+    // Use cleaned data comparison
     cleaningTable = [
       {
         metric: 'Total Rows',
@@ -230,6 +244,30 @@ const ExportPage = ({
         metric: 'Duplicate Rows',
         before: cleanedData.before.duplicates ?? '-',
         after: cleanedData.after.duplicates ?? '-'
+      }
+    ];
+  } else if (originalDatasetInfo) {
+    // Use original dataset info (no cleaning performed)
+    const datasetInfo = originalDatasetInfo.dataset_info;
+    const qualityMetrics = originalDatasetInfo.quality_metrics;
+    const nulls = originalDatasetInfo.nulls;
+    const duplicates = originalDatasetInfo.duplicates;
+    
+    cleaningTable = [
+      {
+        metric: 'Total Rows',
+        before: datasetInfo?.rows ?? '-',
+        after: datasetInfo?.rows ?? '-'
+      },
+      {
+        metric: 'Null Cells',
+        before: qualityMetrics?.null_percentage != null ? `${qualityMetrics.null_percentage}%` : '-',
+        after: qualityMetrics?.null_percentage != null ? `${qualityMetrics.null_percentage}%` : '-'
+      },
+      {
+        metric: 'Duplicate Rows',
+        before: duplicates ?? '-',
+        after: duplicates ?? '-'
       }
     ];
   }
@@ -276,7 +314,10 @@ const ExportPage = ({
       charts,
       dtypeFixes,
       cleaningActions,
-      cleaning_table: cleaningTable
+      cleaning_table: cleaningTable,
+      // Include original dataset info if no cleaning was performed
+      originalDatasetInfo: !hasCleaned ? originalDatasetInfo : null,
+      originalColumns: !hasCleaned ? originalColumns : null
     };
     // Debug log for charts filter/sort
     console.log('Export charts:', charts.map(c => ({title: c.title, filter: c.filter, sort: c.sort, aggregationType: c.aggregationType})));
@@ -322,7 +363,10 @@ const ExportPage = ({
       charts,
       dtypeFixes,
       cleaningActions,
-      cleaning_table: cleaningTable
+      cleaning_table: cleaningTable,
+      // Include original dataset info if no cleaning was performed
+      originalDatasetInfo: !hasCleaned ? originalDatasetInfo : null,
+      originalColumns: !hasCleaned ? originalColumns : null
     };
     try {
       const response = await fetch('http://localhost:5001/export', {

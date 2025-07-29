@@ -706,11 +706,17 @@ def export_report():
         author_name = data.get('authorName', '')
         final_insights = data.get('finalInsights', '')
 
+        # Check if original dataset info is provided (no cleaning performed)
+        original_dataset_info = data.get('originalDatasetInfo')
+        original_columns = data.get('originalColumns')
+        
         # Find latest cleaned file for stats
         upload_folder = app.config['UPLOAD_FOLDER']
         files = [os.path.join(upload_folder, f) for f in os.listdir(upload_folder)
                  if os.path.isfile(os.path.join(upload_folder, f)) and f.startswith('cleaned_')]
+        
         if files:
+            # Use cleaned data
             cleaned_filepath = max(files, key=os.path.getctime)
             ext = cleaned_filepath.split('.')[-1].lower()
             if ext == 'csv':
@@ -722,23 +728,68 @@ def export_report():
             else:
                 df = pd.DataFrame()
             file_size = f"{os.path.getsize(cleaned_filepath)/1024/1024:.2f} MB"
+        elif original_dataset_info:
+            # Use original dataset info (no cleaning performed)
+            df = pd.DataFrame()  # Empty DataFrame for stats calculation
+            file_size = original_dataset_info.get('dataset_info', {}).get('memory_usage', '-')
         else:
-            df = pd.DataFrame()
-            file_size = '-'
+            # Fallback to original uploaded file
+            uploaded_filename = session.get('filename')
+            if uploaded_filename:
+                original_filepath = os.path.join(upload_folder, uploaded_filename)
+                if os.path.exists(original_filepath):
+                    ext = original_filepath.split('.')[-1].lower()
+                    if ext == 'csv':
+                        df = pd.read_csv(original_filepath)
+                    elif ext in ['xls', 'xlsx']:
+                        df = pd.read_excel(original_filepath)
+                    elif ext == 'json':
+                        df = pd.read_json(original_filepath, orient='records')
+                    else:
+                        df = pd.DataFrame()
+                    file_size = f"{os.path.getsize(original_filepath)/1024/1024:.2f} MB"
+                else:
+                    df = pd.DataFrame()
+                    file_size = '-'
+            else:
+                df = pd.DataFrame()
+                file_size = '-'
 
-        # Overview
-        total_rows = len(df)
-        total_columns = len(df.columns)
-        num_numerical = len([c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])])
-        num_boolean = len([c for c in df.columns if df[c].dtype == 'bool'])
-        num_categorical = len([c for c in df.columns if df[c].dtype == 'object'])
-        num_datetime = len([c for c in df.columns if pd.api.types.is_datetime64_any_dtype(df[c])])
+        # Overview - use original dataset info if available
+        if original_dataset_info and original_columns and not files:
+            # Use original dataset info (no cleaning performed)
+            dataset_info = original_dataset_info.get('dataset_info', {})
+            total_rows = dataset_info.get('rows', 0)
+            total_columns = dataset_info.get('columns', 0)
+            
+            # Count column types from original dataset
+            num_numerical = len([c for c in original_columns if c.get('group') == 'Numerical'])
+            num_boolean = len([c for c in original_columns if c.get('group') == 'Boolean'])
+            num_categorical = len([c for c in original_columns if c.get('group') == 'Categorical'])
+            num_datetime = len([c for c in original_columns if c.get('group') == 'Date/Time'])
+            
+            # Data Quality Summary from original dataset
+            quality_metrics = original_dataset_info.get('quality_metrics', {})
+            null_percentage = quality_metrics.get('null_percentage', 0)
+            total_cells = total_rows * total_columns
+            null_count = int((null_percentage / 100) * total_cells) if total_cells > 0 else 0
+            missing_values = f"{null_count} ({null_percentage:.2f}%)"
+            nulls_dict = original_dataset_info.get('nulls', {})
+            duplicates = original_dataset_info.get('duplicates', 0)
+        else:
+            # Use cleaned data or fallback
+            total_rows = len(df)
+            total_columns = len(df.columns)
+            num_numerical = len([c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])])
+            num_boolean = len([c for c in df.columns if df[c].dtype == 'bool'])
+            num_categorical = len([c for c in df.columns if df[c].dtype == 'object'])
+            num_datetime = len([c for c in df.columns if pd.api.types.is_datetime64_any_dtype(df[c])])
 
-        # Data Quality Summary
-        missing_values = f"{df.isnull().sum().sum()} ({(df.isnull().sum().sum()/(len(df)*len(df.columns))*100 if len(df)*len(df.columns) else 0):.2f}%)" if not df.empty else '0 (0.00%)'
-        nulls = df.isnull().sum()
-        nulls_dict = nulls[nulls > 0].to_dict()
-        duplicates = df.duplicated().sum() if not df.empty else 0
+            # Data Quality Summary
+            missing_values = f"{df.isnull().sum().sum()} ({(df.isnull().sum().sum()/(len(df)*len(df.columns))*100 if len(df)*len(df.columns) else 0):.2f}%)" if not df.empty else '0 (0.00%)'
+            nulls = df.isnull().sum()
+            nulls_dict = nulls[nulls > 0].to_dict()
+            duplicates = df.duplicated().sum() if not df.empty else 0
         # Dummy dtype fixes (should be provided by frontend or computed)
         dtype_fixes = data.get('dtypeFixes', [])
 
