@@ -39,7 +39,6 @@ import {
   TextField
 } from '@mui/material';
 import axios from 'axios';
-import 'chartjs-chart-box-and-violin-plot';
 import Plot from 'react-plotly.js';
 import { SketchPicker } from 'react-color';
 
