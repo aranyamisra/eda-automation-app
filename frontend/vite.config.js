@@ -1,11 +1,15 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   build: {
+    // Force use of esbuild instead of Rollup for better Vercel compatibility
+    target: 'es2015',
+    minify: 'esbuild',
+    sourcemap: false,
     rollupOptions: {
+      // Disable native dependencies
       external: [],
       output: {
         manualChunks: {
@@ -14,14 +18,23 @@ export default defineConfig({
           ui: ['@mui/material', '@mui/icons-material']
         }
       }
-    },
-    // Optimize for Vercel
-    target: 'es2015',
-    minify: 'terser',
-    sourcemap: false
+    }
   },
-  // Handle potential native module issues
+  // Optimize dependencies
   optimizeDeps: {
-    exclude: ['chartjs-chart-box-and-violin-plot']
+    include: [
+      'react',
+      'react-dom',
+      'chart.js',
+      'react-chartjs-2',
+      'plotly.js',
+      '@mui/material',
+      '@mui/icons-material'
+    ],
+    exclude: []
+  },
+  // Force esbuild for better compatibility
+  esbuild: {
+    target: 'es2015'
   }
 })
