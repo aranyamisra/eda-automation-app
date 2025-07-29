@@ -38,7 +38,31 @@ This guide will help you set up Google Drive integration for the EDA Automation 
    - For production: your actual domain
 5. Copy the generated Client ID
 
-### 4. Configure Environment Variables
+### 4. Handle "Unverified App" Warning
+
+When you first try to use the Google Drive integration, you'll see a warning that the app is unverified. This is normal for development apps. Here's how to handle it:
+
+#### For Development (Recommended)
+1. **Add Test Users**: 
+   - Go to your OAuth 2.0 Client ID settings in Google Cloud Console
+   - Scroll down to "Test users"
+   - Click "Add Users"
+   - Add your Google account email address
+   - Save the changes
+
+2. **Use the App**: 
+   - When you see the warning, click "Advanced"
+   - Click "Go to [Your App Name] (unsafe)"
+   - Sign in with your test user account
+   - The app will work normally for test users
+
+#### For Production
+If you plan to release this app publicly, you'll need to:
+1. Submit your app for Google verification
+2. Provide detailed information about your app's purpose
+3. Wait for Google's review process (can take several weeks)
+
+### 5. Configure Environment Variables
 
 1. Copy the `.env.example` file to `.env` in the `frontend` directory:
    ```bash
@@ -51,7 +75,7 @@ This guide will help you set up Google Drive integration for the EDA Automation 
    VITE_GOOGLE_CLIENT_ID=your_actual_client_id_here
    ```
 
-### 5. Test the Integration
+### 6. Test the Integration
 
 1. Start the application:
    ```bash
@@ -61,7 +85,7 @@ This guide will help you set up Google Drive integration for the EDA Automation 
 
 2. Go to the upload page
 3. Click "Upload from Google Drive"
-4. Sign in with your Google account
+4. Sign in with your Google account (test user)
 5. Browse and select a CSV, Excel, or JSON file from your Google Drive
 
 ## Supported File Types
@@ -79,6 +103,11 @@ This guide will help you set up Google Drive integration for the EDA Automation 
 
 ## Troubleshooting
 
+### "Google hasn't verified this app" Warning
+- **For Development**: Add your email as a test user in OAuth settings
+- **For Production**: Submit your app for Google verification
+- Click "Advanced" → "Go to [App Name] (unsafe)" to proceed
+
 ### "Failed to initialize Google Drive"
 - Check that your API key is correct
 - Ensure Google Drive API is enabled in your project
@@ -88,6 +117,7 @@ This guide will help you set up Google Drive integration for the EDA Automation 
 - Check that your OAuth Client ID is correct
 - Ensure your domain is in the authorized JavaScript origins
 - Clear browser cache and try again
+- Make sure you're using a test user account
 
 ### "No supported files found"
 - The app only shows CSV, Excel, and JSON files
