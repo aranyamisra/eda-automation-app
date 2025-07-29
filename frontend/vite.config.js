@@ -4,13 +4,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
-    // Force use of esbuild instead of Rollup for better Vercel compatibility
     target: 'es2015',
     minify: 'esbuild',
     sourcemap: false,
     rollupOptions: {
-      // Disable native dependencies
-      external: [],
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
@@ -20,7 +17,6 @@ export default defineConfig({
       }
     }
   },
-  // Optimize dependencies
   optimizeDeps: {
     include: [
       'react',
@@ -30,11 +26,6 @@ export default defineConfig({
       'plotly.js',
       '@mui/material',
       '@mui/icons-material'
-    ],
-    exclude: []
-  },
-  // Force esbuild for better compatibility
-  esbuild: {
-    target: 'es2015'
+    ]
   }
 })
