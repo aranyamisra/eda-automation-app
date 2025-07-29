@@ -291,13 +291,6 @@ function App() {
                             >
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 {item.label}
-                                {isCompleted && (
-                                  <CheckCircleIcon sx={{ 
-                                    fontSize: 18, 
-                                    color: '#4caf50',
-                                    filter: 'drop-shadow(0 1px 2px rgba(76, 175, 80, 0.3))',
-                                  }} />
-                                )}
                               </Box>
                             </Button>
                           </Tooltip>
@@ -431,12 +424,6 @@ function App() {
                       {item.description}
                     </Typography>
                   </Box>
-                  {isCompleted && (
-                    <CheckCircleIcon sx={{ fontSize: 20, color: '#4caf50' }} />
-                  )}
-                  {isActive && !isCompleted && (
-                    <RadioButtonUncheckedIcon sx={{ fontSize: 20, color: '#2196f3' }} />
-                  )}
                 </Box>
               </MenuItem>
             );

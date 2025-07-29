@@ -12,6 +12,9 @@ from jinja2 import Template
 from playwright.sync_api import sync_playwright
 import zipfile
 
+# Global variable to store cleaned dataframe in memory
+cleaned_dataframe = None
+
 app = Flask(__name__)
 app.secret_key = 'your-secret-key'
 app.permanent_session_lifetime = timedelta(minutes=10)
@@ -33,6 +36,7 @@ def home():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    global cleaned_dataframe
     try:
         # Check if file is present
         if 'dataset' not in request.files:
@@ -56,6 +60,9 @@ def upload_file():
         session['dataset_path'] = filepath
         session['filename'] = uploaded_file.filename
         session.pop('cleaned_filename', None)  # Invalidate previous cleaned file
+        
+        # Clear the stored cleaned dataframe when a new file is uploaded
+        cleaned_dataframe = None
         
         return jsonify({
             'message': 'File uploaded successfully', 
@@ -110,6 +117,7 @@ def cleaning_page():
 
 @app.route('/clean-data', methods=['POST'])
 def clean_data():
+    global cleaned_dataframe
     try:
         # Get the latest file
         upload_folder = app.config['UPLOAD_FOLDER']
@@ -159,6 +167,7 @@ def clean_data():
             df_cleaned.to_json(cleaned_filepath, orient='records')
         
         session['cleaned_filename'] = cleaned_filename  # Track cleaned file for current session
+        cleaned_dataframe = df_cleaned # Store the cleaned dataframe in memory
 
         # --- AFTER REPORT ---
         after_report = data_quality_report(df_cleaned, cleaned_filename)
@@ -269,10 +278,53 @@ def apply_cleaning_operations(df, config):
                     if suggested_type == 'numeric':
                         df[column] = pd.to_numeric(df[column], errors='coerce')
                     elif suggested_type == 'datetime':
-                        df[column] = pd.to_datetime(df[column], errors='coerce')
-                except:
+                        # Try multiple datetime conversion approaches
+                        try:
+                            # First try pandas built-in with format inference
+                            df[column] = pd.to_datetime(df[column], errors='coerce', infer_datetime_format=True)
+                        except:
+                            # If that fails, try with specific common formats
+                            common_formats = [
+                                '%Y-%m-%d',
+                                '%m/%d/%Y',
+                                '%m-%d-%Y',
+                                '%Y/%m/%d',
+                                '%Y-%m-%d %H:%M:%S',
+                                '%m/%d/%Y %H:%M:%S',
+                                '%d/%m/%Y',
+                                '%d-%m-%Y',
+                                '%Y-%m-%d %H:%M:%S.%f',
+                                '%m/%d/%y',
+                                '%m-%d-%y'
+                            ]
+                            
+                            converted = False
+                            for fmt in common_formats:
+                                try:
+                                    df[column] = pd.to_datetime(df[column], format=fmt, errors='coerce')
+                                    converted = True
+                                    break
+                                except:
+                                    continue
+                            
+                            # If specific formats fail, try general parsing
+                            if not converted:
+                                df[column] = pd.to_datetime(df[column], errors='coerce')
+                    elif suggested_type == 'boolean':
+                        # Convert boolean values
+                        df[column] = df[column].map({
+                            True: True, False: False,
+                            1: True, 0: False,
+                            'yes': True, 'no': False,
+                            'Yes': True, 'No': False,
+                            'true': True, 'false': False,
+                            'True': True, 'False': False,
+                            'Y': True, 'N': False,
+                            'y': True, 'n': False
+                        })
+                except Exception as e:
+                    print(f"Warning: Failed to convert column {column} to {suggested_type}: {str(e)}")
                     pass  # Keep original type if conversion fails
-                print(df.dtypes)
 
     # Handle outlier cleaning
     outlier_config = config.get('outliers', {})
@@ -346,20 +398,57 @@ def get_suggested_dtype(series):
             for bset in bool_sets:
                 if unique_set == bset:
                     return 'boolean'
-    # 3. Check for numeric
+    
+    # 3. Check if already datetime
+    if pd.api.types.is_datetime64_any_dtype(series):
+        return None  # Already datetime, no suggestion needed
+    
+    # 4. Check for datetime before numeric (datetime strings can sometimes be parsed as numeric)
+    if series.dtype == 'object':  # Only check string columns for datetime
+        non_null_series = series.dropna()
+        if len(non_null_series) > 0:
+            # Try to parse as datetime with various formats
+            try:
+                # First try pandas built-in datetime parsing
+                parsed_dates = pd.to_datetime(non_null_series, errors='coerce', infer_datetime_format=True)
+                # Check if at least 80% of non-null values were successfully parsed as dates
+                valid_dates = parsed_dates.dropna()
+                if len(valid_dates) >= len(non_null_series) * 0.8:
+                    return 'datetime'
+            except:
+                pass
+            
+            # Try common datetime patterns
+            datetime_patterns = [
+                r'\d{4}-\d{2}-\d{2}',  # YYYY-MM-DD
+                r'\d{2}/\d{2}/\d{4}',  # MM/DD/YYYY
+                r'\d{2}-\d{2}-\d{4}',  # MM-DD-YYYY
+                r'\d{4}/\d{2}/\d{2}',  # YYYY/MM/DD
+                r'\d{1,2}-\d{1,2}-\d{4}',  # M-D-YYYY or MM-DD-YYYY
+                r'\d{1,2}/\d{1,2}/\d{4}',  # M/D/YYYY or MM/DD/YYYY
+                r'\d{4}-\d{1,2}-\d{1,2}',  # YYYY-M-D or YYYY-MM-DD
+                r'\d{4}/\d{1,2}/\d{1,2}',  # YYYY/M/D or YYYY/MM/DD
+                r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}',  # YYYY-MM-DD HH:MM:SS
+                r'\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}',  # MM/DD/YYYY HH:MM:SS
+            ]
+            
+            import re
+            for pattern in datetime_patterns:
+                matches = sum(1 for val in non_null_series.astype(str) if re.match(pattern, str(val)))
+                if matches >= len(non_null_series) * 0.8:  # 80% match threshold
+                    return 'datetime'
+    
+    # 5. Check for numeric
     if pd.api.types.is_numeric_dtype(series):
         return None  # Already numeric, no suggestion needed
     try:
-        pd.to_numeric(series)
-        return 'numeric'
+        pd.to_numeric(series, errors='coerce')
+        numeric_count = pd.to_numeric(series, errors='coerce').count()
+        if numeric_count >= len(series.dropna()) * 0.8:  # 80% of values can be converted to numeric
+            return 'numeric'
     except:
-        # 4. Check for datetime
-        try:
-            pd.to_datetime(series)
-            if not pd.api.types.is_datetime64_any_dtype(series):
-                return 'datetime'
-        except:
-            return None
+        pass
+    
     return None
 
 def data_quality_report(df, filename):
@@ -507,66 +596,94 @@ def internal_error(e):
 def analysis_metadata():
     """Return column names, dtypes, grouped types, and preview from the latest cleaned dataset if available, otherwise from the raw uploaded dataset."""
     try:
-        upload_folder = app.config['UPLOAD_FOLDER']
-        uploaded_filename = session.get('filename')
-        cleaned_filename = session.get('cleaned_filename')
-        print('DEBUG /analysis: session[filename]=', uploaded_filename)
-        print('DEBUG /analysis: session[cleaned_filename]=', cleaned_filename)
-        expected_cleaned_filename = f"cleaned_{uploaded_filename}"
-        use_cleaned = cleaned_filename == expected_cleaned_filename
-        print('DEBUG /analysis: expected_cleaned_filename=', expected_cleaned_filename)
-        print('DEBUG /analysis: use_cleaned=', use_cleaned)
-        if not uploaded_filename:
-            return jsonify({'error': 'No uploaded file found. Please upload a dataset first.'}), 400
+        global cleaned_dataframe
+        if cleaned_dataframe is None:
+            upload_folder = app.config['UPLOAD_FOLDER']
+            uploaded_filename = session.get('filename')
+            cleaned_filename = session.get('cleaned_filename')
+            print('DEBUG /analysis: session[filename]=', uploaded_filename)
+            print('DEBUG /analysis: session[cleaned_filename]=', cleaned_filename)
+            expected_cleaned_filename = f"cleaned_{uploaded_filename}"
+            use_cleaned = cleaned_filename == expected_cleaned_filename
+            print('DEBUG /analysis: expected_cleaned_filename=', expected_cleaned_filename)
+            print('DEBUG /analysis: use_cleaned=', use_cleaned)
+            if not uploaded_filename:
+                return jsonify({'error': 'No uploaded file found. Please upload a dataset first.'}), 400
 
-        # Prefer the latest cleaned file if available
-        cleaned_files = [
-            f for f in os.listdir(upload_folder)
-            if f.startswith('cleaned_') and f.endswith(uploaded_filename)
-        ]
-        if cleaned_files:
-            # Pick the one with the most 'cleaned_' prefixes (i.e., the longest name)
-            cleaned_files.sort(key=lambda x: x.count('cleaned_'), reverse=True)
-            analysis_filepath = os.path.join(upload_folder, cleaned_files[0])
-            print('DEBUG /analysis: using latest cleaned file:', cleaned_files[0])
-        else:
-            analysis_filepath = os.path.join(upload_folder, uploaded_filename)
-            print('DEBUG /analysis: using original file:', uploaded_filename)
-        print('DEBUG /analysis: analysis_filepath=', analysis_filepath)
-
-        if not os.path.exists(analysis_filepath):
-            return jsonify({'error': 'Analysis file not found. Please upload a dataset first.'}), 400
-
-        ext = analysis_filepath.split('.')[-1].lower()
-        if ext == 'csv':
-            df = pd.read_csv(analysis_filepath)
-        elif ext in ['xls', 'xlsx']:
-            df = pd.read_excel(analysis_filepath)
-        elif ext == 'json':
-            df = pd.read_json(analysis_filepath, orient='records')
-        else:
-            return jsonify({'error': 'Unsupported file format'}), 400
-
-        # Group columns by type
-        columns = []
-        for col in df.columns:
-            dtype = df[col].dtype.name
-            if pd.api.types.is_numeric_dtype(df[col]):
-                group = 'Numerical'
-            elif pd.api.types.is_datetime64_any_dtype(df[col]):
-                group = 'Date/Time'
+            # Prefer the latest cleaned file if available
+            cleaned_files = [
+                f for f in os.listdir(upload_folder)
+                if f.startswith('cleaned_') and f.endswith(uploaded_filename)
+            ]
+            if cleaned_files:
+                # Pick the one with the most 'cleaned_' prefixes (i.e., the longest name)
+                cleaned_files.sort(key=lambda x: x.count('cleaned_'), reverse=True)
+                analysis_filepath = os.path.join(upload_folder, cleaned_files[0])
+                print('DEBUG /analysis: using latest cleaned file:', cleaned_files[0])
             else:
-                group = 'Categorical'
-            columns.append({'name': col, 'dtype': dtype, 'group': group})
+                analysis_filepath = os.path.join(upload_folder, uploaded_filename)
+                print('DEBUG /analysis: using original file:', uploaded_filename)
+            print('DEBUG /analysis: analysis_filepath=', analysis_filepath)
 
-        preview = df.head().replace({np.nan: None}).to_dict(orient='records')
-        data = df.replace({np.nan: None}).to_dict(orient='records')
-        return jsonify({
-            'filename': os.path.basename(analysis_filepath),
-            'columns': columns,
-            'preview': preview,
-            'data': data
-        }), 200
+            if not os.path.exists(analysis_filepath):
+                return jsonify({'error': 'Analysis file not found. Please upload a dataset first.'}), 400
+
+            ext = analysis_filepath.split('.')[-1].lower()
+            if ext == 'csv':
+                df = pd.read_csv(analysis_filepath)
+            elif ext in ['xls', 'xlsx']:
+                df = pd.read_excel(analysis_filepath)
+            elif ext == 'json':
+                df = pd.read_json(analysis_filepath, orient='records')
+            else:
+                return jsonify({'error': 'Unsupported file format'}), 400
+
+            # Group columns by type
+            columns = []
+            for col in df.columns:
+                dtype = df[col].dtype.name
+                if pd.api.types.is_numeric_dtype(df[col]):
+                    group = 'Numerical'
+                elif pd.api.types.is_datetime64_any_dtype(df[col]):
+                    group = 'Date/Time'
+                elif df[col].dtype == 'bool':
+                    group = 'Boolean'
+                else:
+                    group = 'Categorical'
+                columns.append({'name': col, 'dtype': dtype, 'group': group})
+
+            preview = df.head().replace({np.nan: None}).to_dict(orient='records')
+            data = df.replace({np.nan: None}).to_dict(orient='records')
+            return jsonify({
+                'filename': os.path.basename(analysis_filepath),
+                'columns': columns,
+                'preview': preview,
+                'data': data
+            }), 200
+        else:
+            # Use the stored cleaned_dataframe
+            df = cleaned_dataframe
+            columns = []
+            for col in df.columns:
+                dtype = df[col].dtype.name
+                if pd.api.types.is_numeric_dtype(df[col]):
+                    group = 'Numerical'
+                elif pd.api.types.is_datetime64_any_dtype(df[col]):
+                    group = 'Date/Time'
+                elif df[col].dtype == 'bool':
+                    group = 'Boolean'
+                else:
+                    group = 'Categorical'
+                columns.append({'name': col, 'dtype': dtype, 'group': group})
+
+            preview = df.head().replace({np.nan: None}).to_dict(orient='records')
+            data = df.replace({np.nan: None}).to_dict(orient='records')
+            return jsonify({
+                'filename': 'cleaned_dataset.csv', # Placeholder, actual filename is not available here
+                'columns': columns,
+                'preview': preview,
+                'data': data
+            }), 200
     except Exception as e:
         app.logger.error(traceback.format_exc())
         return jsonify({'error': f'Failed to load analysis metadata: {str(e)}'}), 500
@@ -801,6 +918,9 @@ def reset():
         file_path = os.path.join(upload_folder, f)
         if os.path.isfile(file_path):
             os.remove(file_path)
+    # Clear the stored cleaned dataframe
+    global cleaned_dataframe
+    cleaned_dataframe = None
     return jsonify({'message': 'Session and uploads reset.'}), 200
 
 @app.route('/download-cleaned', methods=['GET'])

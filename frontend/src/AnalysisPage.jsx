@@ -41,6 +41,7 @@ import {
 import axios from 'axios';
 import 'chartjs-chart-box-and-violin-plot';
 import Plot from 'react-plotly.js';
+import { SketchPicker } from 'react-color';
 
 
 // Color interpolation functions for diverging heatmap
@@ -60,6 +61,51 @@ function getCorrelationColor(v) {
     // 0 to 1: yellow to blue
     return interpolateColor(yellow, blue, v);
   }
+}
+
+// Color palette functions
+function getColorPalette(palette, count) {
+  const palettes = {
+    default: [
+      'rgba(54, 162, 235, 0.5)',
+      'rgba(255, 99, 132, 0.5)',
+      'rgba(255, 206, 86, 0.5)',
+      'rgba(75, 192, 192, 0.5)',
+      'rgba(153, 102, 255, 0.5)',
+      'rgba(255, 159, 64, 0.5)'
+    ],
+    pastel: [
+      'rgba(255, 182, 193, 0.7)',
+      'rgba(173, 216, 230, 0.7)',
+      'rgba(144, 238, 144, 0.7)',
+      'rgba(255, 218, 185, 0.7)',
+      'rgba(221, 160, 221, 0.7)',
+      'rgba(255, 228, 196, 0.7)'
+    ],
+    bold: [
+      'rgba(255, 0, 0, 0.8)',
+      'rgba(0, 255, 0, 0.8)',
+      'rgba(0, 0, 255, 0.8)',
+      'rgba(255, 255, 0, 0.8)',
+      'rgba(255, 0, 255, 0.8)',
+      'rgba(0, 255, 255, 0.8)'
+    ],
+    dark: [
+      'rgba(25, 25, 112, 0.8)',
+      'rgba(139, 0, 0, 0.8)',
+      'rgba(0, 100, 0, 0.8)',
+      'rgba(128, 128, 0, 0.8)',
+      'rgba(128, 0, 128, 0.8)',
+      'rgba(0, 128, 128, 0.8)'
+    ]
+  };
+  
+  const selectedPalette = palettes[palette] || palettes.default;
+  const colors = [];
+  for (let i = 0; i < count; i++) {
+    colors.push(selectedPalette[i % selectedPalette.length]);
+  }
+  return colors;
 }
 
 Chart.register(MatrixController, MatrixElement);
@@ -214,6 +260,11 @@ const AnalysisPage = () => {
   const kpiRef = useRef(null);
   const [aggregationType, setAggregationType] = useState('sum'); // 'sum' or 'average'
   const [chartCapturing, setChartCapturing] = useState(false);
+
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [customizeChartId, setCustomizeChartId] = useState(null);
+  const [customOptions, setCustomOptions] = useState({}); // { [chartId]: { title, xLabel, yLabel, legend, grid, palette, colors: [] } }
+  const [tempCustomOptions, setTempCustomOptions] = useState({}); // For modal editing
 
   // Clean up chart refs when component unmounts
   useEffect(() => {
@@ -850,13 +901,8 @@ const AnalysisPage = () => {
   }
 
   // Helper to get chartId for current chart
-  function getChartId(type, cols, filterTop, sortOrder) {
-    const baseId = `${type}:${cols.join(',')}:filter=${filterTop}:sort=${sortOrder}`;
-    // Add aggregation type to chart ID if applicable
-    if (['bar', 'horizontalBar', 'groupedBar', 'stackedBar', 'pie', 'donut'].includes(type) && cols.filter(Boolean).length >= 1) {
-      return `${baseId}:agg=${aggregationType}`;
-    }
-    return baseId;
+  function getChartId(type, cols) {
+    return `${type}:${cols.join(',')}`;
   }
 
   // Helper to get Chart.js options with black text/grid for export
@@ -902,13 +948,40 @@ const AnalysisPage = () => {
     const data = getChartData(type, selectedCols);
     if (!data) return null;
     
-    const chartId = passedChartId || getChartId(type, selectedCols, filterTop, sortOrder);
+    const chartId = passedChartId || getChartId(type, selectedCols);
     const axisLabels = getAxisLabels(type, selectedCols);
     const showLegend = shouldShowLegend(type, selectedCols);
     
     // Ensure chart ref exists
     if (!chartRefs.current[chartId]) {
       chartRefs.current[chartId] = React.createRef();
+    }
+    
+    const options = customOptions[chartId] || {};
+    
+    // Apply customization options
+    const customTitle = options.title !== undefined ? options.title : '';
+    const showCustomLegend = options.legend !== undefined ? options.legend : showLegend;
+    const showCustomGrid = options.grid !== undefined ? options.grid : true;
+    const customPalette = options.palette || 'default';
+    const customColors = options.colors || [];
+    
+    // Apply color palette or custom colors to chart data
+    if (data.datasets && data.datasets.length > 0) {
+      let colors;
+      if (customColors.length > 0) {
+        colors = customColors;
+      } else {
+        colors = getColorPalette(customPalette, data.datasets.length);
+      }
+      data.datasets.forEach((dataset, index) => {
+        if (dataset.backgroundColor) {
+          dataset.backgroundColor = colors[index];
+        }
+        if (dataset.borderColor) {
+          dataset.borderColor = colors[index]?.replace('0.5', '1').replace('0.7', '1').replace('0.8', '1');
+        }
+      });
     }
     
     // Add data-chartid to chart props
@@ -921,14 +994,22 @@ const AnalysisPage = () => {
         maintainAspectRatio: false,
         plugins: {
           legend: { 
-            display: showLegend,
+            display: showCustomLegend,
             labels: { color: theme.palette.text.primary } 
           },
-          title: { color: theme.palette.text.primary }
+          title: { 
+            color: theme.palette.text.primary,
+            display: !!customTitle,
+            text: customTitle,
+            font: { size: 16, weight: 'bold' }
+          }
         },
         scales: {
           x: {
-            grid: { color: theme.palette.divider },
+            grid: { 
+              display: showCustomGrid,
+              color: theme.palette.divider 
+            },
             ticks: { color: theme.palette.text.primary },
             title: {
               display: true,
@@ -938,7 +1019,10 @@ const AnalysisPage = () => {
             }
           },
           y: {
-            grid: { color: theme.palette.divider },
+            grid: { 
+              display: showCustomGrid,
+              color: theme.palette.divider 
+            },
             ticks: { color: theme.palette.text.primary },
             title: {
               display: true,
@@ -994,6 +1078,15 @@ const AnalysisPage = () => {
         <Box sx={{ height: '400px', width: '100%' }}>
           <Bar {...chartProps} options={{
             ...chartProps.options,
+            plugins: {
+              ...chartProps.options.plugins,
+              title: { 
+                ...chartProps.options.plugins.title, 
+                display: !!customTitle, 
+                text: customTitle || data.datasets[0]?.label || '',
+                font: { size: 16, weight: 'bold' }
+              }
+            },
             scales: {
               ...chartProps.options.scales,
               x: {
@@ -1032,8 +1125,8 @@ const AnalysisPage = () => {
         plugins: {
           legend: { display: false },
           title: {
-            display: true,
-            text: 'Correlation Heatmap',
+            display: !!customTitle,
+            text: customTitle || 'Correlation Heatmap',
             font: { size: 22 },
             padding: { top: 20, bottom: 20 }
           },
@@ -1085,6 +1178,15 @@ const AnalysisPage = () => {
               <span style={{ color: theme.palette.text.primary, fontWeight: 'bold' }}>+1</span>
             </Box>
           </Box>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<Settings />}
+            sx={{ mt: 1, mb: 2 }}
+            onClick={() => handleOpenCustomize(chartId)}
+          >
+            Customize
+          </Button>
         </Box>
       );
     }
@@ -1093,6 +1195,15 @@ const AnalysisPage = () => {
         return (
           <Box sx={{ height: '400px', width: '100%' }}>
             <Bar {...chartProps} />
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Settings />}
+              sx={{ mt: 1, mb: 2 }}
+              onClick={() => handleOpenCustomize(chartId)}
+            >
+              Customize
+            </Button>
           </Box>
         );
       case 'horizontalBar':
@@ -1123,6 +1234,16 @@ const AnalysisPage = () => {
                 }
               }
             }} />
+
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Settings />}
+              sx={{ mt: 1, mb: 2 }}
+              onClick={() => handleOpenCustomize(chartId)}
+            >
+              Customize
+            </Button>
           </Box>
         );
       case 'pie':
@@ -1135,6 +1256,15 @@ const AnalysisPage = () => {
                 datalabels: { color: forExport ? '#111' : theme.palette.text.primary, font: { weight: 'bold', size: 16 } }
               }
             }} plugins={[ChartDataLabels]} />
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Settings />}
+              sx={{ mt: 1, mb: 2 }}
+              onClick={() => handleOpenCustomize(chartId)}
+            >
+              Customize
+            </Button>
           </Box>
         );
       case 'donut':
@@ -1147,6 +1277,16 @@ const AnalysisPage = () => {
                 datalabels: { color: forExport ? '#111' : theme.palette.text.primary, font: { weight: 'bold', size: 16 } }
               }
             }} plugins={[ChartDataLabels]} />
+
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Settings />}
+              sx={{ mt: 1, mb: 2 }}
+              onClick={() => handleOpenCustomize(chartId)}
+            >
+              Customize
+            </Button>
           </Box>
         );
       case 'histogram':
@@ -1160,7 +1300,7 @@ const AnalysisPage = () => {
                   ...chartProps.options.scales.x,
                   title: {
                     display: true,
-                    text: `${selectedCols[0]} (Value)`,
+                    text: axisLabels.x,
                     color: forExport ? '#111' : '#fff',
                     font: { size: 14, weight: 'bold' }
                   }
@@ -1169,13 +1309,22 @@ const AnalysisPage = () => {
                   ...chartProps.options.scales.y,
                   title: {
                     display: true,
-                    text: 'Frequency',
+                    text: axisLabels.y,
                     color: forExport ? '#111' : '#fff',
                     font: { size: 14, weight: 'bold' }
                   }
                 }
               }
             }} />
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Settings />}
+              sx={{ mt: 1, mb: 2 }}
+              onClick={() => handleOpenCustomize(chartId)}
+            >
+              Customize
+            </Button>
           </Box>
         );
       case 'box':
@@ -1198,10 +1347,14 @@ const AnalysisPage = () => {
                       '<extra></extra>'
                   }
                 ]}
-                layout={{
-                  title: `Box Plot of ${data.labels[0]}`,
-                  xaxis: { title: 'Distribution' },
-                  yaxis: { title: `${data.labels[0]} (Value)` },
+
+                       layout={{
+                title: {
+                  text: customTitle || `Box Plot of ${data.labels[0]}`,
+                  font: { size: 16, color: theme.palette.text.primary }
+                },
+                xaxis: { title: axisLabels.x || 'Distribution' },
+                yaxis: { title: axisLabels.y || `${data.labels[0]} (Value)` },
                   paper_bgcolor: 'transparent',
                   plot_bgcolor: 'transparent',
                   font: { color: theme.palette.text.primary },
@@ -1227,10 +1380,20 @@ const AnalysisPage = () => {
                 config={{ displayModeBar: false }}
               />
             </div>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Settings />}
+              sx={{ mt: 1, mb: 2 }}
+              onClick={() => handleOpenCustomize(chartId)}
+            >
+              Customize
+            </Button>
           </Box>
         );
       case 'scatter':
         return (
+
           <Box sx={{ height: '400px', width: '100%' }}>
             <Scatter {...chartProps} options={{
               ...chartProps.options,
@@ -1256,6 +1419,15 @@ const AnalysisPage = () => {
                 }
               }
             }} />
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Settings />}
+              sx={{ mt: 1, mb: 2 }}
+              onClick={() => handleOpenCustomize(chartId)}
+            >
+              Customize
+            </Button>
           </Box>
         );
       case 'line':
@@ -1285,6 +1457,15 @@ const AnalysisPage = () => {
                 }
               }
             }} />
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Settings />}
+              sx={{ mt: 1, mb: 2 }}
+              onClick={() => handleOpenCustomize(chartId)}
+            >
+              Customize
+            </Button>
           </Box>
         );
       default:
@@ -1353,11 +1534,11 @@ const AnalysisPage = () => {
 
   // Add to Report handler for all chart types
   function handleAddToReport(type, selectedCols, checked) {
-    const chartId = getChartId(type, selectedCols, filterTop, sortOrder);
+    const chartId = getChartId(type, selectedCols);
+    const chartCustomOptions = customOptions[chartId] || {};
     if (checked) {
       setChartCapturing(true);
       setExportingChartId(chartId);
-      
       setTimeout(async () => {
         try {
           let image_base64 = '';
@@ -1457,6 +1638,47 @@ const AnalysisPage = () => {
         }
       });
     }
+  }
+
+  function handleOpenCustomize(chartId) {
+    setCustomizeChartId(chartId);
+    const existingOptions = customOptions[chartId] || {};
+    
+    // Only initialize colors if they were previously set
+    let colors = existingOptions.colors || [];
+    
+    setTempCustomOptions({ 
+      ...existingOptions,
+      colors: colors
+    });
+    setCustomizeOpen(true);
+  }
+  function handleCloseCustomize() {
+    setCustomizeOpen(false);
+    setCustomizeChartId(null);
+    setTempCustomOptions({});
+  }
+  function handleCustomizeChange(field, value) {
+    setTempCustomOptions(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }
+  function handleColorChange(index, color) {
+    setTempCustomOptions(prev => {
+      const colors = prev.colors ? [...prev.colors] : [];
+      colors[index] = color;
+      return { ...prev, colors };
+    });
+  }
+  function handleSaveCustomize() {
+    setCustomOptions(prev => ({
+      ...prev,
+      [customizeChartId]: tempCustomOptions
+    }));
+    setCustomizeOpen(false);
+    setCustomizeChartId(null);
+    setTempCustomOptions({});
   }
 
   // UI rendering
@@ -1933,7 +2155,7 @@ const AnalysisPage = () => {
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={!!chartsToReport[getChartId(selectedChart, selectedColumns, filterTop, sortOrder)]?.selected}
+                      checked={!!chartsToReport[getChartId(selectedChart, selectedColumns)]?.selected}
                       onChange={e => handleAddToReport(selectedChart, selectedColumns, e.target.checked)}
                       sx={{ 
                         color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
@@ -2140,7 +2362,7 @@ const AnalysisPage = () => {
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={!!chartsToReport[getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder)]?.selected}
+                      checked={!!chartsToReport[getChartId(chartType, chartColumns.filter(Boolean))]?.selected}
                       onChange={e => handleAddToReport(chartType, chartColumns.filter(Boolean), e.target.checked)}
                       sx={{ 
                         color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
@@ -2461,6 +2683,81 @@ const AnalysisPage = () => {
           Go to Export Page
         </Button>
       </Box>
+      <Dialog open={customizeOpen} onClose={handleCloseCustomize} maxWidth="sm" fullWidth>
+        <DialogTitle>Customize Chart</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              label="Chart Title"
+              value={tempCustomOptions.title || ''}
+              onChange={e => handleCustomizeChange('title', e.target.value)}
+              fullWidth
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={tempCustomOptions.legend ?? true}
+                  onChange={e => handleCustomizeChange('legend', e.target.checked)}
+                />
+              }
+              label="Show Legend"
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={tempCustomOptions.grid ?? true}
+                  onChange={e => handleCustomizeChange('grid', e.target.checked)}
+                />
+              }
+              label="Show Gridlines"
+            />
+            {/* Color scheme dropdown (placeholder) */}
+            <FormControl fullWidth>
+              <InputLabel>Color Scheme</InputLabel>
+              <Select
+                value={tempCustomOptions.palette || 'default'}
+                label="Color Scheme"
+                onChange={e => handleCustomizeChange('palette', e.target.value)}
+              >
+                <MenuItem value="default">Default</MenuItem>
+                <MenuItem value="pastel">Pastel</MenuItem>
+                <MenuItem value="bold">Bold</MenuItem>
+                <MenuItem value="dark">Dark</MenuItem>
+              </Select>
+            </FormControl>
+            {/* Color pickers for each dataset */}
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>Custom Color</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                <SketchPicker
+                  color={tempCustomOptions.colors?.[0] || '#36a2eb'}
+                  onChange={c => handleColorChange(0, c.hex)}
+                  presetColors={['#36a2eb', '#ff6384', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40']}
+                  disableAlpha
+                />
+                <TextField
+                  label={`Color Code`}
+                  value={tempCustomOptions.colors?.[0] || ''}
+                  onChange={e => handleColorChange(0, e.target.value)}
+                  sx={{ width: 140 }}
+                />
+              </Box>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setCustomOptions(prev => {
+              const updated = { ...prev };
+              delete updated[customizeChartId];
+              return updated;
+            });
+            setTempCustomOptions({ title: '', legend: true, grid: true, palette: 'default' });
+          }}>Reset</Button>
+          <Button onClick={handleCloseCustomize}>Cancel</Button>
+          <Button onClick={handleSaveCustomize} variant="contained">Save</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

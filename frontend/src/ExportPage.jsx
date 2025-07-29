@@ -290,7 +290,7 @@ const ExportPage = ({
         formattedResult: viz.formattedResult
       };
     }
-    
+    // For charts, remove xLabel and yLabel
     return {
       title: `${viz.type.charAt(0).toUpperCase() + viz.type.slice(1)}: ${viz.columns.join(', ')}`,
       type: viz.type,
