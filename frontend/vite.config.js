@@ -36,5 +36,13 @@ export default defineConfig({
       '@mui/icons-material',
       'buffer'
     ]
-  }
+  },
+  define: {
+    global: 'globalThis',
+  },
+  resolve: {
+    alias: {
+      'buffer': 'buffer',
+    },
+  },
 })

@@ -1185,7 +1185,7 @@ const AnalysisPage = () => {
         }
       };
       return (
-        <Box sx={{ height: '400px', width: '100%' }}>
+        <Box sx={{ height: '480px', width: '100%' }}>
           <ChartJS2 {...chartProps} type="matrix" options={matrixOptions} plugins={[ChartDataLabels]} />
           {/* Color legend for correlation heatmap */}
           <Box mt={2} display="flex" flexDirection="column" alignItems="center" justifyContent="center">
@@ -2117,8 +2117,8 @@ const AnalysisPage = () => {
                       </FormControl>
                     </Grid>
                   )}
-                  {/* Filter controls - exclude scatter plots and line charts */}
-                  {!['scatter', 'line'].includes(selectedChart) && (
+                  {/* Filter controls - exclude scatter plots, line charts, and correlation heatmaps */}
+                  {!['scatter', 'line', 'correlation'].includes(selectedChart) && (
                     <Grid item xs={12} sm={6}>
                       <TextField
                         fullWidth
@@ -2315,8 +2315,8 @@ const AnalysisPage = () => {
                       </FormControl>
                     </Grid>
                   )}
-                  {/* Filter controls - exclude scatter plots and line charts */}
-                  {!['scatter', 'line'].includes(chartType) && (
+                  {/* Filter controls - exclude scatter plots, line charts, and correlation heatmaps */}
+                  {!['scatter', 'line', 'correlation'].includes(chartType) && (
                     <Grid item xs={12} sm={6}>
                       <TextField
                         fullWidth
@@ -2396,7 +2396,7 @@ const AnalysisPage = () => {
               Generate Chart
             </Button>
             {shouldShowChart && chartType && ((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
-              <Box mt={4} sx={{ maxWidth: '800px', maxHeight: '500px', mx: 'auto' }}>
+              <Box mt={4} sx={{ maxWidth: '800px', minHeight: chartType === 'correlation' ? '1000px' : 'auto', mx: 'auto' }}>
                 {renderChart(chartType, chartColumns.filter(Boolean), exportingChartId === getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder), getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder))}
                 <FormControlLabel
                   control={
