@@ -53,11 +53,18 @@ function getCorrelationColor(v) {
   const red = [255, 99, 132];
   const yellow = [255, 206, 86];
   const blue = [54, 162, 235];
+  
+  // Clamp v to [-1, 1] range
+  v = Math.max(-1, Math.min(1, v));
+  
   if (v < 0) {
     // -1 to 0: red to yellow
-    return interpolateColor(red, yellow, v + 1);
+    // Normalize v from [-1, 0] to [0, 1] for interpolation
+    const t = (v + 1); // This maps -1->0, 0->1
+    return interpolateColor(red, yellow, t);
   } else {
     // 0 to 1: yellow to blue
+    // v is already in [0, 1] range
     return interpolateColor(yellow, blue, v);
   }
 }
@@ -741,6 +748,18 @@ const AnalysisPage = () => {
           matrixData.push({ x: colX, y: colY, v: corr });
         }
       }
+      
+      // Debug: Log correlation values to see if they're being calculated correctly
+      console.log('Correlation matrix data:', matrixData);
+      console.log('Correlation values range:', {
+        min: Math.min(...matrixData.map(d => d.v)),
+        max: Math.max(...matrixData.map(d => d.v))
+      });
+      
+      // Pre-calculate colors for each data point
+      const colors = matrixData.map(d => getCorrelationColor(d.v));
+      console.log('Pre-calculated colors:', colors);
+      
       // Use the same palette as other charts
       const palette = [
         'rgba(255, 99, 132, OPACITY)',   // red
@@ -755,10 +774,7 @@ const AnalysisPage = () => {
         datasets: [{
           label: 'Correlation',
           data: matrixData,
-          backgroundColor: ctx => {
-            const v = ctx.raw.v;
-            return getCorrelationColor(v);
-          },
+          backgroundColor: colors,
           borderColor: 'white',
           borderWidth: 2,
           width: ({chart}) => {
@@ -966,7 +982,8 @@ const AnalysisPage = () => {
     const customColors = options.colors || [];
     
     // Apply color palette or custom colors to chart data
-    if (data.datasets && data.datasets.length > 0) {
+    // Skip this for correlation charts as they have their own color logic
+    if (data.datasets && data.datasets.length > 0 && type !== 'correlation') {
       let colors;
       if (customColors.length > 0) {
         colors = customColors;
@@ -1126,14 +1143,15 @@ const AnalysisPage = () => {
           title: {
             display: !!customTitle,
             text: customTitle || 'Correlation Heatmap',
-            font: { size: 22 },
-            padding: { top: 20, bottom: 20 }
+            font: { size: 14 },
+            padding: { top: 20, bottom: 20 },
+            color: forExport ? '#111' : theme.palette.text.primary
           },
           tooltip: { enabled: false },
           datalabels: {
             display: true,
-            color: theme.palette.mode === 'dark' ? 'white' : 'black',
-            font: { weight: 'bold', size: 16 },
+            color: forExport ? '#111' : (theme.palette.mode === 'dark' ? 'white' : 'black'),
+            font: { weight: 'bold', size: 12 },
             formatter: (value, ctx) => (ctx.raw && typeof ctx.raw.v === 'number' ? ctx.raw.v.toFixed(2) : ''),
           },
         },
@@ -1143,16 +1161,37 @@ const AnalysisPage = () => {
             labels: data.labels,
             position: 'bottom', // ensures labels are below the chart
             offset: true,      // adds spacing if needed
-            title: { display: true, text: 'Features', font: { size: 16 }, color: theme.palette.text.primary },
+            title: { 
+              display: true, 
+              text: 'Features', 
+              font: { size: 12 }, 
+              color: forExport ? '#111' : theme.palette.text.primary 
+            },
             grid: { display: false },
-            ticks: { font: { size: 14 }, color: theme.palette.text.primary, autoSkip: false, maxRotation: 45, minRotation: 45, padding: 20 }
+            ticks: { 
+              font: { size: 10 }, 
+              color: forExport ? '#111' : theme.palette.text.primary, 
+              autoSkip: false, 
+              maxRotation: 45, 
+              minRotation: 45, 
+              padding: 20 
+            }
           },
           y: {
             type: 'category',
             labels: data.labels,
-            title: { display: true, text: 'Features', font: { size: 16 }, color: theme.palette.text.primary },
+            title: { 
+              display: true, 
+              text: 'Features', 
+              font: { size: 12 }, 
+              color: forExport ? '#111' : theme.palette.text.primary 
+            },
             grid: { display: false },
-            ticks: { font: { size: 14 }, color: theme.palette.text.primary, autoSkip: false }
+            ticks: { 
+              font: { size: 10 }, 
+              color: forExport ? '#111' : theme.palette.text.primary, 
+              autoSkip: false 
+            }
           }
         }
       };
@@ -1172,9 +1211,18 @@ const AnalysisPage = () => {
               }}
             />
             <Box mt={0.5} width={300} display="flex" flexDirection="row" justifyContent="space-between">
-              <span style={{ color: theme.palette.text.primary, fontWeight: 'bold' }}>-1</span>
-              <span style={{ color: theme.palette.text.primary, fontWeight: 'bold' }}>0</span>
-              <span style={{ color: theme.palette.text.primary, fontWeight: 'bold' }}>+1</span>
+              <span style={{ 
+                color: forExport ? '#111' : theme.palette.text.primary, 
+                fontWeight: 'bold' 
+              }}>-1</span>
+              <span style={{ 
+                color: forExport ? '#111' : theme.palette.text.primary, 
+                fontWeight: 'bold' 
+              }}>0</span>
+              <span style={{ 
+                color: forExport ? '#111' : theme.palette.text.primary, 
+                fontWeight: 'bold' 
+              }}>+1</span>
             </Box>
           </Box>
           <Button
