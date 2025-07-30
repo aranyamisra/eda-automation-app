@@ -55,7 +55,7 @@ function getCorrelationColor(v) {
   const blue = [54, 162, 235];
   if (v < 0) {
     // -1 to 0: red to yellow
-    return interpolateColor(red, yellow, v + 1);
+    return interpolateColor(red, yellow, Math.abs(v));
   } else {
     // 0 to 1: yellow to blue
     return interpolateColor(yellow, blue, v);
@@ -731,6 +731,7 @@ const AnalysisPage = () => {
       }
       const arr = (data.length > 0 ? data : preview);
       const matrixData = [];
+      const backgroundColors = [];
       for (let i = 0; i < numCols.length; i++) {
         for (let j = 0; j < numCols.length; j++) {
           const colX = numCols[i];
@@ -739,6 +740,7 @@ const AnalysisPage = () => {
           const yVals = arr.map(row => row[colY]);
           const corr = pearsonPairs(xVals, yVals);
           matrixData.push({ x: colX, y: colY, v: corr });
+          backgroundColors.push(getCorrelationColor(corr));
         }
       }
       // Use the same palette as other charts
@@ -755,10 +757,7 @@ const AnalysisPage = () => {
         datasets: [{
           label: 'Correlation',
           data: matrixData,
-          backgroundColor: ctx => {
-            const v = ctx.raw.v;
-            return getCorrelationColor(v);
-          },
+          backgroundColor: backgroundColors,
           borderColor: 'white',
           borderWidth: 2,
           width: ({chart}) => {
@@ -1177,15 +1176,16 @@ const AnalysisPage = () => {
               <span style={{ color: theme.palette.text.primary, fontWeight: 'bold' }}>+1</span>
             </Box>
           </Box>
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<Settings />}
-            sx={{ mt: 1, mb: 2 }}
-            onClick={() => handleOpenCustomize(chartId)}
-          >
-            Customize
-          </Button>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Settings />}
+              onClick={() => handleOpenCustomize(chartId)}
+            >
+              Customize
+            </Button>
+          </Box>
         </Box>
       );
     }
@@ -1194,15 +1194,16 @@ const AnalysisPage = () => {
         return (
           <Box sx={{ height: '400px', width: '100%' }}>
             <Bar {...chartProps} />
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Settings />}
-              sx={{ mt: 1, mb: 2 }}
-              onClick={() => handleOpenCustomize(chartId)}
-            >
-              Customize
-            </Button>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Settings />}
+                onClick={() => handleOpenCustomize(chartId)}
+              >
+                Customize
+              </Button>
+            </Box>
           </Box>
         );
       case 'horizontalBar':
@@ -1234,15 +1235,16 @@ const AnalysisPage = () => {
               }
             }} />
 
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Settings />}
-              sx={{ mt: 1, mb: 2 }}
-              onClick={() => handleOpenCustomize(chartId)}
-            >
-              Customize
-            </Button>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Settings />}
+                onClick={() => handleOpenCustomize(chartId)}
+              >
+                Customize
+              </Button>
+            </Box>
           </Box>
         );
       case 'pie':
@@ -1255,15 +1257,16 @@ const AnalysisPage = () => {
                 datalabels: { color: forExport ? '#111' : theme.palette.text.primary, font: { weight: 'bold', size: 16 } }
               }
             }} plugins={[ChartDataLabels]} />
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Settings />}
-              sx={{ mt: 1, mb: 2 }}
-              onClick={() => handleOpenCustomize(chartId)}
-            >
-              Customize
-            </Button>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Settings />}
+                onClick={() => handleOpenCustomize(chartId)}
+              >
+                Customize
+              </Button>
+            </Box>
           </Box>
         );
       case 'donut':
@@ -1277,15 +1280,16 @@ const AnalysisPage = () => {
               }
             }} plugins={[ChartDataLabels]} />
 
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Settings />}
-              sx={{ mt: 1, mb: 2 }}
-              onClick={() => handleOpenCustomize(chartId)}
-            >
-              Customize
-            </Button>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Settings />}
+                onClick={() => handleOpenCustomize(chartId)}
+              >
+                Customize
+              </Button>
+            </Box>
           </Box>
         );
       case 'histogram':
@@ -1315,15 +1319,16 @@ const AnalysisPage = () => {
                 }
               }
             }} />
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Settings />}
-              sx={{ mt: 1, mb: 2 }}
-              onClick={() => handleOpenCustomize(chartId)}
-            >
-              Customize
-            </Button>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Settings />}
+                onClick={() => handleOpenCustomize(chartId)}
+              >
+                Customize
+              </Button>
+            </Box>
           </Box>
         );
       case 'box':
@@ -1379,15 +1384,16 @@ const AnalysisPage = () => {
                 config={{ displayModeBar: false }}
               />
             </div>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Settings />}
-              sx={{ mt: 1, mb: 2 }}
-              onClick={() => handleOpenCustomize(chartId)}
-            >
-              Customize
-            </Button>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Settings />}
+                onClick={() => handleOpenCustomize(chartId)}
+              >
+                Customize
+              </Button>
+            </Box>
           </Box>
         );
       case 'scatter':
@@ -1418,15 +1424,16 @@ const AnalysisPage = () => {
                 }
               }
             }} />
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Settings />}
-              sx={{ mt: 1, mb: 2 }}
-              onClick={() => handleOpenCustomize(chartId)}
-            >
-              Customize
-            </Button>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Settings />}
+                onClick={() => handleOpenCustomize(chartId)}
+              >
+                Customize
+              </Button>
+            </Box>
           </Box>
         );
       case 'line':
@@ -1456,15 +1463,16 @@ const AnalysisPage = () => {
                 }
               }
             }} />
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Settings />}
-              sx={{ mt: 1, mb: 2 }}
-              onClick={() => handleOpenCustomize(chartId)}
-            >
-              Customize
-            </Button>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Settings />}
+                onClick={() => handleOpenCustomize(chartId)}
+              >
+                Customize
+              </Button>
+            </Box>
           </Box>
         );
       default:

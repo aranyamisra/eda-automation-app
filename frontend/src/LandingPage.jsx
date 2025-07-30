@@ -52,10 +52,14 @@ function LandingPage() {
           color: '#e0e0e0',
         }}
       >
+
+
+
+
         {/* Animated Welcome Message */}
         <Box sx={{ minHeight: 80 }}>
           <TextType
-            text={["Welcome to our EDA Automation App", "Start your data journey"]}
+            text={["Welcome to DataGenie", "Start your data journey"]}
             typingSpeed={75}
             pauseDuration={1500}
             showCursor={true}
