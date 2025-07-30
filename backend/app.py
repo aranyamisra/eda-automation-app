@@ -172,8 +172,6 @@ def clean_data():
         # --- AFTER REPORT ---
         after_report = data_quality_report(df_cleaned, cleaned_filename)
         after_dtypes = df_cleaned.dtypes.apply(lambda x: x.name).to_dict()
-        print('DEBUG: df_cleaned.dtypes after cleaning:', df_cleaned.dtypes)
-        print('DEBUG: after_report["suggested_dtypes"]:', after_report.get('suggested_dtypes'))
 
         # --- DATA TYPE CHANGES ---
         dtype_changes = {}
@@ -323,7 +321,6 @@ def apply_cleaning_operations(df, config):
                             'y': True, 'n': False
                         })
                 except Exception as e:
-                    print(f"Warning: Failed to convert column {column} to {suggested_type}: {str(e)}")
                     pass  # Keep original type if conversion fails
 
     # Handle outlier cleaning
@@ -601,12 +598,8 @@ def analysis_metadata():
             upload_folder = app.config['UPLOAD_FOLDER']
             uploaded_filename = session.get('filename')
             cleaned_filename = session.get('cleaned_filename')
-            print('DEBUG /analysis: session[filename]=', uploaded_filename)
-            print('DEBUG /analysis: session[cleaned_filename]=', cleaned_filename)
             expected_cleaned_filename = f"cleaned_{uploaded_filename}"
             use_cleaned = cleaned_filename == expected_cleaned_filename
-            print('DEBUG /analysis: expected_cleaned_filename=', expected_cleaned_filename)
-            print('DEBUG /analysis: use_cleaned=', use_cleaned)
             if not uploaded_filename:
                 return jsonify({'error': 'No uploaded file found. Please upload a dataset first.'}), 400
 
@@ -619,11 +612,8 @@ def analysis_metadata():
                 # Pick the one with the most 'cleaned_' prefixes (i.e., the longest name)
                 cleaned_files.sort(key=lambda x: x.count('cleaned_'), reverse=True)
                 analysis_filepath = os.path.join(upload_folder, cleaned_files[0])
-                print('DEBUG /analysis: using latest cleaned file:', cleaned_files[0])
             else:
                 analysis_filepath = os.path.join(upload_folder, uploaded_filename)
-                print('DEBUG /analysis: using original file:', uploaded_filename)
-            print('DEBUG /analysis: analysis_filepath=', analysis_filepath)
 
             if not os.path.exists(analysis_filepath):
                 return jsonify({'error': 'Analysis file not found. Please upload a dataset first.'}), 400
@@ -926,8 +916,6 @@ def reset():
 @app.route('/download-cleaned', methods=['GET'])
 def download_cleaned():
     upload_folder = app.config['UPLOAD_FOLDER']
-    # List all files for debugging
-    print("Files in upload folder:", os.listdir(upload_folder))
     # Find latest cleaned file (filename starts with 'cleaned_')
     files = [os.path.join(upload_folder, f) for f in os.listdir(upload_folder)
              if os.path.isfile(os.path.join(upload_folder, f)) and f.startswith('cleaned_')]
