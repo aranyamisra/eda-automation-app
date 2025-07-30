@@ -303,8 +303,6 @@ const AnalysisPage = () => {
         }
       })
       .catch(err => {
-        console.error('Analysis page error:', err);
-        console.error('Error response:', err.response);
         const errorMessage = err.response?.data?.error || err.message || 'Failed to load analysis metadata';
         
         // If the error is about no uploaded file, show a specific message
@@ -424,8 +422,6 @@ const AnalysisPage = () => {
         };
       } else {
         let catCol, numCol;
-        console.log('DEBUG: selectedCols', selectedCols);
-        console.log('DEBUG: columns', columns);
         if (columns.find(c => c.name === selectedCols[0])?.group === 'Categorical' && columns.find(c => c.name === selectedCols[1])?.group === 'Numerical') {
           catCol = selectedCols[0];
           numCol = selectedCols[1];
@@ -436,7 +432,6 @@ const AnalysisPage = () => {
           catCol = selectedCols[0];
           numCol = selectedCols[1];
         }
-        console.log('DEBUG: Using catCol:', catCol, 'numCol:', numCol);
         const { labels, data } = aggregateByCategory(catCol, numCol);
         const { labels: filteredLabels, data: filteredData } = applyFilterAndSort(labels, data);
         
@@ -751,16 +746,8 @@ const AnalysisPage = () => {
         }
       }
       
-      // Debug: Log correlation values to see if they're being calculated correctly
-      console.log('Correlation matrix data:', matrixData);
-      console.log('Correlation values range:', {
-        min: Math.min(...matrixData.map(d => d.v)),
-        max: Math.max(...matrixData.map(d => d.v))
-      });
-      
       // Pre-calculate colors for each data point
       const colors = matrixData.map(d => getCorrelationColor(d.v));
-      console.log('Pre-calculated colors:', colors);
       
       // Use the same palette as other charts
       const palette = [
@@ -1568,7 +1555,6 @@ const AnalysisPage = () => {
               }
             });
           }).catch(error => {
-            console.error('Error capturing KPI screenshot:', error);
             alert('Failed to capture KPI image. Please try again.');
           }).finally(() => {
             setChartCapturing(false);
@@ -1612,7 +1598,6 @@ const AnalysisPage = () => {
                                     document.querySelector('.js-plotly-plot');
               
               if (plotlyContainer) {
-                console.log('Found Plotly container for chart:', chartId);
                 const canvas = await html2canvas(plotlyContainer, {
                   backgroundColor: null,
                   scale: 2,
@@ -1621,12 +1606,11 @@ const AnalysisPage = () => {
                   allowTaint: true
                 });
                 image_base64 = canvas.toDataURL('image/png');
-                console.log('Successfully captured Plotly chart');
               } else {
-                console.error('Could not find Plotly container for chart:', chartId);
+                // Could not find Plotly container for chart
               }
             } catch (e) {
-              console.error('Plotly capture error:', e);
+              // Plotly capture error
             }
           } else {
             // Try multiple methods to get the canvas for Chart.js charts
@@ -1649,7 +1633,7 @@ const AnalysisPage = () => {
               try {
                 image_base64 = canvas.toDataURL('image/png');
               } catch (e) {
-                console.error('Canvas capture error:', e);
+                // Canvas capture error
               }
             }
           }
@@ -1680,7 +1664,6 @@ const AnalysisPage = () => {
             });
           }
         } catch (error) {
-          console.error('Error capturing chart:', error);
           alert('Failed to capture chart image. Please try again.');
         } finally {
           setExportingChartId(null);
@@ -2407,8 +2390,6 @@ const AnalysisPage = () => {
               sx={{ mt: 2 }}
               disabled={chartType === 'correlation' ? chartColumns.length < 2 : !isValidSelection}
               onClick={() => {
-                // Before generating the chart, add debug print
-                console.log('DEBUG: chartType', chartType, 'chartColumns', chartColumns);
                 setShowChart(true);
               }}
             >

@@ -319,10 +319,6 @@ const ExportPage = ({
       originalDatasetInfo: !hasCleaned ? originalDatasetInfo : null,
       originalColumns: !hasCleaned ? originalColumns : null
     };
-    // Debug log for charts filter/sort
-    console.log('Export charts:', charts.map(c => ({title: c.title, filter: c.filter, sort: c.sort, aggregationType: c.aggregationType})));
-    // Log the payload for debugging
-    console.log('Export payload:', payload);
     try {
       const response = await fetch('http://localhost:5001/export', {
         method: 'POST',

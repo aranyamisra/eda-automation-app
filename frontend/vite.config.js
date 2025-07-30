@@ -3,6 +3,14 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    global: 'globalThis',
+  },
+  resolve: {
+    alias: {
+      'buffer': 'buffer',
+    },
+  },
   build: {
     target: 'es2015',
     minify: 'esbuild',
@@ -25,7 +33,8 @@ export default defineConfig({
       'react-chartjs-2',
       'plotly.js',
       '@mui/material',
-      '@mui/icons-material'
+      '@mui/icons-material',
+      'buffer'
     ]
   }
 })
