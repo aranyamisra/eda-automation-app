@@ -1041,20 +1041,75 @@ const AnalysisPage = () => {
     };
     if (type === 'stackedBar') {
       return (
-        <Box sx={{ height: '400px', width: '100%' }}>
-          <Bar
-            {...chartProps}
-            options={{
+        <Box sx={{ width: '100%', minHeight: '480px' }}>
+          <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
+            <Bar
+              {...chartProps}
+              options={{
+                ...chartProps.options,
+                plugins: {
+                  ...chartProps.options.plugins,
+                  title: { ...chartProps.options.plugins.title, display: true, text: data.datasets[0]?.label || '' }
+                },
+                scales: {
+                  ...chartProps.options.scales,
+                  x: { 
+                    ...chartProps.options.scales.x, 
+                    stacked: true,
+                    title: {
+                      display: true,
+                      text: axisLabels.x,
+                      color: forExport ? '#111' : '#fff',
+                      font: { size: 14, weight: 'bold' }
+                    }
+                  },
+                  y: { 
+                    ...chartProps.options.scales.y, 
+                    stacked: true,
+                    title: {
+                      display: true,
+                      text: axisLabels.y,
+                      color: forExport ? '#111' : '#fff',
+                      font: { size: 14, weight: 'bold' }
+                    }
+                  }
+                }
+              }}
+            />
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
+            <Button
+              variant="outlined"
+              size="medium"
+              startIcon={<Settings />}
+              onClick={() => handleOpenCustomize(chartId)}
+              sx={{ borderRadius: 2, px: 3, py: 1 }}
+            >
+              Customize Chart
+            </Button>
+          </Box>
+        </Box>
+      );
+    }
+    if (type === 'groupedBar') {
+      return (
+        <Box sx={{ width: '100%', minHeight: '480px' }}>
+          <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
+            <Bar {...chartProps} options={{
               ...chartProps.options,
               plugins: {
                 ...chartProps.options.plugins,
-                title: { ...chartProps.options.plugins.title, display: true, text: data.datasets[0]?.label || '' }
+                title: { 
+                  ...chartProps.options.plugins.title, 
+                  display: !!customTitle, 
+                  text: customTitle || data.datasets[0]?.label || '',
+                  font: { size: 16, weight: 'bold' }
+                }
               },
               scales: {
                 ...chartProps.options.scales,
-                x: { 
-                  ...chartProps.options.scales.x, 
-                  stacked: true,
+                x: {
+                  ...chartProps.options.scales.x,
                   title: {
                     display: true,
                     text: axisLabels.x,
@@ -1062,9 +1117,8 @@ const AnalysisPage = () => {
                     font: { size: 14, weight: 'bold' }
                   }
                 },
-                y: { 
-                  ...chartProps.options.scales.y, 
-                  stacked: true,
+                y: {
+                  ...chartProps.options.scales.y,
                   title: {
                     display: true,
                     text: axisLabels.y,
@@ -1073,47 +1127,19 @@ const AnalysisPage = () => {
                   }
                 }
               }
-            }}
-          />
-        </Box>
-      );
-    }
-    if (type === 'groupedBar') {
-      return (
-        <Box sx={{ height: '400px', width: '100%' }}>
-          <Bar {...chartProps} options={{
-            ...chartProps.options,
-            plugins: {
-              ...chartProps.options.plugins,
-              title: { 
-                ...chartProps.options.plugins.title, 
-                display: !!customTitle, 
-                text: customTitle || data.datasets[0]?.label || '',
-                font: { size: 16, weight: 'bold' }
-              }
-            },
-            scales: {
-              ...chartProps.options.scales,
-              x: {
-                ...chartProps.options.scales.x,
-                title: {
-                  display: true,
-                  text: axisLabels.x,
-                  color: forExport ? '#111' : '#fff',
-                  font: { size: 14, weight: 'bold' }
-                }
-              },
-              y: {
-                ...chartProps.options.scales.y,
-                title: {
-                  display: true,
-                  text: axisLabels.y,
-                  color: forExport ? '#111' : '#fff',
-                  font: { size: 14, weight: 'bold' }
-                }
-              }
-            }
-          }} />
+            }} />
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
+            <Button
+              variant="outlined"
+              size="medium"
+              startIcon={<Settings />}
+              onClick={() => handleOpenCustomize(chartId)}
+              sx={{ borderRadius: 2, px: 3, py: 1 }}
+            >
+              Customize Chart
+            </Button>
+          </Box>
         </Box>
       );
     }
@@ -1121,10 +1147,13 @@ const AnalysisPage = () => {
       if (!data || !data.datasets || !data.datasets[0].data.length) return null;
       const matrixOptions = {
         responsive: true,
+        maintainAspectRatio: false,
         layout: {
           padding: {
             top: 40,    
-            bottom: 5  
+            bottom: 150,  // Even larger bottom padding for bigger fonts
+            left: 120,    // Even larger left padding for bigger fonts
+            right: 40
           }
         },
         plugins: {
@@ -1132,96 +1161,134 @@ const AnalysisPage = () => {
           title: {
             display: !!customTitle,
             text: customTitle || 'Correlation Heatmap',
-            font: { size: 14 },
-            padding: { top: 20, bottom: 20 },
+            font: { size: 16, weight: 'bold' },
+            padding: { top: 10, bottom: 20 },
             color: forExport ? '#111' : theme.palette.text.primary
           },
           tooltip: { enabled: false },
           datalabels: {
             display: true,
             color: forExport ? '#111' : (theme.palette.mode === 'dark' ? 'white' : 'black'),
-            font: { weight: 'bold', size: 12 },
+            font: { weight: 'bold', size: 11 },
             formatter: (value, ctx) => (ctx.raw && typeof ctx.raw.v === 'number' ? ctx.raw.v.toFixed(2) : ''),
           },
+        },
+        elements: {
+          point: {
+            radius: 0
+          }
         },
         scales: {
           x: {
             type: 'category',
             labels: data.labels,
-            position: 'bottom', // ensures labels are below the chart
-            offset: true,      // adds spacing if needed
-            title: { 
-              display: true, 
-              text: 'Features', 
-              font: { size: 12 }, 
-              color: forExport ? '#111' : theme.palette.text.primary 
+            position: 'bottom',
+            offset: true,
+            border: {
+              display: false
             },
-            grid: { display: false },
+            title: { 
+              display: false
+            },
+            grid: { 
+              display: false,
+              drawBorder: false
+            },
             ticks: { 
-              font: { size: 10 }, 
+              font: { size: 11, weight: 'bold' }, 
               color: forExport ? '#111' : theme.palette.text.primary, 
               autoSkip: false, 
               maxRotation: 45, 
-              minRotation: 45, 
-              padding: 20 
+              minRotation: 45,
+              padding: 30,  // Increased padding for larger font
+              includeBounds: false,
+              callback: function(value, index, values) {
+                const label = this.getLabelForValue(value);
+                return label.length > 12 ? label.substring(0, 12) + '...' : label;
+              }
             }
           },
           y: {
             type: 'category',
             labels: data.labels,
-            title: { 
-              display: true, 
-              text: 'Features', 
-              font: { size: 12 }, 
-              color: forExport ? '#111' : theme.palette.text.primary 
+            position: 'left',
+            offset: true,
+            border: {
+              display: false
             },
-            grid: { display: false },
+            title: { 
+              display: false
+            },
+            grid: { 
+              display: false,
+              drawBorder: false
+            },
             ticks: { 
-              font: { size: 10 }, 
+              font: { size: 11, weight: 'bold' }, 
               color: forExport ? '#111' : theme.palette.text.primary, 
-              autoSkip: false 
+              autoSkip: false,
+              padding: 30,  // Increased padding for larger font
+              includeBounds: false,
+              callback: function(value, index, values) {
+                const label = this.getLabelForValue(value);
+                return label.length > 12 ? label.substring(0, 12) + '...' : label;
+              }
             }
           }
         }
       };
       return (
-        <Box sx={{ height: '480px', width: '100%' }}>
-          <ChartJS2 {...chartProps} type="matrix" options={matrixOptions} plugins={[ChartDataLabels]} />
+        <Box sx={{ width: '100%', minHeight: '950px' }}>
+          <Box sx={{ height: '850px', width: '100%', mb: 3, overflow: 'visible' }}>  
+            <ChartJS2 {...chartProps} type="matrix" options={matrixOptions} plugins={[ChartDataLabels]} />
+          </Box>
           {/* Color legend for correlation heatmap */}
-          <Box mt={2} display="flex" flexDirection="column" alignItems="center" justifyContent="center">
+          <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
+              Correlation Strength
+            </Typography>
             <Box
               sx={{
-                width: 300,
-                height: 16,
+                width: 320,
+                height: 20,
                 background: 'linear-gradient(to right, rgb(255,99,132) 0%, rgb(255,206,86) 50%, rgb(54,162,235) 100%)',
-                borderRadius: 2,
-                border: '1px solid #ccc',
+                borderRadius: 3,
+                border: '2px solid #ccc',
                 mx: 2
               }}
             />
-            <Box mt={0.5} width={300} display="flex" flexDirection="row" justifyContent="space-between">
-              <span style={{ 
+            <Box mt={1} width={320} display="flex" flexDirection="row" justifyContent="space-between">
+              <Typography variant="caption" sx={{ 
                 color: forExport ? '#111' : theme.palette.text.primary, 
-                fontWeight: 'bold' 
-              }}>-1</span>
-              <span style={{ 
+                fontWeight: 'bold',
+                fontSize: '0.875rem'
+              }}>-1 (Strong Negative)</Typography>
+              <Typography variant="caption" sx={{ 
                 color: forExport ? '#111' : theme.palette.text.primary, 
-                fontWeight: 'bold' 
-              }}>0</span>
-              <span style={{ 
+                fontWeight: 'bold',
+                fontSize: '0.875rem'
+              }}>0 (No Correlation)</Typography>
+              <Typography variant="caption" sx={{ 
                 color: forExport ? '#111' : theme.palette.text.primary, 
-                fontWeight: 'bold' 
-              }}>+1</span>
+                fontWeight: 'bold',
+                fontSize: '0.875rem'
+              }}>+1 (Strong Positive)</Typography>
             </Box>
           </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+          {/* Customize button moved to bottom with proper spacing */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
             <Button
               variant="outlined"
-              size="small"
+              size="medium"
               startIcon={<Settings />}
               onClick={() => handleOpenCustomize(chartId)}
+              sx={{ 
+                borderRadius: 2,
+                px: 3,
+                py: 1
+              }}
             >
-              Customize
+              Customize Chart
             </Button>
           </Box>
         </Box>
@@ -1230,285 +1297,306 @@ const AnalysisPage = () => {
     switch (type) {
       case 'bar':
         return (
-          <Box sx={{ height: '400px', width: '100%' }}>
-            <Bar {...chartProps} />
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+          <Box sx={{ width: '100%', minHeight: '480px' }}>
+            <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
+              <Bar {...chartProps} />
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
               <Button
                 variant="outlined"
-                size="small"
+                size="medium"
                 startIcon={<Settings />}
                 onClick={() => handleOpenCustomize(chartId)}
+                sx={{ borderRadius: 2, px: 3, py: 1 }}
               >
-                Customize
+                Customize Chart
               </Button>
             </Box>
           </Box>
         );
       case 'horizontalBar':
         return (
-          <Box sx={{ height: '400px', width: '100%' }}>
-            <Bar {...chartProps} options={{ 
-              ...chartProps.options, 
-              indexAxis: 'y',
-              scales: {
-                ...chartProps.options.scales,
-                x: {
-                  ...chartProps.options.scales.x,
-                  title: {
-                    display: true,
-                    text: axisLabels.x,
-                    color: forExport ? '#111' : '#fff',
-                    font: { size: 14, weight: 'bold' }
-                  }
-                },
-                y: {
-                  ...chartProps.options.scales.y,
-                  title: {
-                    display: true,
-                    text: axisLabels.y,
-                    color: forExport ? '#111' : '#fff',
-                    font: { size: 14, weight: 'bold' }
+          <Box sx={{ width: '100%', minHeight: '480px' }}>
+            <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
+              <Bar {...chartProps} options={{ 
+                ...chartProps.options, 
+                indexAxis: 'y',
+                scales: {
+                  ...chartProps.options.scales,
+                  x: {
+                    ...chartProps.options.scales.x,
+                    title: {
+                      display: true,
+                      text: axisLabels.x,
+                      color: forExport ? '#111' : '#fff',
+                      font: { size: 14, weight: 'bold' }
+                    }
+                  },
+                  y: {
+                    ...chartProps.options.scales.y,
+                    title: {
+                      display: true,
+                      text: axisLabels.y,
+                      color: forExport ? '#111' : '#fff',
+                      font: { size: 14, weight: 'bold' }
+                    }
                   }
                 }
-              }
-            }} />
-
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+              }} />
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
               <Button
                 variant="outlined"
-                size="small"
+                size="medium"
                 startIcon={<Settings />}
                 onClick={() => handleOpenCustomize(chartId)}
+                sx={{ borderRadius: 2, px: 3, py: 1 }}
               >
-                Customize
+                Customize Chart
               </Button>
             </Box>
           </Box>
         );
       case 'pie':
         return (
-          <Box sx={{ height: '400px', width: '100%' }}>
-            <Pie {...chartProps} options={{
-              ...chartProps.options,
-              plugins: {
-                ...chartProps.options.plugins,
-                datalabels: { color: forExport ? '#111' : theme.palette.text.primary, font: { weight: 'bold', size: 16 } }
-              }
-            }} plugins={[ChartDataLabels]} />
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+          <Box sx={{ width: '100%', minHeight: '480px' }}>
+            <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
+              <Pie {...chartProps} options={{
+                ...chartProps.options,
+                plugins: {
+                  ...chartProps.options.plugins,
+                  datalabels: { color: forExport ? '#111' : theme.palette.text.primary, font: { weight: 'bold', size: 16 } }
+                }
+              }} plugins={[ChartDataLabels]} />
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
               <Button
                 variant="outlined"
-                size="small"
+                size="medium"
                 startIcon={<Settings />}
                 onClick={() => handleOpenCustomize(chartId)}
+                sx={{ borderRadius: 2, px: 3, py: 1 }}
               >
-                Customize
+                Customize Chart
               </Button>
             </Box>
           </Box>
         );
       case 'donut':
         return (
-          <Box sx={{ height: '400px', width: '100%' }}>
-            <Doughnut {...chartProps} options={{
-              ...chartProps.options,
-              plugins: {
-                ...chartProps.options.plugins,
-                datalabels: { color: forExport ? '#111' : theme.palette.text.primary, font: { weight: 'bold', size: 16 } }
-              }
-            }} plugins={[ChartDataLabels]} />
-
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+          <Box sx={{ width: '100%', minHeight: '480px' }}>
+            <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
+              <Doughnut {...chartProps} options={{
+                ...chartProps.options,
+                plugins: {
+                  ...chartProps.options.plugins,
+                  datalabels: { color: forExport ? '#111' : theme.palette.text.primary, font: { weight: 'bold', size: 16 } }
+                }
+              }} plugins={[ChartDataLabels]} />
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
               <Button
                 variant="outlined"
-                size="small"
+                size="medium"
                 startIcon={<Settings />}
                 onClick={() => handleOpenCustomize(chartId)}
+                sx={{ borderRadius: 2, px: 3, py: 1 }}
               >
-                Customize
+                Customize Chart
               </Button>
             </Box>
           </Box>
         );
       case 'histogram':
         return (
-          <Box sx={{ height: '400px', width: '100%' }}>
-            <Bar {...chartProps} options={{
-              ...chartProps.options,
-              scales: {
-                ...chartProps.options.scales,
-                x: {
-                  ...chartProps.options.scales.x,
-                  title: {
-                    display: true,
-                    text: axisLabels.x,
-                    color: forExport ? '#111' : '#fff',
-                    font: { size: 14, weight: 'bold' }
-                  }
-                },
-                y: {
-                  ...chartProps.options.scales.y,
-                  title: {
-                    display: true,
-                    text: axisLabels.y,
-                    color: forExport ? '#111' : '#fff',
-                    font: { size: 14, weight: 'bold' }
+          <Box sx={{ width: '100%', minHeight: '480px' }}>
+            <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
+              <Bar {...chartProps} options={{
+                ...chartProps.options,
+                scales: {
+                  ...chartProps.options.scales,
+                  x: {
+                    ...chartProps.options.scales.x,
+                    title: {
+                      display: true,
+                      text: axisLabels.x,
+                      color: forExport ? '#111' : '#fff',
+                      font: { size: 14, weight: 'bold' }
+                    }
+                  },
+                  y: {
+                    ...chartProps.options.scales.y,
+                    title: {
+                      display: true,
+                      text: axisLabels.y,
+                      color: forExport ? '#111' : '#fff',
+                      font: { size: 14, weight: 'bold' }
+                    }
                   }
                 }
-              }
-            }} />
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+              }} />
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
               <Button
                 variant="outlined"
-                size="small"
+                size="medium"
                 startIcon={<Settings />}
                 onClick={() => handleOpenCustomize(chartId)}
+                sx={{ borderRadius: 2, px: 3, py: 1 }}
               >
-                Customize
+                Customize Chart
               </Button>
             </Box>
           </Box>
         );
       case 'box':
         return (
-          <Box sx={{ height: '400px', width: '100%' }}>
-            <div data-chart-type="box" data-chart-id={chartId}>
-              <Plot
-                data={[ 
-                  {
-                    y: data.raw,
-                    type: 'box',
-                    name: data.labels[0],
-                    boxpoints: 'outliers',
-                    marker: { color: 'rgba(54, 162, 235, 0.5)' },
-                    text: data.raw.map(() => ''),
-                    hoverinfo: 'y+name',
-                    hovertemplate: 
-                      '<b>%{fullData.name}</b><br>' +
-                      'Value: %{y}<br>' +
-                      '<extra></extra>'
-                  }
-                ]}
-
-                       layout={{
-                title: {
-                  text: customTitle || `Box Plot of ${data.labels[0]}`,
-                  font: { size: 16, color: theme.palette.text.primary }
-                },
-                xaxis: { title: axisLabels.x || 'Distribution' },
-                yaxis: { title: axisLabels.y || `${data.labels[0]} (Value)` },
-                  paper_bgcolor: 'transparent',
-                  plot_bgcolor: 'transparent',
-                  font: { color: theme.palette.text.primary },
-                  annotations: [
+          <Box sx={{ width: '100%', minHeight: '480px' }}>
+            <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
+              <div data-chart-type="box" data-chart-id={chartId}>
+                <Plot
+                  data={[ 
                     {
-                      x: 0.5,
-                      y: 1.02,
-                      xref: 'paper',
-                      yref: 'paper',
-                      text: `Min: ${Math.min(...data.raw).toFixed(2)} | Q1: ${data.datasets[0].data[0].q1.toFixed(2)} | Median: ${data.datasets[0].data[0].median.toFixed(2)} | Q3: ${data.datasets[0].data[0].q3.toFixed(2)} | Max: ${Math.max(...data.raw).toFixed(2)}`,
-                      showarrow: false,
-                      font: { 
-                        size: 12, 
-                        color: theme.palette.text.primary 
-                      },
-                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)',
-                      bordercolor: theme.palette.divider,
-                      borderwidth: 1
+                      y: data.raw,
+                      type: 'box',
+                      name: data.labels[0],
+                      boxpoints: 'outliers',
+                      marker: { color: 'rgba(54, 162, 235, 0.5)' },
+                      text: data.raw.map(() => ''),
+                      hoverinfo: 'y+name',
+                      hovertemplate: 
+                        '<b>%{fullData.name}</b><br>' +
+                        'Value: %{y}<br>' +
+                        '<extra></extra>'
                     }
-                  ]
-                }}
-                style={{ width: '100%', height: 400 }}
-                config={{ displayModeBar: false }}
-              />
-            </div>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+                  ]}
+
+                         layout={{
+                  title: {
+                    text: customTitle || `Box Plot of ${data.labels[0]}`,
+                    font: { size: 16, color: theme.palette.text.primary }
+                  },
+                  xaxis: { title: axisLabels.x || 'Distribution' },
+                  yaxis: { title: axisLabels.y || `${data.labels[0]} (Value)` },
+                    paper_bgcolor: 'transparent',
+                    plot_bgcolor: 'transparent',
+                    font: { color: theme.palette.text.primary },
+                    annotations: [
+                      {
+                        x: 0.5,
+                        y: 1.02,
+                        xref: 'paper',
+                        yref: 'paper',
+                        text: `Min: ${Math.min(...data.raw).toFixed(2)} | Q1: ${data.datasets[0].data[0].q1.toFixed(2)} | Median: ${data.datasets[0].data[0].median.toFixed(2)} | Q3: ${data.datasets[0].data[0].q3.toFixed(2)} | Max: ${Math.max(...data.raw).toFixed(2)}`,
+                        showarrow: false,
+                        font: { 
+                          size: 12, 
+                          color: theme.palette.text.primary 
+                        },
+                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)',
+                        bordercolor: theme.palette.divider,
+                        borderwidth: 1
+                      }
+                    ]
+                  }}
+                  style={{ width: '100%', height: 400 }}
+                  config={{ displayModeBar: false }}
+                />
+              </div>
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
               <Button
                 variant="outlined"
-                size="small"
+                size="medium"
                 startIcon={<Settings />}
                 onClick={() => handleOpenCustomize(chartId)}
+                sx={{ borderRadius: 2, px: 3, py: 1 }}
               >
-                Customize
+                Customize Chart
               </Button>
             </Box>
           </Box>
         );
       case 'scatter':
         return (
-
-          <Box sx={{ height: '400px', width: '100%' }}>
-            <Scatter {...chartProps} options={{
-              ...chartProps.options,
-              scales: {
-                ...chartProps.options.scales,
-                x: {
-                  ...chartProps.options.scales.x,
-                  title: {
-                    display: true,
-                    text: axisLabels.x,
-                    color: forExport ? '#111' : '#fff',
-                    font: { size: 14, weight: 'bold' }
-                  }
-                },
-                y: {
-                  ...chartProps.options.scales.y,
-                  title: {
-                    display: true,
-                    text: axisLabels.y,
-                    color: forExport ? '#111' : '#fff',
-                    font: { size: 14, weight: 'bold' }
+          <Box sx={{ width: '100%', minHeight: '480px' }}>
+            <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
+              <Scatter {...chartProps} options={{
+                ...chartProps.options,
+                scales: {
+                  ...chartProps.options.scales,
+                  x: {
+                    ...chartProps.options.scales.x,
+                    title: {
+                      display: true,
+                      text: axisLabels.x,
+                      color: forExport ? '#111' : '#fff',
+                      font: { size: 14, weight: 'bold' }
+                    }
+                  },
+                  y: {
+                    ...chartProps.options.scales.y,
+                    title: {
+                      display: true,
+                      text: axisLabels.y,
+                      color: forExport ? '#111' : '#fff',
+                      font: { size: 14, weight: 'bold' }
+                    }
                   }
                 }
-              }
-            }} />
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+              }} />
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
               <Button
                 variant="outlined"
-                size="small"
+                size="medium"
                 startIcon={<Settings />}
                 onClick={() => handleOpenCustomize(chartId)}
+                sx={{ borderRadius: 2, px: 3, py: 1 }}
               >
-                Customize
+                Customize Chart
               </Button>
             </Box>
           </Box>
         );
       case 'line':
         return (
-          <Box sx={{ height: '400px', width: '100%' }}>
-            <Line {...chartProps} options={{
-              ...chartProps.options,
-              scales: {
-                ...chartProps.options.scales,
-                x: {
-                  ...chartProps.options.scales.x,
-                  title: {
-                    display: true,
-                    text: axisLabels.x,
-                    color: forExport ? '#111' : '#fff',
-                    font: { size: 14, weight: 'bold' }
-                  }
-                },
-                y: {
-                  ...chartProps.options.scales.y,
-                  title: {
-                    display: true,
-                    text: axisLabels.y,
-                    color: forExport ? '#111' : '#fff',
-                    font: { size: 14, weight: 'bold' }
+          <Box sx={{ width: '100%', minHeight: '480px' }}>
+            <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
+              <Line {...chartProps} options={{
+                ...chartProps.options,
+                scales: {
+                  ...chartProps.options.scales,
+                  x: {
+                    ...chartProps.options.scales.x,
+                    title: {
+                      display: true,
+                      text: axisLabels.x,
+                      color: forExport ? '#111' : '#fff',
+                      font: { size: 14, weight: 'bold' }
+                    }
+                  },
+                  y: {
+                    ...chartProps.options.scales.y,
+                    title: {
+                      display: true,
+                      text: axisLabels.y,
+                      color: forExport ? '#111' : '#fff',
+                      font: { size: 14, weight: 'bold' }
+                    }
                   }
                 }
-              }
-            }} />
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+              }} />
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
               <Button
                 variant="outlined"
-                size="small"
+                size="medium"
                 startIcon={<Settings />}
                 onClick={() => handleOpenCustomize(chartId)}
+                sx={{ borderRadius: 2, px: 3, py: 1 }}
               >
-                Customize
+                Customize Chart
               </Button>
             </Box>
           </Box>
@@ -2396,27 +2484,47 @@ const AnalysisPage = () => {
               Generate Chart
             </Button>
             {shouldShowChart && chartType && ((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
-              <Box mt={4} sx={{ maxWidth: '800px', minHeight: chartType === 'correlation' ? '1000px' : 'auto', mx: 'auto' }}>
-                {renderChart(chartType, chartColumns.filter(Boolean), exportingChartId === getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder), getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder))}
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={!!chartsToReport[getChartId(chartType, chartColumns.filter(Boolean))]?.selected}
-                      onChange={e => handleAddToReport(chartType, chartColumns.filter(Boolean), e.target.checked)}
-                      sx={{ 
-                        color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
-                        '&.Mui-checked': { 
-                          color: theme.palette.mode === 'dark' ? '#1976d2' : '#1976d2'
-                        }
-                      }}
-                    />
-                  }
-                  label="Add to Report"
-                  sx={{ 
-                    mt: 2,
-                    color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.7)'
-                  }}
-                />
+              <Box mt={4} sx={{ 
+                maxWidth: chartType === 'correlation' ? '1000px' : '800px', 
+                minHeight: chartType === 'correlation' ? '800px' : 'auto', 
+                mx: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 3
+              }}>
+                <Box sx={{ flex: 1 }}>
+                  {renderChart(chartType, chartColumns.filter(Boolean), exportingChartId === getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder), getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder))}
+                </Box>
+                {/* Add to Report button with proper spacing */}
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center',
+                  mt: chartType === 'correlation' ? 2 : 3,
+                  pt: 2,
+                  borderTop: `1px solid ${theme.palette.divider}`
+                }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={!!chartsToReport[getChartId(chartType, chartColumns.filter(Boolean))]?.selected}
+                        onChange={e => handleAddToReport(chartType, chartColumns.filter(Boolean), e.target.checked)}
+                        sx={{ 
+                          color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
+                          '&.Mui-checked': { 
+                            color: theme.palette.mode === 'dark' ? '#1976d2' : '#1976d2'
+                          }
+                        }}
+                      />
+                    }
+                    label="Add to Report"
+                    sx={{ 
+                      color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.7)',
+                      fontSize: '1rem',
+                      fontWeight: 500
+                    }}
+                  />
+                </Box>
               </Box>
             )}
           </>
