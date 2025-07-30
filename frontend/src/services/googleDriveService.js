@@ -69,10 +69,7 @@ class GoogleDriveService {
       // Initialize GAPI client
       window.gapi.load('client', async () => {
         try {
-          console.log('Initializing GAPI client with config:', {
-            apiKey: this.config.apiKey ? `${this.config.apiKey.substring(0, 10)}...` : 'MISSING',
-            discoveryDocs: this.config.discoveryDocs
-          });
+
 
           await window.gapi.client.init({
             apiKey: this.config.apiKey,
@@ -85,21 +82,17 @@ class GoogleDriveService {
             scope: this.config.scope,
             callback: (response) => {
               if (response.error) {
-                console.error('OAuth error:', response.error);
                 return;
               }
               this.accessToken = response.access_token;
               this.isSignedIn = true;
-              console.log('OAuth token received successfully');
             },
           });
 
           this.gapi = window.gapi;
           this.isInitialized = true;
-          console.log('Google services initialized successfully');
           resolve();
         } catch (error) {
-          console.error('Failed to initialize Google services:', error);
           reject(new Error(`Failed to initialize Google API: ${error.message || 'Unknown error'}. Please check your API credentials and ensure the Google Drive API is enabled.`));
         }
       });
@@ -122,7 +115,6 @@ class GoogleDriveService {
       const originalCallback = this.tokenClient.callback;
       this.tokenClient.callback = (response) => {
         if (response.error) {
-          console.error('OAuth error:', response.error);
           reject(new Error(`Failed to sign in: ${response.error}`));
           return;
         }
@@ -132,7 +124,6 @@ class GoogleDriveService {
         // Set the access token for GAPI client
         this.gapi.client.setToken({ access_token: this.accessToken });
         
-        console.log('OAuth token received successfully');
         resolve(true);
         
         // Restore original callback

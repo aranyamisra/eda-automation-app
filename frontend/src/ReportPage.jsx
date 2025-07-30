@@ -52,15 +52,10 @@ function ReportPage() {
     fetch('http://localhost:5001/cleaning', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
-        console.log('Received report data:', data);
-        console.log('Statistical summary:', data.statistical_summary);
-        console.log('Quality metrics:', data.quality_metrics);
-        console.log('Data quality score:', data.data_quality_score);
         setReport(data);
         setLoading(false);
       })
       .catch(err => {
-        console.error('Error fetching report:', err);
         setReport({ error: 'Failed to fetch report' });
         setLoading(false);
       });
@@ -336,6 +331,9 @@ function ReportPage() {
                             variant="outlined"
                           />
                         }
+                        secondaryTypographyProps={{
+                          component: 'div'
+                        }}
                       />
                     </ListItem>
                   ))}

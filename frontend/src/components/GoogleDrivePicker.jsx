@@ -63,7 +63,7 @@ const GoogleDrivePicker = ({ open, onClose, onFileSelect }) => {
       } else {
         setError(`Failed to initialize Google Drive: ${err.message}`);
       }
-      console.error('Google Drive initialization error:', err);
+      // Google Drive initialization error
     } finally {
       setIsInitializing(false);
     }
@@ -87,7 +87,7 @@ const GoogleDrivePicker = ({ open, onClose, onFileSelect }) => {
       await loadFiles();
     } catch (err) {
       setError('Failed to sign in to Google Drive. Please try again.');
-      console.error('Sign in error:', err);
+      // Sign in error
     } finally {
       setIsLoading(false);
     }
@@ -101,7 +101,7 @@ const GoogleDrivePicker = ({ open, onClose, onFileSelect }) => {
       setSelectedFile(null);
     } catch (err) {
       setError('Failed to sign out from Google Drive.');
-      console.error('Sign out error:', err);
+      // Sign out error
     }
   };
 
@@ -114,7 +114,7 @@ const GoogleDrivePicker = ({ open, onClose, onFileSelect }) => {
       setFiles(driveFiles);
     } catch (err) {
       setError('Failed to load files from Google Drive.');
-      console.error('Load files error:', err);
+      // Load files error
     } finally {
       setIsLoading(false);
     }
@@ -148,7 +148,7 @@ const GoogleDrivePicker = ({ open, onClose, onFileSelect }) => {
       onClose();
     } catch (err) {
       setError('Failed to download file from Google Drive.');
-      console.error('Download error:', err);
+      // Download error
     } finally {
       setIsLoading(false);
     }

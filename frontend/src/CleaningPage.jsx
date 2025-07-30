@@ -191,7 +191,7 @@ function CleaningPage() {
       
       setCleaningActions(initialActions);
     } catch (err) {
-      console.error('Error fetching report:', err);
+      // Error fetching report
     } finally {
       setLoading(false);
     }
@@ -339,7 +339,7 @@ function CleaningPage() {
         throw new Error('Failed to apply cleaning');
       }
     } catch (err) {
-      console.error('Error applying cleaning:', err);
+      // Error applying cleaning
     } finally {
       setLoading(false);
     }
@@ -551,32 +551,32 @@ function CleaningPage() {
           ? '0 4px 16px rgba(0,0,0,0.4)'
           : '0 4px 16px rgba(0,0,0,0.1)'
       }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
           <DataUsage color="primary" /> Dataset Overview
         </Typography>
         <Grid container spacing={2}>
           <Grid item xs={6} sm={3}>
-            <Box sx={{ textAlign: 'center', p: 1.5, borderRadius: 1, bgcolor: 'primary.main', color: 'white' }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>{report.dataset_info?.rows || 0} × {report.dataset_info?.columns || 0}</Typography>
-              <Typography variant="caption">Shape</Typography>
+            <Box sx={{ textAlign: 'center', p: 2, borderRadius: 1, bgcolor: 'primary.main', color: 'white' }}>
+              <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>{report.dataset_info?.rows || 0} × {report.dataset_info?.columns || 0}</Typography>
+              <Typography variant="body1" sx={{ fontWeight: 500, fontSize: '1rem' }}>Shape</Typography>
             </Box>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Box sx={{ textAlign: 'center', p: 1.5, borderRadius: 1, bgcolor: 'success.main', color: 'white' }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>{report.data_quality_score || 0}%</Typography>
-              <Typography variant="caption">Quality</Typography>
+            <Box sx={{ textAlign: 'center', p: 2, borderRadius: 1, bgcolor: 'success.main', color: 'white' }}>
+              <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>{report.data_quality_score || 0}%</Typography>
+              <Typography variant="body1" sx={{ fontWeight: 500, fontSize: '1rem' }}>Quality</Typography>
             </Box>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Box sx={{ textAlign: 'center', p: 1.5, borderRadius: 1, bgcolor: 'warning.main', color: 'white' }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>{report.quality_metrics?.null_percentage || 0}%</Typography>
-              <Typography variant="caption">Missing</Typography>
+            <Box sx={{ textAlign: 'center', p: 2, borderRadius: 1, bgcolor: 'warning.main', color: 'white' }}>
+              <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>{report.quality_metrics?.null_percentage || 0}%</Typography>
+              <Typography variant="body1" sx={{ fontWeight: 500, fontSize: '1rem' }}>Missing</Typography>
             </Box>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Box sx={{ textAlign: 'center', p: 1.5, borderRadius: 1, bgcolor: 'info.main', color: 'white' }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>{report.duplicates || 0}</Typography>
-              <Typography variant="caption">Duplicates</Typography>
+            <Box sx={{ textAlign: 'center', p: 2, borderRadius: 1, bgcolor: 'info.main', color: 'white' }}>
+              <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>{report.duplicates || 0}</Typography>
+              <Typography variant="body1" sx={{ fontWeight: 500, fontSize: '1rem' }}>Duplicates</Typography>
             </Box>
           </Grid>
         </Grid>

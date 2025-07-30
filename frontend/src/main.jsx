@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { Buffer } from 'buffer';
 import App from './App.jsx';
 import LandingPage from './LandingPage';
 import UploadPage from './UploadPage';
@@ -12,6 +13,9 @@ import AnalysisPage from './AnalysisPage';
 import ExportPage from './ExportPage';
 import { ChartsToReportProvider } from './ChartsToReportContext';
 import { ThemeModeProvider, useThemeMode } from './ThemeContext';
+
+// Polyfill for Plotly.js
+window.Buffer = Buffer;
 
 function MainRouter() {
   const { theme } = useThemeMode();
