@@ -196,7 +196,7 @@ function App() {
                       letterSpacing: '-0.025em',
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&:hover': {
-                        color: '#1976d2',
+                        color: '#26a69a',
                         transform: 'translateY(-1px)',
                       },
                     }}
@@ -205,10 +205,10 @@ function App() {
                   >
                     <AnalyticsIcon sx={{ 
                       fontSize: '2rem', 
-                      color: '#1976d2',
-                      filter: 'drop-shadow(0 2px 4px rgba(25, 118, 210, 0.3))',
+                      color: '#26a69a',
+                      filter: 'drop-shadow(0 2px 4px rgba(38, 166, 154, 0.3))',
                     }} />
-                    EDA Automation
+                    DataGenie
                   </Typography>
                   
                 </Box>
@@ -392,6 +392,22 @@ function App() {
             }
           }}
         >
+          {/* Mobile Menu Header */}
+          <Box sx={{ 
+            px: 3, 
+            py: 2, 
+            borderBottom: `1px solid ${mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)'}`,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 1
+          }}>
+            <AnalyticsIcon sx={{ fontSize: '1.5rem', color: '#26a69a' }} />
+            <Typography variant="h6" sx={{ fontWeight: 600, color: 'inherit' }}>
+              DataGenie
+            </Typography>
+          </Box>
+          
           {navItems.map((item) => {
             const isActive = location.pathname === item.link;
             const isCompleted = currentStep > item.step;
