@@ -1303,15 +1303,15 @@ const AnalysisPage = () => {
               <Typography variant="caption" sx={{ 
                 color: forExport ? '#111' : theme.palette.text.primary, 
                 fontWeight: 'bold' 
-              }}>-1</span>
-              <span style={{ 
+              }}>-1 (Strong Negative)</Typography>
+              <Typography variant="caption" sx={{ 
                 color: forExport ? '#111' : theme.palette.text.primary, 
                 fontWeight: 'bold' 
-              }}>0</span>
-              <span style={{ 
+              }}>0 (No Correlation)</Typography>
+              <Typography variant="caption" sx={{ 
                 color: forExport ? '#111' : theme.palette.text.primary, 
                 fontWeight: 'bold' 
-              }}>+1</span>
+              }}>+1 (Strong Positive)</Typography>
             </Box>
           </Box>
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
