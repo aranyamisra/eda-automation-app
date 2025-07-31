@@ -1,9 +1,10 @@
 # Gunicorn configuration file
-bind = "0.0.0.0:5001"
-workers = 2
+import os
+bind = f"0.0.0.0:{os.environ.get('PORT', 5001)}"
+workers = 1
 worker_class = "sync"
 worker_connections = 1000
-timeout = 30
+timeout = 120
 keepalive = 2
 max_requests = 1000
 max_requests_jitter = 50
