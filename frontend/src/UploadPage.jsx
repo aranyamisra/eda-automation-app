@@ -57,7 +57,8 @@ function UploadPage() {
     formData.append('dataset', file);
 
     try {
-      const res = await fetch('http://localhost:5001/upload', {
+              const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+        const res = await fetch(`${backendUrl}/upload`, {
         method: 'POST',
         body: formData,
         credentials: 'include',
@@ -81,7 +82,8 @@ function UploadPage() {
   const handleReset = useCallback(async () => {
     if (!window.confirm('Are you sure you want to reset? This will remove the current dataset and all progress.')) return;
     try {
-      const res = await fetch('http://localhost:5001/reset', {
+              const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+        const res = await fetch(`${backendUrl}/reset`, {
         method: 'POST',
         credentials: 'include',
       });

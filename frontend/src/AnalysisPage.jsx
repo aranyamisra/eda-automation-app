@@ -281,7 +281,8 @@ const AnalysisPage = () => {
 
   useEffect(() => {
     setLoading(true);
-    axios.get('http://localhost:5001/analysis', { withCredentials: true })
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+        axios.get(`${backendUrl}/analysis`, { withCredentials: true })
       .then(res => {
         // Patch: If any column has dtype 'bool' or group is missing, set group to 'Boolean'
         const patchedColumns = (res.data.columns || []).map(col => {

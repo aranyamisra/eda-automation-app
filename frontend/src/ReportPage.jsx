@@ -49,7 +49,8 @@ function ReportPage() {
   // Fetch the report from the backend when the component loads
   useEffect(() => {
     setLoading(true);
-    fetch('http://localhost:5001/cleaning', { credentials: 'include' })
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+        fetch(`${backendUrl}/cleaning`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         setReport(data);
