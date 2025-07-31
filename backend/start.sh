@@ -1,2 +1,2 @@
 #!/bin/bash
-gunicorn app:app --host 0.0.0.0 --port ${PORT:-5001}
+gunicorn app:app --bind 0.0.0.0:${PORT:-5001}

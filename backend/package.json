@@ -2,6 +2,6 @@
   "name": "eda-automation-backend",
   "version": "1.0.0",
   "scripts": {
-    "start": "gunicorn app:app --host 0.0.0.0 --port $PORT"
+    "start": "gunicorn app:app --bind 0.0.0.0:$PORT"
   }
 }
