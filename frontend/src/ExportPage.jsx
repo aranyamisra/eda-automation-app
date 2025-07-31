@@ -93,11 +93,12 @@ const ExportPage = ({
       setCleanedData(session.cleanedData || null);
       setCleaningSummary(session.cleaningSummary || []);
     } else {
-      // If no cleaning session, fetch both original dataset info and column info for the report
-      Promise.all([
-        fetch('http://localhost:5001/cleaning', { credentials: 'include' }),
-        fetch('http://localhost:5001/analysis', { credentials: 'include' })
-      ])
+              // If no cleaning session, fetch both original dataset info and column info for the report
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+        Promise.all([
+        fetch(`${backendUrl}/cleaning`, { credentials: 'include' }),
+        fetch(`${backendUrl}/analysis`, { credentials: 'include' })
+        ])
         .then(responses => {
           if (!responses[0].ok || !responses[1].ok) throw new Error('No dataset');
           return Promise.all([responses[0].json(), responses[1].json()]);
@@ -320,7 +321,8 @@ const ExportPage = ({
       originalColumns: !hasCleaned ? originalColumns : null
     };
     try {
-      const response = await fetch('http://localhost:5001/export', {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+      const response = await fetch(`${backendUrl}/export`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -365,7 +367,8 @@ const ExportPage = ({
       originalColumns: !hasCleaned ? originalColumns : null
     };
     try {
-      const response = await fetch('http://localhost:5001/export', {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+      const response = await fetch(`${backendUrl}/export`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -388,7 +391,8 @@ const ExportPage = ({
 
   const handleDownloadCleaned = async () => {
     try {
-      const response = await fetch('http://localhost:5001/download-cleaned', {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+      const response = await fetch(`${backendUrl}/download-cleaned`, {
         method: 'GET',
         credentials: 'include'
       });

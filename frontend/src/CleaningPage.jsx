@@ -145,7 +145,8 @@ function CleaningPage() {
   const fetchReport = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5001/cleaning', { 
+              const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+        const response = await fetch(`${backendUrl}/cleaning`, { 
         credentials: 'include' 
       });
       
@@ -239,7 +240,8 @@ function CleaningPage() {
         outliers: outlierConfig
       };
 
-      const response = await fetch('http://localhost:5001/clean-data', {
+              const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+        const response = await fetch(`${backendUrl}/clean-data`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
