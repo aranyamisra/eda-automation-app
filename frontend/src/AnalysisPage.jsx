@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import ColumnDropdowns from './ColumnDropdowns';
 import { Bar, Pie, Doughnut, Line, Scatter, Chart as ChartJS2 } from 'react-chartjs-2';
-import { Chart, CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Tooltip, Legend } from 'chart.js';
+import { Chart, CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Tooltip, Legend, Title } from 'chart.js';
 import { MatrixController, MatrixElement } from 'chartjs-chart-matrix';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Checkbox } from '@mui/material';
@@ -116,7 +116,7 @@ function getColorPalette(palette, count) {
 
 Chart.register(MatrixController, MatrixElement);
 
-Chart.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Tooltip, Legend);
+Chart.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Tooltip, Legend, Title);
 
 const chartTypeOptions = [
   { value: 'bar', label: 'Bar Chart' },
@@ -279,6 +279,8 @@ const AnalysisPage = () => {
     };
   }, []);
 
+
+
   useEffect(() => {
     setLoading(true);
             const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
@@ -304,6 +306,8 @@ const AnalysisPage = () => {
         }
       })
       .catch(err => {
+        console.error('Analysis page error:', err);
+        console.error('Error response:', err.response);
         const errorMessage = err.response?.data?.error || err.message || 'Failed to load analysis metadata';
         
         // If the error is about no uploaded file, show a specific message
@@ -423,6 +427,8 @@ const AnalysisPage = () => {
         };
       } else {
         let catCol, numCol;
+        console.log('DEBUG: selectedCols', selectedCols);
+        console.log('DEBUG: columns', columns);
         if (columns.find(c => c.name === selectedCols[0])?.group === 'Categorical' && columns.find(c => c.name === selectedCols[1])?.group === 'Numerical') {
           catCol = selectedCols[0];
           numCol = selectedCols[1];
@@ -433,6 +439,7 @@ const AnalysisPage = () => {
           catCol = selectedCols[0];
           numCol = selectedCols[1];
         }
+        console.log('DEBUG: Using catCol:', catCol, 'numCol:', numCol);
         const { labels, data } = aggregateByCategory(catCol, numCol);
         const { labels: filteredLabels, data: filteredData } = applyFilterAndSort(labels, data);
         
@@ -747,8 +754,16 @@ const AnalysisPage = () => {
         }
       }
       
+      // Debug: Log correlation values to see if they're being calculated correctly
+      console.log('Correlation matrix data:', matrixData);
+      console.log('Correlation values range:', {
+        min: Math.min(...matrixData.map(d => d.v)),
+        max: Math.max(...matrixData.map(d => d.v))
+      });
+      
       // Pre-calculate colors for each data point
       const colors = matrixData.map(d => getCorrelationColor(d.v));
+      console.log('Pre-calculated colors:', colors);
       
       // Use the same palette as other charts
       const palette = [
@@ -910,6 +925,52 @@ const AnalysisPage = () => {
     return `${type}:${cols.join(',')}`;
   }
 
+  // Helper to get default chart title
+  function getDefaultChartTitle(type, selectedCols) {
+    if (!selectedCols || selectedCols.length === 0) return '';
+    
+    const title = (() => {
+      switch (type) {
+        case 'bar':
+        case 'horizontalBar':
+          if (selectedCols.length === 1) {
+            return `${selectedCols[0]} Distribution`;
+          } else {
+            const catCol = columns.find(c => c.name === selectedCols[0])?.group === 'Categorical' ? selectedCols[0] : selectedCols[1];
+            const numCol = columns.find(c => c.name === selectedCols[0])?.group === 'Numerical' ? selectedCols[0] : selectedCols[1];
+            return `${numCol} by ${catCol}`;
+          }
+        case 'pie':
+        case 'donut':
+          if (selectedCols.length === 1) {
+            return `${selectedCols[0]} Distribution`;
+          } else {
+            const catCol = columns.find(c => c.name === selectedCols[0])?.group === 'Categorical' ? selectedCols[0] : selectedCols[1];
+            const numCol = columns.find(c => c.name === selectedCols[0])?.group === 'Numerical' ? selectedCols[0] : selectedCols[1];
+            return `${numCol} by ${catCol}`;
+          }
+        case 'scatter':
+          return `${selectedCols[0]} vs ${selectedCols[1]}`;
+        case 'line':
+          return `${selectedCols[1]} over ${selectedCols[0]}`;
+        case 'histogram':
+          return `${selectedCols[0]} Distribution`;
+        case 'box':
+          return `${selectedCols[0]} Distribution`;
+        case 'groupedBar':
+        case 'stackedBar':
+          return `${selectedCols[2] || selectedCols[1]} by ${selectedCols[0]} and ${selectedCols[1]}`;
+        case 'correlation':
+          return 'Correlation Heatmap';
+        default:
+          return selectedCols.join(' vs ');
+      }
+    })();
+    
+    console.log('Generated title:', title, 'for type:', type, 'columns:', selectedCols);
+    return title;
+  }
+
   // Helper to get Chart.js options with black text/grid for export
   function getExportChartOptions(type, selectedCols) {
     const axisLabels = getAxisLabels(type, selectedCols);
@@ -964,8 +1025,9 @@ const AnalysisPage = () => {
     
     const options = customOptions[chartId] || {};
     
+
+    
     // Apply customization options
-    const customTitle = options.title !== undefined ? options.title : '';
     const showCustomLegend = options.legend !== undefined ? options.legend : showLegend;
     const showCustomGrid = options.grid !== undefined ? options.grid : true;
     const customPalette = options.palette || 'default';
@@ -974,18 +1036,39 @@ const AnalysisPage = () => {
     // Apply color palette or custom colors to chart data
     // Skip this for correlation charts as they have their own color logic
     if (data.datasets && data.datasets.length > 0 && type !== 'correlation') {
-      let colors;
-      if (customColors.length > 0) {
-        colors = customColors;
-      } else {
-        colors = getColorPalette(customPalette, data.datasets.length);
-      }
       data.datasets.forEach((dataset, index) => {
-        if (dataset.backgroundColor) {
-          dataset.backgroundColor = colors[index];
+        if (customColors.length > 0) {
+          // Use custom colors if provided
+          if (type === 'pie' || type === 'donut') {
+            // For pie/donut charts, backgroundColor should be an array of colors
+            dataset.backgroundColor = customColors.slice(0, dataset.data.length);
+          } else {
+            dataset.backgroundColor = customColors[index];
+          }
+        } else {
+          // Use palette colors
+          if (type === 'pie' || type === 'donut') {
+            // For pie/donut charts, generate colors for each data point
+            dataset.backgroundColor = getColorPalette(customPalette, dataset.data.length);
+          } else {
+            // For other charts, use one color per dataset
+            const colors = getColorPalette(customPalette, data.datasets.length);
+            dataset.backgroundColor = colors[index];
+          }
         }
+        
+        // Handle border colors
         if (dataset.borderColor) {
-          dataset.borderColor = colors[index]?.replace('0.5', '1').replace('0.7', '1').replace('0.8', '1');
+          if (type === 'pie' || type === 'donut') {
+            // For pie/donut charts, borderColor should also be an array
+            const baseColors = Array.isArray(dataset.backgroundColor) ? dataset.backgroundColor : [dataset.backgroundColor];
+            dataset.borderColor = baseColors.map(color => 
+              color?.replace('0.5', '1').replace('0.7', '1').replace('0.8', '1')
+            );
+          } else {
+            const baseColor = Array.isArray(dataset.backgroundColor) ? dataset.backgroundColor[0] : dataset.backgroundColor;
+            dataset.borderColor = baseColor?.replace('0.5', '1').replace('0.7', '1').replace('0.8', '1');
+          }
         }
       });
     }
@@ -1004,10 +1087,11 @@ const AnalysisPage = () => {
             labels: { color: theme.palette.text.primary } 
           },
           title: { 
-            color: theme.palette.text.primary,
-            display: !!customTitle,
-            text: customTitle,
-            font: { size: 16, weight: 'bold' }
+            color: '#ffffff',
+            display: true,
+            text: getDefaultChartTitle(type, selectedCols),
+            font: { size: 16, weight: 'bold' },
+            padding: { top: 10, bottom: 10 }
           }
         },
         scales: {
@@ -1040,71 +1124,237 @@ const AnalysisPage = () => {
         }
       }
     };
+    
+    // Debug: Log the title configuration
+    console.log('Chart title config:', chartProps.options.plugins.title);
+    console.log('Chart type:', type);
+    console.log('Chart options:', chartProps.options);
+    
     if (type === 'stackedBar') {
       return (
-        <Box sx={{ width: '100%', minHeight: '480px' }}>
-          <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
-            <Bar
-              {...chartProps}
-              options={{
-                ...chartProps.options,
-                plugins: {
-                  ...chartProps.options.plugins,
-                  title: { ...chartProps.options.plugins.title, display: true, text: data.datasets[0]?.label || '' }
-                },
-                scales: {
-                  ...chartProps.options.scales,
-                  x: { 
-                    ...chartProps.options.scales.x, 
-                    stacked: true,
-                    title: {
-                      display: true,
-                      text: axisLabels.x,
-                      color: forExport ? '#111' : '#fff',
-                      font: { size: 14, weight: 'bold' }
-                    }
-                  },
-                  y: { 
-                    ...chartProps.options.scales.y, 
-                    stacked: true,
-                    title: {
-                      display: true,
-                      text: axisLabels.y,
-                      color: forExport ? '#111' : '#fff',
-                      font: { size: 14, weight: 'bold' }
-                    }
-                  }
-                }
-              }}
-            />
-          </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
-            <Button
-              variant="outlined"
-              size="medium"
-              startIcon={<Settings />}
-              onClick={() => handleOpenCustomize(chartId)}
-              sx={{ borderRadius: 2, px: 3, py: 1 }}
-            >
-              Customize Chart
-            </Button>
-          </Box>
-        </Box>
-      );
-    }
-    if (type === 'groupedBar') {
-      return (
-        <Box sx={{ width: '100%', minHeight: '480px' }}>
-          <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
-            <Bar {...chartProps} options={{
+        <Box sx={{ height: '400px', width: '100%' }}>
+          <Bar
+            {...chartProps}
+            options={{
               ...chartProps.options,
               plugins: {
                 ...chartProps.options.plugins,
                 title: { 
                   ...chartProps.options.plugins.title, 
-                  display: !!customTitle, 
-                  text: customTitle || data.datasets[0]?.label || '',
-                  font: { size: 16, weight: 'bold' }
+                  display: true,
+                  text: getDefaultChartTitle(type, selectedCols)
+                }
+              },
+              scales: {
+                ...chartProps.options.scales,
+                x: { 
+                  ...chartProps.options.scales.x, 
+                  stacked: true,
+                  title: {
+                    display: true,
+                    text: axisLabels.x,
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
+                  }
+                },
+                y: { 
+                  ...chartProps.options.scales.y, 
+                  stacked: true,
+                  title: {
+                    display: true,
+                    text: axisLabels.y,
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
+                  }
+                }
+              }
+            }}
+          />
+        </Box>
+      );
+    }
+    if (type === 'groupedBar') {
+      return (
+        <Box sx={{ height: '400px', width: '100%' }}>
+          <Bar {...chartProps} options={{
+            ...chartProps.options,
+                          plugins: {
+                ...chartProps.options.plugins,
+                title: { 
+                  ...chartProps.options.plugins.title, 
+                  display: true,
+                  text: getDefaultChartTitle(type, selectedCols)
+                }
+              },
+            scales: {
+              ...chartProps.options.scales,
+              x: {
+                ...chartProps.options.scales.x,
+                title: {
+                  display: true,
+                  text: axisLabels.x,
+                  color: forExport ? '#111' : '#fff',
+                  font: { size: 14, weight: 'bold' }
+                }
+              },
+              y: {
+                ...chartProps.options.scales.y,
+                title: {
+                  display: true,
+                  text: axisLabels.y,
+                  color: forExport ? '#111' : '#fff',
+                  font: { size: 14, weight: 'bold' }
+                }
+              }
+            }
+          }} />
+        </Box>
+      );
+    }
+    if (type === 'correlation') {
+      if (!data || !data.datasets || !data.datasets[0].data.length) return null;
+      const matrixOptions = {
+        responsive: true,
+        layout: {
+          padding: {
+            top: 40,    
+            bottom: 5  
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          title: {
+            display: true,
+            text: 'Correlation Heatmap',
+            font: { size: 14 },
+            padding: { top: 20, bottom: 20 },
+            color: forExport ? '#111' : theme.palette.text.primary
+          },
+          tooltip: { enabled: false },
+          datalabels: {
+            display: true,
+            color: forExport ? '#111' : (theme.palette.mode === 'dark' ? 'white' : 'black'),
+            font: { weight: 'bold', size: 12 },
+            formatter: (value, ctx) => (ctx.raw && typeof ctx.raw.v === 'number' ? ctx.raw.v.toFixed(2) : ''),
+          },
+        },
+        scales: {
+          x: {
+            type: 'category',
+            labels: data.labels,
+            position: 'bottom', // ensures labels are below the chart
+            offset: true,      // adds spacing if needed
+            title: { 
+              display: true, 
+              text: 'Features', 
+              font: { size: 12 }, 
+              color: forExport ? '#111' : theme.palette.text.primary 
+            },
+            grid: { display: false },
+            ticks: { 
+              font: { size: 10 }, 
+              color: forExport ? '#111' : theme.palette.text.primary, 
+              autoSkip: false, 
+              maxRotation: 45, 
+              minRotation: 45, 
+              padding: 20 
+            }
+          },
+          y: {
+            type: 'category',
+            labels: data.labels,
+            title: { 
+              display: true, 
+              text: 'Features', 
+              font: { size: 12 }, 
+              color: forExport ? '#111' : theme.palette.text.primary 
+            },
+            grid: { display: false },
+            ticks: { 
+              font: { size: 10 }, 
+              color: forExport ? '#111' : theme.palette.text.primary, 
+              autoSkip: false 
+            }
+          }
+        }
+      };
+      return (
+        <Box sx={{ width: '100%', minHeight: '950px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Box sx={{ height: '800px', width: '100%', mb: 0, overflow: 'visible', pb: 0 }}>  
+            <ChartJS2 {...chartProps} type="matrix" options={matrixOptions} plugins={[ChartDataLabels]} />
+          </Box>
+          {/* Color legend for correlation heatmap */}
+          <Box display="flex" flexDirection="column" alignItems="center" sx={{ mt: -2, width: '100%' }}>
+            <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 'bold' }}>
+              Correlation Strength
+            </Typography>
+
+            <Box
+              sx={{
+                width: 300,
+                height: 16,
+                background: 'linear-gradient(to right, rgb(255,99,132) 0%, rgb(255,206,86) 50%, rgb(54,162,235) 100%)',
+                borderRadius: 2,
+                border: '1px solid #ccc',
+                mx: 2
+              }}
+            />
+            <Box mt={0.5} width={320} display="flex" flexDirection="row" justifyContent="space-between">
+              <Typography variant="caption" sx={{ 
+                color: forExport ? '#111' : theme.palette.text.primary, 
+                fontWeight: 'bold' 
+              }}>-1</span>
+              <span style={{ 
+                color: forExport ? '#111' : theme.palette.text.primary, 
+                fontWeight: 'bold' 
+              }}>0</span>
+              <span style={{ 
+                color: forExport ? '#111' : theme.palette.text.primary, 
+                fontWeight: 'bold' 
+              }}>+1</span>
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Settings />}
+              onClick={() => handleOpenCustomize(chartId)}
+            >
+              Customize
+            </Button>
+          </Box>
+        </Box>
+      );
+    }
+    switch (type) {
+      case 'bar':
+        return (
+          <Box sx={{ height: '400px', width: '100%' }}>
+            <Bar {...chartProps} />
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Settings />}
+                onClick={() => handleOpenCustomize(chartId)}
+              >
+                Customize
+              </Button>
+            </Box>
+          </Box>
+        );
+      case 'horizontalBar':
+        return (
+          <Box sx={{ height: '400px', width: '100%' }}>
+            <Bar {...chartProps} options={{ 
+              ...chartProps.options, 
+              indexAxis: 'y',
+              plugins: {
+                ...chartProps.options.plugins,
+                title: {
+                  display: true,
+                  text: getDefaultChartTitle(type, selectedCols)
                 }
               },
               scales: {
@@ -1129,475 +1379,275 @@ const AnalysisPage = () => {
                 }
               }
             }} />
-          </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
-            <Button
-              variant="outlined"
-              size="medium"
-              startIcon={<Settings />}
-              onClick={() => handleOpenCustomize(chartId)}
-              sx={{ borderRadius: 2, px: 3, py: 1 }}
-            >
-              Customize Chart
-            </Button>
-          </Box>
-        </Box>
-      );
-    }
-    if (type === 'correlation') {
-      if (!data || !data.datasets || !data.datasets[0].data.length) return null;
-      const matrixOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        layout: {
-          padding: {
-            top: 40,    
-            bottom: 150,  // Even larger bottom padding for bigger fonts
-            left: 120,    // Even larger left padding for bigger fonts
-            right: 40
-          }
-        },
-        plugins: {
-          legend: { display: false },
-          title: {
-            display: !!customTitle,
-            text: customTitle || 'Correlation Heatmap',
-            font: { size: 16, weight: 'bold' },
-            padding: { top: 10, bottom: 20 },
-            color: forExport ? '#111' : theme.palette.text.primary
-          },
-          tooltip: { enabled: false },
-          datalabels: {
-            display: true,
-            color: forExport ? '#111' : (theme.palette.mode === 'dark' ? 'white' : 'black'),
-            font: { weight: 'bold', size: 11 },
-            formatter: (value, ctx) => (ctx.raw && typeof ctx.raw.v === 'number' ? ctx.raw.v.toFixed(2) : ''),
-          },
-        },
-        elements: {
-          point: {
-            radius: 0
-          }
-        },
-        scales: {
-          x: {
-            type: 'category',
-            labels: data.labels,
-            position: 'bottom',
-            offset: true,
-            border: {
-              display: false
-            },
-            title: { 
-              display: false
-            },
-            grid: { 
-              display: false,
-              drawBorder: false
-            },
-            ticks: { 
-              font: { size: 11, weight: 'bold' }, 
-              color: forExport ? '#111' : theme.palette.text.primary, 
-              autoSkip: false, 
-              maxRotation: 45, 
-              minRotation: 45,
-              padding: 30,  // Increased padding for larger font
-              includeBounds: false,
-              callback: function(value, index, values) {
-                const label = this.getLabelForValue(value);
-                return label.length > 12 ? label.substring(0, 12) + '...' : label;
-              }
-            }
-          },
-          y: {
-            type: 'category',
-            labels: data.labels,
-            position: 'left',
-            offset: true,
-            border: {
-              display: false
-            },
-            title: { 
-              display: false
-            },
-            grid: { 
-              display: false,
-              drawBorder: false
-            },
-            ticks: { 
-              font: { size: 11, weight: 'bold' }, 
-              color: forExport ? '#111' : theme.palette.text.primary, 
-              autoSkip: false,
-              padding: 30,  // Increased padding for larger font
-              includeBounds: false,
-              callback: function(value, index, values) {
-                const label = this.getLabelForValue(value);
-                return label.length > 12 ? label.substring(0, 12) + '...' : label;
-              }
-            }
-          }
-        }
-      };
-      return (
-        <Box sx={{ width: '100%', minHeight: '950px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <Box sx={{ height: '800px', width: '100%', mb: 0, overflow: 'visible', pb: 0 }}>  
-            <ChartJS2 {...chartProps} type="matrix" options={matrixOptions} plugins={[ChartDataLabels]} />
-          </Box>
-          {/* Color legend for correlation heatmap */}
-          <Box display="flex" flexDirection="column" alignItems="center" sx={{ mt: -2, width: '100%' }}>
-            <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 'bold' }}>
-              Correlation Strength
-            </Typography>
-            <Box
-              sx={{
-                width: 320,
-                height: 20,
-                background: 'linear-gradient(to right, rgb(255,99,132) 0%, rgb(255,206,86) 50%, rgb(54,162,235) 100%)',
-                borderRadius: 3,
-                border: '2px solid #ccc',
-                mx: 2
-              }}
-            />
-            <Box mt={0.5} width={320} display="flex" flexDirection="row" justifyContent="space-between">
-              <Typography variant="caption" sx={{ 
-                color: forExport ? '#111' : theme.palette.text.primary, 
-                fontWeight: 'bold',
-                fontSize: '0.875rem'
-              }}>-1 (Strong Negative)</Typography>
-              <Typography variant="caption" sx={{ 
-                color: forExport ? '#111' : theme.palette.text.primary, 
-                fontWeight: 'bold',
-                fontSize: '0.875rem'
-              }}>0 (No Correlation)</Typography>
-              <Typography variant="caption" sx={{ 
-                color: forExport ? '#111' : theme.palette.text.primary, 
-                fontWeight: 'bold',
-                fontSize: '0.875rem'
-              }}>+1 (Strong Positive)</Typography>
-            </Box>
-          </Box>
-          {/* Customize button moved to bottom with proper spacing */}
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-            <Button
-              variant="outlined"
-              size="medium"
-              startIcon={<Settings />}
-              onClick={() => handleOpenCustomize(chartId)}
-              sx={{ 
-                borderRadius: 2,
-                px: 3,
-                py: 1
-              }}
-            >
-              Customize Chart
-            </Button>
-          </Box>
-        </Box>
-      );
-    }
-    switch (type) {
-      case 'bar':
-        return (
-          <Box sx={{ width: '100%', minHeight: '480px' }}>
-            <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
-              <Bar {...chartProps} />
-            </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
+
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
               <Button
                 variant="outlined"
-                size="medium"
+                size="small"
                 startIcon={<Settings />}
                 onClick={() => handleOpenCustomize(chartId)}
-                sx={{ borderRadius: 2, px: 3, py: 1 }}
               >
-                Customize Chart
-              </Button>
-            </Box>
-          </Box>
-        );
-      case 'horizontalBar':
-        return (
-          <Box sx={{ width: '100%', minHeight: '480px' }}>
-            <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
-              <Bar {...chartProps} options={{ 
-                ...chartProps.options, 
-                indexAxis: 'y',
-                scales: {
-                  ...chartProps.options.scales,
-                  x: {
-                    ...chartProps.options.scales.x,
-                    title: {
-                      display: true,
-                      text: axisLabels.x,
-                      color: forExport ? '#111' : '#fff',
-                      font: { size: 14, weight: 'bold' }
-                    }
-                  },
-                  y: {
-                    ...chartProps.options.scales.y,
-                    title: {
-                      display: true,
-                      text: axisLabels.y,
-                      color: forExport ? '#111' : '#fff',
-                      font: { size: 14, weight: 'bold' }
-                    }
-                  }
-                }
-              }} />
-            </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
-              <Button
-                variant="outlined"
-                size="medium"
-                startIcon={<Settings />}
-                onClick={() => handleOpenCustomize(chartId)}
-                sx={{ borderRadius: 2, px: 3, py: 1 }}
-              >
-                Customize Chart
+                Customize
               </Button>
             </Box>
           </Box>
         );
       case 'pie':
         return (
-          <Box sx={{ width: '100%', minHeight: '480px' }}>
-            <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
-              <Pie {...chartProps} options={{
-                ...chartProps.options,
-                plugins: {
-                  ...chartProps.options.plugins,
-                  datalabels: { color: forExport ? '#111' : theme.palette.text.primary, font: { weight: 'bold', size: 16 } }
-                }
-              }} plugins={[ChartDataLabels]} />
-            </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
+          <Box sx={{ height: '400px', width: '100%' }}>
+            <Pie {...chartProps} options={{
+              ...chartProps.options,
+              plugins: {
+                ...chartProps.options.plugins,
+                title: {
+                  display: true,
+                  text: getDefaultChartTitle(type, selectedCols)
+                },
+                datalabels: { color: forExport ? '#111' : theme.palette.text.primary, font: { weight: 'bold', size: 16 } }
+              }
+            }} plugins={[ChartDataLabels]} />
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
               <Button
                 variant="outlined"
-                size="medium"
+                size="small"
                 startIcon={<Settings />}
                 onClick={() => handleOpenCustomize(chartId)}
-                sx={{ borderRadius: 2, px: 3, py: 1 }}
               >
-                Customize Chart
+                Customize
               </Button>
             </Box>
           </Box>
         );
       case 'donut':
         return (
-          <Box sx={{ width: '100%', minHeight: '480px' }}>
-            <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
-              <Doughnut {...chartProps} options={{
-                ...chartProps.options,
-                plugins: {
-                  ...chartProps.options.plugins,
-                  datalabels: { color: forExport ? '#111' : theme.palette.text.primary, font: { weight: 'bold', size: 16 } }
-                }
-              }} plugins={[ChartDataLabels]} />
-            </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
+          <Box sx={{ height: '400px', width: '100%' }}>
+            <Doughnut {...chartProps} options={{
+              ...chartProps.options,
+              plugins: {
+                ...chartProps.options.plugins,
+                title: {
+                  display: true,
+                  text: getDefaultChartTitle(type, selectedCols)
+                },
+                datalabels: { color: forExport ? '#111' : theme.palette.text.primary, font: { weight: 'bold', size: 16 } }
+              }
+            }} plugins={[ChartDataLabels]} />
+
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
               <Button
                 variant="outlined"
-                size="medium"
+                size="small"
                 startIcon={<Settings />}
                 onClick={() => handleOpenCustomize(chartId)}
-                sx={{ borderRadius: 2, px: 3, py: 1 }}
               >
-                Customize Chart
+                Customize
               </Button>
             </Box>
           </Box>
         );
       case 'histogram':
         return (
-          <Box sx={{ width: '100%', minHeight: '480px' }}>
-            <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
-              <Bar {...chartProps} options={{
-                ...chartProps.options,
-                scales: {
-                  ...chartProps.options.scales,
-                  x: {
-                    ...chartProps.options.scales.x,
-                    title: {
-                      display: true,
-                      text: axisLabels.x,
-                      color: forExport ? '#111' : '#fff',
-                      font: { size: 14, weight: 'bold' }
-                    }
-                  },
-                  y: {
-                    ...chartProps.options.scales.y,
-                    title: {
-                      display: true,
-                      text: axisLabels.y,
-                      color: forExport ? '#111' : '#fff',
-                      font: { size: 14, weight: 'bold' }
-                    }
+          <Box sx={{ height: '400px', width: '100%' }}>
+            <Bar {...chartProps} options={{
+              ...chartProps.options,
+              plugins: {
+                ...chartProps.options.plugins,
+                title: {
+                  display: true,
+                  text: getDefaultChartTitle(type, selectedCols)
+                }
+              },
+              scales: {
+                ...chartProps.options.scales,
+                x: {
+                  ...chartProps.options.scales.x,
+                  title: {
+                    display: true,
+                    text: axisLabels.x,
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
+                  }
+                },
+                y: {
+                  ...chartProps.options.scales.y,
+                  title: {
+                    display: true,
+                    text: axisLabels.y,
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
                   }
                 }
-              }} />
-            </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
+              }
+            }} />
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
               <Button
                 variant="outlined"
-                size="medium"
+                size="small"
                 startIcon={<Settings />}
                 onClick={() => handleOpenCustomize(chartId)}
-                sx={{ borderRadius: 2, px: 3, py: 1 }}
               >
-                Customize Chart
+                Customize
               </Button>
             </Box>
           </Box>
         );
       case 'box':
         return (
-          <Box sx={{ width: '100%', minHeight: '480px' }}>
-            <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
-              <div data-chart-type="box" data-chart-id={chartId}>
-                <Plot
-                  data={[ 
-                    {
-                      y: data.raw,
-                      type: 'box',
-                      name: data.labels[0],
-                      boxpoints: 'outliers',
-                      marker: { color: 'rgba(54, 162, 235, 0.5)' },
-                      text: data.raw.map(() => ''),
-                      hoverinfo: 'y+name',
-                      hovertemplate: 
-                        '<b>%{fullData.name}</b><br>' +
-                        'Value: %{y}<br>' +
-                        '<extra></extra>'
-                    }
-                  ]}
+          <Box sx={{ height: '400px', width: '100%' }}>
+            <div data-chart-type="box" data-chart-id={chartId}>
+              <Plot
+                data={[ 
+                  {
+                    y: data.raw,
+                    type: 'box',
+                    name: data.labels[0],
+                    boxpoints: 'outliers',
+                    marker: { color: 'rgba(54, 162, 235, 0.5)' },
+                    text: data.raw.map(() => ''),
+                    hoverinfo: 'y+name',
+                    hovertemplate: 
+                      '<b>%{fullData.name}</b><br>' +
+                      'Value: %{y}<br>' +
+                      '<extra></extra>'
+                  }
+                ]}
 
-                         layout={{
-                  title: {
-                    text: customTitle || `Box Plot of ${data.labels[0]}`,
-                    font: { size: 16, color: theme.palette.text.primary }
-                  },
-                  xaxis: { title: axisLabels.x || 'Distribution' },
-                  yaxis: { title: axisLabels.y || `${data.labels[0]} (Value)` },
-                    paper_bgcolor: 'transparent',
-                    plot_bgcolor: 'transparent',
-                    font: { color: theme.palette.text.primary },
-                    annotations: [
-                      {
-                        x: 0.5,
-                        y: 1.02,
-                        xref: 'paper',
-                        yref: 'paper',
-                        text: `Min: ${Math.min(...data.raw).toFixed(2)} | Q1: ${data.datasets[0].data[0].q1.toFixed(2)} | Median: ${data.datasets[0].data[0].median.toFixed(2)} | Q3: ${data.datasets[0].data[0].q3.toFixed(2)} | Max: ${Math.max(...data.raw).toFixed(2)}`,
-                        showarrow: false,
-                        font: { 
-                          size: 12, 
-                          color: theme.palette.text.primary 
-                        },
-                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)',
-                        bordercolor: theme.palette.divider,
-                        borderwidth: 1
-                      }
-                    ]
-                  }}
-                  style={{ width: '100%', height: 400 }}
-                  config={{ displayModeBar: false }}
-                />
-              </div>
-            </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
+                       layout={{
+                title: {
+                  text: getDefaultChartTitle(type, selectedCols),
+                  font: { size: 16, color: theme.palette.text.primary }
+                },
+                xaxis: { title: axisLabels.x || 'Distribution' },
+                yaxis: { title: axisLabels.y || `${data.labels[0]} (Value)` },
+                  paper_bgcolor: 'transparent',
+                  plot_bgcolor: 'transparent',
+                  font: { color: theme.palette.text.primary },
+                  annotations: [
+                    {
+                      x: 0.5,
+                      y: 1.02,
+                      xref: 'paper',
+                      yref: 'paper',
+                      text: `Min: ${Math.min(...data.raw).toFixed(2)} | Q1: ${data.datasets[0].data[0].q1.toFixed(2)} | Median: ${data.datasets[0].data[0].median.toFixed(2)} | Q3: ${data.datasets[0].data[0].q3.toFixed(2)} | Max: ${Math.max(...data.raw).toFixed(2)}`,
+                      showarrow: false,
+                      font: { 
+                        size: 12, 
+                        color: theme.palette.text.primary 
+                      },
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)',
+                      bordercolor: theme.palette.divider,
+                      borderwidth: 1
+                    }
+                  ]
+                }}
+                style={{ width: '100%', height: 400 }}
+                config={{ displayModeBar: false }}
+              />
+            </div>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
               <Button
                 variant="outlined"
-                size="medium"
+                size="small"
                 startIcon={<Settings />}
                 onClick={() => handleOpenCustomize(chartId)}
-                sx={{ borderRadius: 2, px: 3, py: 1 }}
               >
-                Customize Chart
+                Customize
               </Button>
             </Box>
           </Box>
         );
       case 'scatter':
         return (
-          <Box sx={{ width: '100%', minHeight: '480px' }}>
-            <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
-              <Scatter {...chartProps} options={{
-                ...chartProps.options,
-                scales: {
-                  ...chartProps.options.scales,
-                  x: {
-                    ...chartProps.options.scales.x,
-                    title: {
-                      display: true,
-                      text: axisLabels.x,
-                      color: forExport ? '#111' : '#fff',
-                      font: { size: 14, weight: 'bold' }
-                    }
-                  },
-                  y: {
-                    ...chartProps.options.scales.y,
-                    title: {
-                      display: true,
-                      text: axisLabels.y,
-                      color: forExport ? '#111' : '#fff',
-                      font: { size: 14, weight: 'bold' }
-                    }
+
+          <Box sx={{ height: '450px', width: '100%' }}>
+            <Scatter {...chartProps} options={{
+              ...chartProps.options,
+              plugins: {
+                ...chartProps.options.plugins,
+                title: {
+                  display: true,
+                  text: getDefaultChartTitle(type, selectedCols),
+                  color: '#ffffff',
+                  font: { size: 16, weight: 'bold' },
+                  padding: { top: 10, bottom: 10 }
+                }
+              },
+              scales: {
+                ...chartProps.options.scales,
+                x: {
+                  ...chartProps.options.scales.x,
+                  title: {
+                    display: true,
+                    text: axisLabels.x,
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
+                  }
+                },
+                y: {
+                  ...chartProps.options.scales.y,
+                  title: {
+                    display: true,
+                    text: axisLabels.y,
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
                   }
                 }
-              }} />
-            </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
+              }
+            }} />
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
               <Button
                 variant="outlined"
-                size="medium"
+                size="small"
                 startIcon={<Settings />}
                 onClick={() => handleOpenCustomize(chartId)}
-                sx={{ borderRadius: 2, px: 3, py: 1 }}
               >
-                Customize Chart
+                Customize
               </Button>
             </Box>
           </Box>
         );
       case 'line':
         return (
-          <Box sx={{ width: '100%', minHeight: '480px' }}>
-            <Box sx={{ height: '400px', width: '100%', mb: 2 }}>
-              <Line {...chartProps} options={{
-                ...chartProps.options,
-                scales: {
-                  ...chartProps.options.scales,
-                  x: {
-                    ...chartProps.options.scales.x,
-                    title: {
-                      display: true,
-                      text: axisLabels.x,
-                      color: forExport ? '#111' : '#fff',
-                      font: { size: 14, weight: 'bold' }
-                    }
-                  },
-                  y: {
-                    ...chartProps.options.scales.y,
-                    title: {
-                      display: true,
-                      text: axisLabels.y,
-                      color: forExport ? '#111' : '#fff',
-                      font: { size: 14, weight: 'bold' }
-                    }
+          <Box sx={{ height: '400px', width: '100%' }}>
+            <Line {...chartProps} options={{
+              ...chartProps.options,
+              plugins: {
+                ...chartProps.options.plugins,
+                title: {
+                  display: true,
+                  text: getDefaultChartTitle(type, selectedCols)
+                }
+              },
+              scales: {
+                ...chartProps.options.scales,
+                x: {
+                  ...chartProps.options.scales.x,
+                  title: {
+                    display: true,
+                    text: axisLabels.x,
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
+                  }
+                },
+                y: {
+                  ...chartProps.options.scales.y,
+                  title: {
+                    display: true,
+                    text: axisLabels.y,
+                    color: forExport ? '#111' : '#fff',
+                    font: { size: 14, weight: 'bold' }
                   }
                 }
-              }} />
-            </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
+              }
+            }} />
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2 }}>
               <Button
                 variant="outlined"
-                size="medium"
+                size="small"
                 startIcon={<Settings />}
                 onClick={() => handleOpenCustomize(chartId)}
-                sx={{ borderRadius: 2, px: 3, py: 1 }}
               >
-                Customize Chart
+                Customize
               </Button>
             </Box>
           </Box>
@@ -1644,6 +1694,7 @@ const AnalysisPage = () => {
               }
             });
           }).catch(error => {
+            console.error('Error capturing KPI screenshot:', error);
             alert('Failed to capture KPI image. Please try again.');
           }).finally(() => {
             setChartCapturing(false);
@@ -1687,6 +1738,7 @@ const AnalysisPage = () => {
                                     document.querySelector('.js-plotly-plot');
               
               if (plotlyContainer) {
+                console.log('Found Plotly container for chart:', chartId);
                 const canvas = await html2canvas(plotlyContainer, {
                   backgroundColor: null,
                   scale: 2,
@@ -1695,11 +1747,12 @@ const AnalysisPage = () => {
                   allowTaint: true
                 });
                 image_base64 = canvas.toDataURL('image/png');
+                console.log('Successfully captured Plotly chart');
               } else {
-                // Could not find Plotly container for chart
+                console.error('Could not find Plotly container for chart:', chartId);
               }
             } catch (e) {
-              // Plotly capture error
+              console.error('Plotly capture error:', e);
             }
           } else {
             // Try multiple methods to get the canvas for Chart.js charts
@@ -1722,7 +1775,7 @@ const AnalysisPage = () => {
               try {
                 image_base64 = canvas.toDataURL('image/png');
               } catch (e) {
-                // Canvas capture error
+                console.error('Canvas capture error:', e);
               }
             }
           }
@@ -1753,6 +1806,7 @@ const AnalysisPage = () => {
             });
           }
         } catch (error) {
+          console.error('Error capturing chart:', error);
           alert('Failed to capture chart image. Please try again.');
         } finally {
           setExportingChartId(null);
@@ -2496,53 +2550,35 @@ const AnalysisPage = () => {
               sx={{ mt: 2 }}
               disabled={chartType === 'correlation' ? chartColumns.length < 2 : !isValidSelection}
               onClick={() => {
+                // Before generating the chart, add debug print
+                console.log('DEBUG: chartType', chartType, 'chartColumns', chartColumns);
                 setShowChart(true);
               }}
             >
               Generate Chart
             </Button>
             {shouldShowChart && chartType && ((chartType === 'correlation' && chartColumns.length >= 2) || (chartType !== 'correlation' && isValidSelection)) && (
-              <Box mt={4} sx={{ 
-                maxWidth: chartType === 'correlation' ? '1000px' : '800px', 
-                minHeight: chartType === 'correlation' ? '800px' : 'auto', 
-                mx: 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 3
-              }}>
-                <Box sx={{ flex: 1 }}>
-                  {renderChart(chartType, chartColumns.filter(Boolean), exportingChartId === getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder), getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder))}
-                </Box>
-                {/* Add to Report button with proper spacing */}
-                <Box sx={{ 
-                  display: 'flex', 
-                  justifyContent: 'center', 
-                  alignItems: 'center',
-                  mt: chartType === 'correlation' ? 2 : 3,
-                  pt: 2,
-                  borderTop: `1px solid ${theme.palette.divider}`
-                }}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={!!chartsToReport[getChartId(chartType, chartColumns.filter(Boolean))]?.selected}
-                        onChange={e => handleAddToReport(chartType, chartColumns.filter(Boolean), e.target.checked)}
-                        sx={{ 
-                          color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
-                          '&.Mui-checked': { 
-                            color: theme.palette.mode === 'dark' ? '#1976d2' : '#1976d2'
-                          }
-                        }}
-                      />
-                    }
-                    label="Add to Report"
-                    sx={{ 
-                      color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.7)',
-                      fontSize: '1rem',
-                      fontWeight: 500
-                    }}
-                  />
-                </Box>
+              <Box mt={4} sx={{ maxWidth: '800px', minHeight: chartType === 'correlation' ? '700px' : 'auto', mx: 'auto' }}>
+                {renderChart(chartType, chartColumns.filter(Boolean), exportingChartId === getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder), getChartId(chartType, chartColumns.filter(Boolean), filterTop, sortOrder))}
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={!!chartsToReport[getChartId(chartType, chartColumns.filter(Boolean))]?.selected}
+                      onChange={e => handleAddToReport(chartType, chartColumns.filter(Boolean), e.target.checked)}
+                      sx={{ 
+                        color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
+                        '&.Mui-checked': { 
+                          color: theme.palette.mode === 'dark' ? '#1976d2' : '#1976d2'
+                        }
+                      }}
+                    />
+                  }
+                  label="Add to Report"
+                  sx={{ 
+                    mt: 2,
+                    color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.7)'
+                  }}
+                />
               </Box>
             )}
           </>
@@ -2852,12 +2888,6 @@ const AnalysisPage = () => {
         <DialogTitle>Customize Chart</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              label="Chart Title"
-              value={tempCustomOptions.title || ''}
-              onChange={e => handleCustomizeChange('title', e.target.value)}
-              fullWidth
-            />
             <FormControlLabel
               control={
                 <Checkbox
@@ -2927,7 +2957,7 @@ const AnalysisPage = () => {
               delete updated[customizeChartId];
               return updated;
             });
-            setTempCustomOptions({ title: '', legend: true, grid: true, palette: 'default' });
+            setTempCustomOptions({ legend: true, grid: true, palette: 'default' });
           }}>Reset</Button>
           <Button onClick={handleCloseCustomize}>Cancel</Button>
           <Button onClick={handleSaveCustomize} variant="contained">Save</Button>
