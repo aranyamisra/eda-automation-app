@@ -22,7 +22,9 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB limit
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
+# CORS configuration for production
+allowed_origins = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:5173').split(',')
+CORS(app, resources={r"/*": {"origins": allowed_origins}}, supports_credentials=True)
 
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {'csv', 'xlsx', 'xls', 'json'}
@@ -935,4 +937,8 @@ def download_cleaned():
     )
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    # Use environment variable for port, default to 5001
+    port = int(os.environ.get('PORT', 5001))
+    # Only run in debug mode if explicitly set
+    debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    app.run(debug=debug, host='0.0.0.0', port=port)

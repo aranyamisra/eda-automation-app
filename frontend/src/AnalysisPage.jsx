@@ -157,8 +157,8 @@ function getCompatibleCharts(selectedColumns, columns) {
   if (num === 2 && cat === 0 && dt === 0) charts.push('scatter');
   // Line Chart
   if ((dt === 1 && num === 1) || (num === 1 && cat === 0 && dt === 0) || (num === 2 && cat === 0 && dt === 0)) charts.push('line');
-  // Correlation heatmap
-  if (num === selectedColumns.length && num >= 2) charts.push('correlation');
+  // Correlation heatmap - suggest if there are at least 2 numerical columns (regardless of other column types)
+  if (num >= 2) charts.push('correlation');
   return [...new Set(charts)];
 }
 
@@ -283,7 +283,8 @@ const AnalysisPage = () => {
 
   useEffect(() => {
     setLoading(true);
-    axios.get('http://localhost:5001/analysis', { withCredentials: true })
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+        axios.get(`${backendUrl}/analysis`, { withCredentials: true })
       .then(res => {
         // Patch: If any column has dtype 'bool' or group is missing, set group to 'Boolean'
         const patchedColumns = (res.data.columns || []).map(col => {
@@ -1278,10 +1279,16 @@ const AnalysisPage = () => {
         }
       };
       return (
-        <Box sx={{ height: '480px', width: '100%' }}>
-          <ChartJS2 {...chartProps} type="matrix" options={matrixOptions} plugins={[ChartDataLabels]} />
+        <Box sx={{ width: '100%', minHeight: '950px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Box sx={{ height: '800px', width: '100%', mb: 0, overflow: 'visible', pb: 0 }}>  
+            <ChartJS2 {...chartProps} type="matrix" options={matrixOptions} plugins={[ChartDataLabels]} />
+          </Box>
           {/* Color legend for correlation heatmap */}
-          <Box mt={2} display="flex" flexDirection="column" alignItems="center" justifyContent="center">
+          <Box display="flex" flexDirection="column" alignItems="center" sx={{ mt: -2, width: '100%' }}>
+            <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 'bold' }}>
+              Correlation Strength
+            </Typography>
+
             <Box
               sx={{
                 width: 300,
@@ -1292,8 +1299,8 @@ const AnalysisPage = () => {
                 mx: 2
               }}
             />
-            <Box mt={0.5} width={300} display="flex" flexDirection="row" justifyContent="space-between">
-              <span style={{ 
+            <Box mt={0.5} width={320} display="flex" flexDirection="row" justifyContent="space-between">
+              <Typography variant="caption" sx={{ 
                 color: forExport ? '#111' : theme.palette.text.primary, 
                 fontWeight: 'bold' 
               }}>-1</span>
@@ -1986,6 +1993,15 @@ const AnalysisPage = () => {
 
   const shouldShowChart = showChart || chartCapturing;
 
+  // Helper function to check if correlation heatmap can be generated
+  function canGenerateCorrelationHeatmap(selectedCols, cols) {
+    const numCols = selectedCols.filter(col => {
+      const colObj = cols.find(c => c.name === col);
+      return colObj && colObj.group === 'Numerical';
+    });
+    return numCols.length >= 2;
+  }
+
   return (
     <Box sx={{ 
       minHeight: '100vh', 
@@ -2323,11 +2339,19 @@ const AnalysisPage = () => {
                 </Grid>
               </Paper>
             )}
-            {selectedChart && (
+            {selectedChart && (selectedChart !== 'correlation' || canGenerateCorrelationHeatmap(selectedColumns, columns)) && (
               <Button variant="contained" sx={{ mt: 2 }} onClick={() => setShowChart(true)}>Generate Chart</Button>
             )}
-            {shouldShowChart && selectedChart && selectedColumns.length > 0 && (
-              <Box mt={4} sx={{ maxWidth: '800px', maxHeight: '500px', mx: 'auto' }}>
+            {shouldShowChart && selectedChart && selectedColumns.length > 0 && (selectedChart !== 'correlation' || canGenerateCorrelationHeatmap(selectedColumns, columns)) && (
+              <Box mt={4} sx={{ 
+                maxWidth: selectedChart === 'correlation' ? '1000px' : '800px', 
+                minHeight: selectedChart === 'correlation' ? '800px' : 'auto',
+                maxHeight: selectedChart === 'correlation' ? 'none' : '500px',
+                mx: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: selectedChart === 'correlation' ? 3 : 0
+              }}>
                 {renderChart(selectedChart, selectedColumns, exportingChartId === getChartId(selectedChart, selectedColumns, filterTop, sortOrder), getChartId(selectedChart, selectedColumns, filterTop, sortOrder))}
                 <FormControlLabel
                   control={
@@ -2882,7 +2906,7 @@ const AnalysisPage = () => {
               }
               label="Show Gridlines"
             />
-            {/* Color scheme dropdown (placeholder) */}
+            {/* Color scheme dropdown */}
             <FormControl fullWidth>
               <InputLabel>Color Scheme</InputLabel>
               <Select
@@ -2896,24 +2920,34 @@ const AnalysisPage = () => {
                 <MenuItem value="dark">Dark</MenuItem>
               </Select>
             </FormControl>
-            {/* Color pickers for each dataset */}
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>Custom Color</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-                <SketchPicker
-                  color={tempCustomOptions.colors?.[0] || '#36a2eb'}
-                  onChange={c => handleColorChange(0, c.hex)}
-                  presetColors={['#36a2eb', '#ff6384', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40']}
-                  disableAlpha
-                />
-                <TextField
-                  label={`Color Code`}
-                  value={tempCustomOptions.colors?.[0] || ''}
-                  onChange={e => handleColorChange(0, e.target.value)}
-                  sx={{ width: 140 }}
-                />
-              </Box>
-            </Box>
+            {/* Custom Color picker - only show for charts that support custom color customization */}
+            {(() => {
+              const chartType = customizeChartId ? customizeChartId.split(':')[0] : '';
+              const chartsWithoutCustomColor = ['pie', 'donut', 'box', 'groupedBar', 'stackedBar', 'correlation'];
+              
+              if (!chartsWithoutCustomColor.includes(chartType)) {
+                return (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Custom Color</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                      <SketchPicker
+                        color={tempCustomOptions.colors?.[0] || '#36a2eb'}
+                        onChange={c => handleColorChange(0, c.hex)}
+                        presetColors={['#36a2eb', '#ff6384', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40']}
+                        disableAlpha
+                      />
+                      <TextField
+                        label={`Color Code`}
+                        value={tempCustomOptions.colors?.[0] || ''}
+                        onChange={e => handleColorChange(0, e.target.value)}
+                        sx={{ width: 140 }}
+                      />
+                    </Box>
+                  </Box>
+                );
+              }
+              return null;
+            })()}
           </Box>
         </DialogContent>
         <DialogActions>
